@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Artsider — Katalog Kubków</title>
+    <title>Artsider</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,wght@0,300;0,600;1,300&display=swap" rel="stylesheet">
     <style>
     :root {
         --bg: #F5F2EC;
         --bg2: #EDEAE1;
-        --surface: #FFFFFF;
+        --surface: #fff;
         --ink: #1A1714;
         --ink2: #6B6760;
         --ink3: #A8A5A0;
@@ -18,6 +18,7 @@
         --accent2: #E8855F;
         --border: #D8D4CC;
         --green: #639922;
+        --blue: #185FA5;
         --radius: 14px;
         --fh: 'Fraunces', Georgia, serif;
         --fm: 'DM Mono', monospace;
@@ -35,8 +36,7 @@
         font-family: var(--fm);
         font-size: 13px;
         min-height: 100vh;
-    }
-
+    }/* NAV */
     nav {
         background: var(--ink);
         display: flex;
@@ -72,9 +72,9 @@
     }
 
     .nav-tab {
-        padding: 14px 14px;
+        padding: 14px 12px;
         font-family: var(--fm);
-        font-size: 12px;
+        font-size: 11px;
         color: var(--ink3);
         cursor: pointer;
         border: none;
@@ -95,7 +95,7 @@
     }
 
     .nav-cfg {
-        padding: 14px 16px;
+        padding: 14px 14px;
         color: var(--ink3);
         cursor: pointer;
         font-size: 16px;
@@ -110,9 +110,8 @@
 
     .page.active {
         display: block;
-    }/* FILTERS */
-
-    .kubki-header {
+    }/* DARK HEADER */
+    .dark-header {
         background: var(--ink);
         padding: 12px 16px 0;
     }
@@ -142,7 +141,7 @@
         text-transform: uppercase;
     }
 
-    select {
+    .dark-select {
         background: #2A2724;
         color: var(--bg);
         border: 1px solid #3D3A36;
@@ -158,7 +157,7 @@
         background-position: right 8px center;
     }
 
-    select:focus {
+    .dark-select:focus {
         border-color: var(--accent2);
     }
 
@@ -211,8 +210,7 @@
         background: var(--accent);
         border-color: var(--accent);
         color: white;
-    }
-
+    }/* STATS */
     .stats-bar {
         display: flex;
         padding: 10px 16px 0;
@@ -224,13 +222,13 @@
         background: var(--surface);
         border: 1px solid var(--border);
         border-radius: 10px;
-        padding: 8px 10px;
+        padding: 8px 6px;
         text-align: center;
     }
 
     .stat-val {
         font-family: var(--fh);
-        font-size: 22px;
+        font-size: 20px;
         font-weight: 600;
         display: block;
         line-height: 1;
@@ -239,12 +237,11 @@
     .stat-lbl {
         font-size: 9px;
         color: var(--ink3);
-        letter-spacing: .08em;
+        letter-spacing: .06em;
         text-transform: uppercase;
         margin-top: 2px;
         display: block;
-    }
-
+    }/* CARDS */
     .list {
         padding: 10px 16px 80px;
         display: flex;
@@ -275,6 +272,13 @@
         align-items: center;
         justify-content: center;
         font-size: 26px;
+        overflow: hidden;
+    }
+
+    .card-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
     }
 
     .card-body {
@@ -354,6 +358,12 @@
         color: #7A3D0F;
     }
 
+    .tag-term {
+        background: #FBF0EA;
+        border-color: #F0B8A8;
+        color: #7A1F0F;
+    }
+
     .card-stock {
         position: absolute;
         right: 12px;
@@ -384,11 +394,13 @@
         background: #A32D2D;
     }
 
-    .stock-order {
+    .card-date {
+        position: absolute;
+        right: 12px;
+        top: 10px;
         font-size: 10px;
         color: var(--ink3);
     }/* DRAWER */
-
     .overlay {
         display: none;
         position: fixed;
@@ -413,7 +425,7 @@
         z-index: 201;
         transform: translateY(100%);
         transition: transform .3s cubic-bezier(.32, .72, 0, 1);
-        max-height: 85vh;
+        max-height: 90vh;
         overflow-y: auto;
     }
 
@@ -431,12 +443,12 @@
 
     .drawer-title {
         font-family: var(--fh);
-        font-size: 24px;
+        font-size: 22px;
         font-weight: 600;
         margin-bottom: 4px;
     }
 
-    .drawer-artist {
+    .drawer-sub {
         font-size: 12px;
         color: var(--ink3);
         margin-bottom: 20px;
@@ -514,8 +526,51 @@
         margin-top: 5px;
         font-size: 11px;
         color: var(--accent2);
-    }/* FORMULARZ */
+    }/* PRZYJMIJ DO MAGAZYNU */
+    .accept-form {
+        background: var(--bg);
+        border: 1.5px solid var(--border);
+        border-radius: 12px;
+        padding: 14px;
+        margin-top: 8px;
+    }
 
+    .accept-title {
+        font-size: 12px;
+        font-weight: 500;
+        margin-bottom: 12px;
+        color: var(--ink2);
+    }
+
+    .accept-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px;
+    }
+
+    .accept-label {
+        flex: 1;
+        font-size: 12px;
+        color: var(--ink2);
+    }
+
+    .accept-input {
+        width: 80px;
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: 8px;
+        padding: 7px 10px;
+        font-family: var(--fm);
+        font-size: 13px;
+        color: var(--ink);
+        outline: none;
+        text-align: center;
+    }
+
+    .accept-input:focus {
+        border-color: var(--accent);
+    }/* FORMS */
     .page-body {
         padding: 16px 16px 80px;
     }
@@ -535,7 +590,7 @@
         margin-bottom: 16px;
     }
 
-    .form-section {
+    .f-section {
         font-size: 10px;
         letter-spacing: .1em;
         text-transform: uppercase;
@@ -545,21 +600,21 @@
         border-bottom: 1px solid var(--border);
     }
 
-    .form-group {
+    .f-group {
         display: flex;
         flex-direction: column;
         gap: 5px;
         margin-bottom: 12px;
     }
 
-    .form-label {
+    .f-label {
         font-size: 10px;
         letter-spacing: .08em;
         text-transform: uppercase;
         color: var(--ink3);
     }
 
-    .form-input, .form-select {
+    .f-input, .f-select {
         background: var(--bg);
         border: 1.5px solid var(--border);
         border-radius: 8px;
@@ -572,34 +627,34 @@
         width: 100%;
     }
 
-    .form-input:focus, .form-select:focus {
+    .f-input:focus, .f-select:focus {
         border-color: var(--accent);
     }
 
-    .form-select {
+    .f-select {
         appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23A8A5A0'/%3E%3C/svg%3E");
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236B6760'/%3E%3C/svg%3E");
         background-repeat: no-repeat;
         background-position: right 12px center;
         padding-right: 32px;
     }
 
-    .form-row {
+    .f-row {
         display: flex;
         gap: 10px;
     }
 
-    .form-row .form-group {
+    .f-row .f-group {
         flex: 1;
     }
 
-    .form-hint {
+    .f-hint {
         font-size: 10px;
         color: var(--ink3);
         margin-top: 2px;
     }
 
-    .form-note {
+    .f-note {
         background: var(--bg2);
         border-radius: 8px;
         padding: 10px 12px;
@@ -607,6 +662,37 @@
         color: var(--ink2);
         margin-bottom: 12px;
         line-height: 1.6;
+    }/* FILE UPLOAD */
+    .upload-area {
+        border: 2px dashed var(--border);
+        border-radius: 10px;
+        padding: 20px;
+        text-align: center;
+        cursor: pointer;
+        transition: border-color .2s;
+        background: var(--bg);
+    }
+
+    .upload-area:hover {
+        border-color: var(--accent);
+    }
+
+    .upload-area input {
+        display: none;
+    }
+
+    .upload-preview {
+        width: 80px;
+        height: 80px;
+        border-radius: 8px;
+        object-fit: cover;
+        margin: 0 auto 8px;
+        display: block;
+    }
+
+    .upload-txt {
+        font-size: 12px;
+        color: var(--ink3);
     }
 
     .btn-primary {
@@ -633,7 +719,20 @@
         cursor: not-allowed;
     }
 
-    .form-msg {
+    .btn-secondary {
+        width: 100%;
+        background: var(--bg2);
+        color: var(--ink);
+        border: 1.5px solid var(--border);
+        border-radius: 10px;
+        padding: 11px;
+        font-family: var(--fm);
+        font-size: 13px;
+        cursor: pointer;
+        margin-top: 8px;
+    }
+
+    .f-msg {
         margin-top: 12px;
         font-size: 12px;
         text-align: center;
@@ -641,16 +740,15 @@
         line-height: 1.5;
     }
 
-    .form-msg.ok {
+    .f-msg.ok {
         color: var(--green);
     }
 
-    .form-msg.err {
+    .f-msg.err {
         color: var(--accent);
     }/* ARTYŚCI */
-
     .artysta-list {
-        padding: 12px 16px 80px;
+        padding: 0 16px 80px;
         display: flex;
         flex-direction: column;
         gap: 8px;
@@ -661,10 +759,13 @@
         border: 1.5px solid var(--border);
         border-radius: var(--radius);
         padding: 14px 16px;
+    }
+
+    .artysta-top {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: space-between;
-        gap: 12px;
+        margin-bottom: 12px;
     }
 
     .artysta-name {
@@ -679,17 +780,13 @@
         margin-top: 3px;
     }
 
-    .artysta-stats {
-        text-align: right;
-        flex-shrink: 0;
-    }
-
     .artysta-nalezne {
         font-family: var(--fh);
         font-size: 20px;
         font-weight: 600;
         color: var(--accent);
         line-height: 1;
+        text-align: right;
     }
 
     .artysta-nalezne-lbl {
@@ -698,12 +795,100 @@
         letter-spacing: .08em;
         text-transform: uppercase;
         margin-top: 2px;
+        text-align: right;
     }
 
-    .artysta-wyplacono {
-        font-size: 11px;
+    .artysta-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        margin-top: 8px;
+        padding-top: 10px;
+        border-top: 1px solid var(--border);
+    }
+
+    .astat {
+        background: var(--bg);
+        border-radius: 8px;
+        padding: 8px 10px;
+    }
+
+    .astat-val {
+        font-family: var(--fh);
+        font-size: 16px;
+        font-weight: 600;
+        line-height: 1;
+    }
+
+    .astat-lbl {
+        font-size: 9px;
         color: var(--ink3);
-        margin-top: 5px;
+        margin-top: 2px;
+        letter-spacing: .04em;
+    }
+
+    .astat.highlight {
+        background: #FEF0EB;
+    }/* KOMIS CARDS */
+    .komis-card {
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius);
+        padding: 14px 16px;
+        margin-bottom: 8px;
+    }
+
+    .komis-klient {
+        font-family: var(--fh);
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+
+    .komis-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        padding: 4px 0;
+        border-bottom: 1px solid var(--bg2);
+    }
+
+    .komis-row:last-child {
+        border-bottom: none;
+    }
+
+    .komis-key {
+        color: var(--ink3);
+    }
+
+    .komis-val {
+        font-weight: 500;
+    }
+
+    .komis-badge {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 20px;
+        font-size: 10px;
+        margin-top: 8px;
+    }
+
+    .badge-aktywny {
+        background: #EAF3DE;
+        color: #3B6D11;
+        border: 1px solid #C0DD97;
+    }
+
+    .badge-zwrocony {
+        background: #FBF3EA;
+        color: #7A3D0F;
+        border: 1px solid #F0C8A8;
+    }
+
+    .badge-sprzedany {
+        background: #EDF4FB;
+        color: #185FA5;
+        border: 1px solid #B5D4F4;
     }
 
     .state-msg {
@@ -718,7 +903,6 @@
         display: block;
         margin-bottom: 8px;
     }/* CONFIG */
-
     .cfg-modal {
         display: none;
         position: fixed;
@@ -808,13 +992,13 @@
     <div class="cfg-modal open" id="cfgModal">
         <div class="cfg-box">
             <div class="cfg-title">Konfiguracja Supabase</div>
-            <p class="cfg-sub">Wejdź na supabase.com → Twój projekt → Settings → API Keys i wklej poniższe dane.</p>
+            <p class="cfg-sub">Settings → API Keys → Legacy anon. URL bez /rest/v1/ na końcu.</p>
             <label class="cfg-label">Supabase URL</label>
             <input class="cfg-input" id="cfgUrl" placeholder="https://xxxx.supabase.co">
             <label class="cfg-label">Anon Key</label>
             <input class="cfg-input" id="cfgKey" placeholder="eyJhbGci...">
             <button class="cfg-btn" onclick="saveConfig()">Połącz i załaduj dane</button>
-            <p class="cfg-hint">Dane zapisywane tylko lokalnie w przeglądarce.</p>
+            <p class="cfg-hint">Dane zapisywane lokalnie w przeglądarce.</p>
         </div>
     </div>
 
@@ -826,19 +1010,22 @@
         </div>
         <div class="nav-tabs">
             <button class="nav-tab active" onclick="showPage('kubki',this)">☕ Kubki</button>
-            <button class="nav-tab" onclick="showPage('dodaj',this)">+ Dodaj kubek</button>
+            <button class="nav-tab" onclick="showPage('zlecone',this)">🏭 Zlecone</button>
+            <button class="nav-tab" onclick="showPage('termiczne',this)">🌡 Termiczne</button>
+            <button class="nav-tab" onclick="showPage('komis',this)">🤝 Komis</button>
             <button class="nav-tab" onclick="showPage('artysci',this)">🎨 Artyści</button>
+            <button class="nav-tab" onclick="showPage('dodaj',this)">+ Dodaj</button>
         </div>
         <button class="nav-cfg" onclick="document.getElementById('cfgModal').classList.add('open')">⚙</button>
     </nav>
 
     <!-- ══ KUBKI ══ -->
     <div class="page active" id="page-kubki">
-        <div class="kubki-header">
+        <div class="dark-header">
             <div class="filters">
                 <div class="filter-group">
                     <span class="filter-label">Pojemność</span>
-                    <select id="fPoj" onchange="applyFilters()">
+                    <select class="dark-select" id="fPoj" onchange="applyFilters('kubki')">
                         <option value="">Wszystkie</option>
                         <option value="100">100 ml</option>
                         <option value="180">180 ml</option>
@@ -850,7 +1037,7 @@
                 </div>
                 <div class="filter-group">
                     <span class="filter-label">Materiał</span>
-                    <select id="fMat" onchange="applyFilters()">
+                    <select class="dark-select" id="fMat" onchange="applyFilters('kubki')">
                         <option value="">Wszystkie</option>
                         <option value="BIO">BIO</option>
                         <option value="PE">PE</option>
@@ -859,42 +1046,41 @@
                 </div>
                 <div class="filter-group">
                     <span class="filter-label">Ścianka</span>
-                    <select id="fSci" onchange="applyFilters()">
+                    <select class="dark-select" id="fSci" onchange="applyFilters('kubki')">
                         <option value="">Wszystkie</option>
                         <option value="jednościankowy">Jedno</option>
                         <option value="dwuściankowy">Dwu</option>
-                        <option value="inny">Inny</option>
                     </select>
                 </div>
                 <div class="filter-group">
                     <span class="filter-label">Artysta</span>
-                    <select id="fArt" onchange="applyFilters()">
+                    <select class="dark-select" id="fArt" onchange="applyFilters('kubki')">
                         <option value="">Wszyscy</option>
                     </select>
                 </div>
             </div>
             <div class="search-wrap">
-                <input type="search" id="searchInput" placeholder="Szukaj grafiki lub artysty…" oninput="applyFilters()">
+                <input type="search" id="searchKubki" placeholder="Szukaj grafiki lub artysty…" oninput="applyFilters('kubki')">
             </div>
-            <div class="mag-tabs" id="magTabs">
-                <button class="mag-tab active" data-mag="" onclick="selectMag(this)">Wszystkie</button>
+            <div class="mag-tabs" id="magTabsKubki">
+                <button class="mag-tab active" data-mag="" onclick="selectMag(this,'kubki')">Wszystkie</button>
             </div>
         </div>
         <div class="stats-bar">
             <div class="stat">
-                <span class="stat-val" id="statModeli">—</span>
+                <span class="stat-val" id="skModeli">—</span>
                 <span class="stat-lbl">modeli</span>
             </div>
             <div class="stat">
-                <span class="stat-val" id="statSztuk">—</span>
+                <span class="stat-val" id="skSztuk">—</span>
                 <span class="stat-lbl">sztuk</span>
             </div>
             <div class="stat">
-                <span class="stat-val" id="statDrodze">—</span>
+                <span class="stat-val" id="skDrodze">—</span>
                 <span class="stat-lbl">w drodze</span>
             </div>
         </div>
-        <div class="list" id="cardList">
+        <div class="list" id="listKubki">
             <div class="state-msg">
                 <span class="big">☕</span>
                 Łączenie z bazą…
@@ -902,108 +1088,266 @@
         </div>
     </div>
 
-    <!-- ══ DODAJ KUBEK ══ -->
-    <div class="page" id="page-dodaj">
-        <div class="page-body">
-            <div class="form-card">
-                <div class="form-card-title">Nowy kubek</div>
-
-                <div class="form-note">
-
-                            Pojemności dostępne per materiał:
-                    <br>
-                    <strong>PE / BIO:</strong>
-                     100, 180, 250, 300, 400 ml
-                    <br>
-                    <strong>rPET:</strong>
-                     300, 400, 500 ml
-                          
-                </div>
-
-                <div class="form-section">Typ kubka</div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Materiał</label>
-                        <select class="form-select" id="nMat" onchange="updatePojemnosci()">
-                            <option value="">— wybierz —</option>
-                            <option value="PE">PE (papierowy)</option>
-                            <option value="BIO">BIO (papierowy)</option>
-                            <option value="rPET">rPET</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Pojemność</label>
-                        <select class="form-select" id="nPoj">
-                            <option value="">— najpierw materiał —</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Typ ścianki</label>
-                        <select class="form-select" id="nSci">
-                            <option value="">— wybierz —</option>
-                            <option value="jednościankowy">Jednościankowy</option>
-                            <option value="dwuściankowy">Dwuściankowy</option>
-                            <option value="inny">Inny</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Szt. w opakowaniu</label>
-                        <input class="form-input" id="nPak" type="number" min="1" placeholder="np. 25">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Cena netto (zł)</label>
-                    <input class="form-input" id="nCena" type="number" step="0.01" min="0" placeholder="np. 0.45">
-                </div>
-
-                <div class="form-section">Grafika i artysta</div>
-                <div class="form-group">
-                    <label class="form-label">Nazwa grafiki</label>
-                    <input class="form-input" id="nGrafika" placeholder="np. Górski motyw">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Artysta</label>
-                    <select class="form-select" id="nArtysta">
-                        <option value="">— wybierz artystę —</option>
+    <!-- ══ ZLECONE ══ -->
+    <div class="page" id="page-zlecone">
+        <div class="dark-header">
+            <div class="filters">
+                <div class="filter-group">
+                    <span class="filter-label">Pojemność</span>
+                    <select class="dark-select" id="zfPoj" onchange="applyFilters('zlecone')">
+                        <option value="">Wszystkie</option>
+                        <option value="100">100 ml</option>
+                        <option value="180">180 ml</option>
+                        <option value="250">250 ml</option>
+                        <option value="300">300 ml</option>
+                        <option value="400">400 ml</option>
+                        <option value="500">500 ml</option>
                     </select>
                 </div>
+                <div class="filter-group">
+                    <span class="filter-label">Materiał</span>
+                    <select class="dark-select" id="zfMat" onchange="applyFilters('zlecone')">
+                        <option value="">Wszystkie</option>
+                        <option value="BIO">BIO</option>
+                        <option value="PE">PE</option>
+                        <option value="rPET">rPET</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <span class="filter-label">Artysta</span>
+                    <select class="dark-select" id="zfArt" onchange="applyFilters('zlecone')">
+                        <option value="">Wszyscy</option>
+                    </select>
+                </div>
+            </div>
+            <div class="search-wrap">
+                <input type="search" id="searchZlecone" placeholder="Szukaj grafiki lub artysty…" oninput="applyFilters('zlecone')">
+            </div>
+        </div>
+        <div class="list" id="listZlecone">
+            <div class="state-msg">
+                <span class="big">🏭</span>
+                Ładowanie…
+            </div>
+        </div>
+    </div>
 
-                <div class="form-section">Stan magazynowy (opcjonalnie)</div>
-                <div class="form-note">Możesz wpisać ile sztuk jest już w każdym magazynie. Zostaw 0 jeśli kubek dopiero jedzie.</div>
-                <div id="magStanyInputy"></div>
+    <!-- ══ TERMICZNE ══ -->
+    <div class="page" id="page-termiczne">
+        <div class="dark-header">
+            <div class="filters">
+                <div class="filter-group">
+                    <span class="filter-label">Pojemność</span>
+                    <select class="dark-select" id="tfPoj" onchange="applyFilters('termiczne')">
+                        <option value="">Wszystkie</option>
+                        <option value="250">250 ml</option>
+                        <option value="330">330 ml</option>
+                        <option value="350">350 ml</option>
+                        <option value="400">400 ml</option>
+                        <option value="500">500 ml</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <span class="filter-label">Artysta</span>
+                    <select class="dark-select" id="tfArt" onchange="applyFilters('termiczne')">
+                        <option value="">Wszyscy</option>
+                    </select>
+                </div>
+            </div>
+            <div class="search-wrap">
+                <input type="search" id="searchTermiczne" placeholder="Szukaj grafiki lub artysty…" oninput="applyFilters('termiczne')">
+            </div>
+            <div class="mag-tabs" id="magTabsTermiczne">
+                <button class="mag-tab active" data-mag="" onclick="selectMag(this,'termiczne')">Wszystkie</button>
+            </div>
+        </div>
+        <div class="stats-bar">
+            <div class="stat">
+                <span class="stat-val" id="stModeli">—</span>
+                <span class="stat-lbl">modeli</span>
+            </div>
+            <div class="stat">
+                <span class="stat-val" id="stSztuk">—</span>
+                <span class="stat-lbl">w mag.</span>
+            </div>
+            <div class="stat">
+                <span class="stat-val" id="stKomis">—</span>
+                <span class="stat-lbl">w komisie</span>
+            </div>
+        </div>
+        <div class="list" id="listTermiczne">
+            <div class="state-msg">
+                <span class="big">🌡</span>
+                Ładowanie…
+            </div>
+        </div>
+    </div>
 
-                <button class="btn-primary" id="btnDodajKubek" onclick="dodajKubek()">+ Zapisz kubek</button>
-                <div class="form-msg" id="kubMsg"></div>
+    <!-- ══ KOMIS ══ -->
+    <div class="page" id="page-komis">
+        <div class="dark-header" style="padding-bottom:14px;">
+            <div class="filters">
+                <div class="filter-group">
+                    <span class="filter-label">Klient</span>
+                    <select class="dark-select" id="kfKlient" onchange="applyFilters('komis')">
+                        <option value="">Wszyscy</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <span class="filter-label">Status</span>
+                    <select class="dark-select" id="kfStatus" onchange="applyFilters('komis')">
+                        <option value="aktywny">Aktywne</option>
+                        <option value="">Wszystkie</option>
+                        <option value="zwrocony">Zwrócone</option>
+                        <option value="sprzedany">Sprzedane</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="list" id="listKomis">
+            <div class="state-msg">
+                <span class="big">🤝</span>
+                Ładowanie…
             </div>
         </div>
     </div>
 
     <!-- ══ ARTYŚCI ══ -->
     <div class="page" id="page-artysci">
-        <div class="page-body">
+        <div class="page-body" style="padding-bottom:16px;">
             <div class="form-card">
                 <div class="form-card-title">Dodaj artystę</div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Imię i nazwisko</label>
-                        <input class="form-input" id="newArtName" placeholder="np. Anna Kowalska">
+                <div class="f-row">
+                    <div class="f-group">
+                        <label class="f-label">Imię i nazwisko</label>
+                        <input class="f-input" id="newArtName" placeholder="np. Anna Kowalska">
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Prowizja za sztukę (zł)</label>
-                        <input class="form-input" id="newArtProw" type="number" step="0.001" min="0" value="0.008">
-                        <span class="form-hint">Domyślnie 0,008 zł/szt.</span>
+                    <div class="f-group">
+                        <label class="f-label">Prowizja (zł/szt.)</label>
+                        <input class="f-input" id="newArtProw" type="number" step="0.001" min="0" value="0.008">
+                        <span class="f-hint">Domyślnie 0,008 zł</span>
                     </div>
                 </div>
-                <button class="btn-primary" id="btnDodaj" onclick="dodajArtyste()">+ Dodaj artystę</button>
-                <div class="form-msg" id="formMsg"></div>
+                <button class="btn-primary" id="btnDodajArt" onclick="dodajArtyste()">+ Dodaj artystę</button>
+                <div class="f-msg" id="artMsg"></div>
             </div>
         </div>
-        <div class="artysta-list" id="artystList">
+        <div class="artysta-list" id="listArtysci">
             <div class="state-msg">
                 <span class="big">🎨</span>
                 Ładowanie…
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ DODAJ KUBEK ══ -->
+    <div class="page" id="page-dodaj">
+        <div class="page-body">
+
+            <!-- Typ: papierowy / termiczny -->
+            <div class="form-card">
+                <div class="form-card-title">Nowy kubek</div>
+                <div class="f-group">
+                    <label class="f-label">Rodzaj kubka</label>
+                    <select class="f-select" id="nRodzaj" onchange="onRodzajChange()">
+                        <option value="">— wybierz rodzaj —</option>
+                        <option value="papierowy">Papierowy (PE / BIO / rPET)</option>
+                        <option value="termiczny">Termiczny</option>
+                    </select>
+                </div>
+
+                <!-- PAPIEROWY -->
+                <div id="formPapierowy" style="display:none">
+                    <div class="f-section">Typ kubka</div>
+                    <div class="f-note">PE/BIO: 100,180,250,300,400 ml &nbsp;|&nbsp; rPET: 300,400,500 ml</div>
+                    <div class="f-row">
+                        <div class="f-group">
+                            <label class="f-label">Materiał</label>
+                            <select class="f-select" id="nMat" onchange="updatePojemnosci()">
+                                <option value="">— wybierz —</option>
+                                <option value="PE">PE</option>
+                                <option value="BIO">BIO</option>
+                                <option value="rPET">rPET</option>
+                            </select>
+                        </div>
+                        <div class="f-group">
+                            <label class="f-label">Pojemność</label>
+                            <select class="f-select" id="nPoj">
+                                <option value="">— najpierw materiał —</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="f-row">
+                        <div class="f-group">
+                            <label class="f-label">Typ ścianki</label>
+                            <select class="f-select" id="nSci">
+                                <option value="">— wybierz —</option>
+                                <option value="jednościankowy">Jednościankowy</option>
+                                <option value="dwuściankowy">Dwuściankowy</option>
+                                <option value="inny">Inny</option>
+                            </select>
+                        </div>
+                        <div class="f-group">
+                            <label class="f-label">Szt. w opakowaniu</label>
+                            <input class="f-input" id="nPak" type="number" min="1" placeholder="np. 25">
+                        </div>
+                    </div>
+                    <div class="f-group">
+                        <label class="f-label">Cena netto (zł)</label>
+                        <input class="f-input" id="nCena" type="number" step="0.01" min="0" placeholder="np. 0.45">
+                    </div>
+                </div>
+
+                <!-- TERMICZNY -->
+                <div id="formTermiczny" style="display:none">
+                    <div class="f-section">Typ kubka termicznego</div>
+                    <div class="f-row">
+                        <div class="f-group">
+                            <label class="f-label">Pojemność</label>
+                            <select class="f-select" id="nTPoj">
+                                <option value="">— wybierz —</option>
+                                <option value="250">250 ml</option>
+                                <option value="330">330 ml</option>
+                                <option value="350">350 ml</option>
+                                <option value="400">400 ml</option>
+                                <option value="500">500 ml</option>
+                            </select>
+                        </div>
+                        <div class="f-group">
+                            <label class="f-label">Kolor kubka</label>
+                            <input class="f-input" id="nTKolor" placeholder="np. biały, czarny">
+                        </div>
+                    </div>
+                    <div class="f-group">
+                        <label class="f-label">Cena netto (zł)</label>
+                        <input class="f-input" id="nTCena" type="number" step="0.01" min="0" placeholder="np. 45.00">
+                    </div>
+                </div>
+
+                <!-- WSPÓLNE: grafika + artysta + zdjęcie -->
+                <div id="formWspolne" style="display:none">
+                    <div class="f-section">Grafika i artysta</div>
+                    <div class="f-group">
+                        <label class="f-label">Nazwa grafiki</label>
+                        <input class="f-input" id="nGrafika" placeholder="np. Górski motyw">
+                    </div>
+                    <div class="f-group">
+                        <label class="f-label">Artysta</label>
+                        <select class="f-select" id="nArtysta">
+                            <option value="">— wybierz artystę —</option>
+                        </select>
+                    </div>
+                    <div class="f-section">Miniaturka zdjęcia</div>
+                    <div class="f-group">
+                        <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                            <input type="file" id="fileInput" accept="image/*" onchange="previewFile(this)">
+                            <img id="uploadPreview" class="upload-preview" style="display:none">
+                            <div class="upload-txt" id="uploadTxt">📷 Kliknij żeby wybrać zdjęcie</div>
+                        </div>
+                    </div>
+                    <button class="btn-primary" id="btnDodajKubek" onclick="dodajKubek()">+ Zapisz kubek (zlecony)</button>
+                    <div class="f-msg" id="kubMsg"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -1016,29 +1360,22 @@
     </div>
 
     <script>
-    // ── pojemności per materiał ──
     const POJEMNOSCI = {
         PE: [100, 180, 250, 300, 400],
         BIO: [100, 180, 250, 300, 400],
-        rPET: [300, 400, 500],
+        rPET: [300, 400, 500]
     };
-
     let allKubki = [],
+        allZlecone = [],
+        allTermiczne = [],
+        allKomis = [],
+        allArtysci = [],
         allMagazyny = [],
-        allArtysci = [];
-    let activeMag = '';
+        allKlienci = [];
+    let activeMagKubki = '',
+        activeMagTermiczne = '';
 
-    function showPage(name, btn) {
-        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-        document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
-        document.getElementById('page-' + name).classList.add('active');
-        btn.classList.add('active');
-        if (name === 'artysci')
-            loadArtysci();
-        if (name === 'dodaj')
-            initDodajForm();
-    }
-
+    // ── CONFIG ──
     function saveConfig() {
         const url = document.getElementById('cfgUrl').value.trim();
         const key = document.getElementById('cfgKey').value.trim();
@@ -1058,14 +1395,16 @@
 
     async function sbFetch(path, params='', opts={}) {
         const {url, key} = getCfg();
+        const headers = {
+            'apikey': key,
+            'Authorization': `Bearer ${key}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation',
+            ...(opts.headers || {})
+        };
         const res = await fetch(`${url}/rest/v1/${path}${params}`, {
-            headers: {
-                'apikey': key,
-                'Authorization': `Bearer ${key}`,
-                'Content-Type': 'application/json',
-                'Prefer': 'return=representation'
-            },
-            ...opts
+            ...opts,
+            headers
         });
         if (!res.ok)
             throw new Error(await res.text());
@@ -1073,145 +1412,300 @@
         return text ? JSON.parse(text) : [];
     }
 
-    // ── LOAD ──
+    async function sbUpload(file) {
+        const {url, key} = getCfg();
+        const ext = file.name.split('.').pop();
+        const name = `${Date.now()}.${ext}`;
+        const res = await fetch(`${url}/storage/v1/object/miniaturki/${name}`, {
+            method: 'POST',
+            headers: {
+                'apikey': key,
+                'Authorization': `Bearer ${key}`,
+                'Content-Type': file.type
+            },
+            body: file
+        });
+        if (!res.ok)
+            throw new Error(await res.text());
+        return `${url}/storage/v1/object/public/miniaturki/${name}`;
+    }
+
+    // ── NAV ──
+    function showPage(name, btn) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+        document.getElementById('page-' + name).classList.add('active');
+        btn.classList.add('active');
+        if (name === 'artysci')
+            loadArtysci();
+        if (name === 'komis')
+            loadKomis();
+        if (name === 'dodaj')
+            initDodajForm();
+    }
+
+    // ── LOAD ALL ──
     async function loadAll() {
-        document.getElementById('cardList').innerHTML = `<div class="state-msg"><span class="big">⏳</span>Ładowanie…</div>`;
         try {
-            const [stany, magazyny, artysci] = await Promise.all([
-            sbFetch('v_stan_kubkow', '?select=*&order=artysta.asc'),
+            const [stanKubki, stanTerm, magazyny, artysci, klienci] = await Promise.all([
+            sbFetch('v_stan_kubkow', '?select=*'),
+            sbFetch('v_stan_termicznych', '?select=*'),
             sbFetch('magazyn', '?select=*&order=nazwa.asc'),
             sbFetch('artysta', '?select=id,imie_nazwisko&order=imie_nazwisko.asc'),
+            sbFetch('klient', '?select=id,nazwa_wlasna&order=nazwa_wlasna.asc'),
             ]);
             allMagazyny = magazyny;
             allArtysci = artysci;
-            buildMagTabs(magazyny);
-            buildArtystFilter(artysci);
-            const map = {};
-            for (const r of stany) {
-                if (!map[r.kubek_id]) {
-                    map[r.kubek_id] = {
-                        kubek_id: r.kubek_id,
-                        pojemnosc_ml: r.pojemnosc_ml,
-                        typ_materialu: r.typ_materialu,
-                        typ_scianki: r.typ_scianki,
-                        sztuk_w_opakowaniu: r.sztuk_w_opakowaniu,
-                        cena_netto: r.cena_netto,
-                        kod_qr: r.kod_qr,
-                        grafika: r.grafika,
-                        artysta: r.artysta,
-                        stany: [],
-                        ilosc_lacznie: 0,
-                        ilosc_w_drodze: 0,
-                    };
-                }
-                map[r.kubek_id].stany.push({
-                    magazyn_id: r.magazyn_id,
-                    magazyn: r.magazyn,
-                    ilosc_dostepna: r.ilosc_dostepna,
-                    ilosc_w_drodze: r.ilosc_w_drodze
-                });
-                map[r.kubek_id].ilosc_lacznie += (r.ilosc_dostepna || 0);
-                map[r.kubek_id].ilosc_w_drodze += (r.ilosc_w_drodze || 0);
-            }
-            allKubki = Object.values(map);
-            applyFilters();
+            allKlienci = klienci;
+            buildMagTabs(magazyny, 'magTabsKubki', 'kubki');
+            buildMagTabs(magazyny, 'magTabsTermiczne', 'termiczne');
+            buildArtystFilters(artysci);
+            buildKlientFilter(klienci);
+
+            // grupuj kubki papierowe (w_magazynie)
+            allKubki = grupuj(stanKubki.filter(r => r.status === 'w_magazynie' || !r.status));
+            allZlecone = grupujZlecone(stanKubki.filter(r => r.status === 'zlecony'));
+            allTermiczne = grupuj(stanTerm);
+
+            applyFilters('kubki');
+            applyFilters('zlecone');
+            applyFilters('termiczne');
         } catch (e) {
-            document.getElementById('cardList').innerHTML = `<div class="state-msg"><span class="big">⚠️</span>Błąd połączenia.<br><small>${e.message}</small></div>`;
+            document.getElementById('listKubki').innerHTML = `<div class="state-msg"><span class="big">⚠️</span>Błąd połączenia.<br><small>${e.message}</small></div>`;
         }
     }
 
-    function buildMagTabs(magazyny) {
-        const wrap = document.getElementById('magTabs');
-        wrap.innerHTML = `<button class="mag-tab active" data-mag="" onclick="selectMag(this)">Wszystkie</button>`;
+    function grupuj(stany) {
+        const map = {};
+        for (const r of stany) {
+            const kid = r.kubek_id;
+            if (!map[kid]) {
+                map[kid] = {
+                    kubek_id: kid,
+                    pojemnosc_ml: r.pojemnosc_ml,
+                    typ_materialu: r.typ_materialu,
+                    typ_scianki: r.typ_scianki,
+                    sztuk_w_opakowaniu: r.sztuk_w_opakowaniu,
+                    kolor: r.kolor,
+                    cena_netto: r.cena_netto,
+                    kod_qr: r.kod_qr,
+                    grafika: r.grafika,
+                    artysta: r.artysta,
+                    miniaturka: r.miniaturka_url,
+                    stany: [],
+                    ilosc_lacznie: 0,
+                    ilosc_w_drodze: 0
+                };
+            }
+            map[kid].stany.push({
+                magazyn_id: r.magazyn_id,
+                magazyn: r.magazyn,
+                ilosc_dostepna: r.ilosc_dostepna,
+                ilosc_w_drodze: r.ilosc_w_drodze
+            });
+            map[kid].ilosc_lacznie += (r.ilosc_dostepna || 0);
+            map[kid].ilosc_w_drodze += (r.ilosc_w_drodze || 0);
+        }
+        return Object.values(map);
+    }
+
+    async function grupujZlecone(stanyRow) {
+        // kubki zlecone — pobierz je bezpośrednio z tabeli kubek
+        try {
+            const kubki = await sbFetch('kubek', '?status=eq.zlecony&select=*,grafika(nazwa,miniaturka_url,artysta(imie_nazwisko))');
+            return kubki.map(k => ({
+                kubek_id: k.id,
+                pojemnosc_ml: k.pojemnosc_ml,
+                typ_materialu: k.typ_materialu,
+                typ_scianki: k.typ_scianki,
+                sztuk_w_opakowaniu: k.sztuk_w_opakowaniu,
+                cena_netto: k.cena_netto,
+                grafika: k.grafika?.nazwa,
+                artysta: k.grafika?.artysta?.imie_nazwisko,
+                miniaturka: k.grafika?.miniaturka_url,
+                data_zlecenia: k.data_zlecenia,
+            }));
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function buildMagTabs(magazyny, elId, scope) {
+        const wrap = document.getElementById(elId);
+        wrap.innerHTML = `<button class="mag-tab active" data-mag="" onclick="selectMag(this,'${scope}')">Wszystkie</button>`;
         magazyny.forEach(m => {
             const btn = document.createElement('button');
             btn.className = 'mag-tab';
             btn.dataset.mag = m.id;
             btn.textContent = m.nazwa;
             btn.onclick = function() {
-                selectMag(this);
+                selectMag(this, scope);
             };
             wrap.appendChild(btn);
         });
     }
 
-    function buildArtystFilter(artysci) {
-        const sel = document.getElementById('fArt');
+    function buildArtystFilters(artysci) {
+        ['fArt', 'zfArt', 'tfArt'].forEach(id => {
+            const sel = document.getElementById(id);
+            if (!sel)
+                return;
+            sel.innerHTML = '<option value="">Wszyscy</option>';
+            artysci.forEach(a => {
+                const o = document.createElement('option');
+                o.value = a.imie_nazwisko;
+                o.textContent = a.imie_nazwisko;
+                sel.appendChild(o);
+            });
+        });
+    }
+
+    function buildKlientFilter(klienci) {
+        const sel = document.getElementById('kfKlient');
         sel.innerHTML = '<option value="">Wszyscy</option>';
-        artysci.forEach(a => {
-            const opt = document.createElement('option');
-            opt.value = a.imie_nazwisko;
-            opt.textContent = a.imie_nazwisko;
-            sel.appendChild(opt);
+        klienci.forEach(k => {
+            const o = document.createElement('option');
+            o.value = k.id;
+            o.textContent = k.nazwa_wlasna;
+            sel.appendChild(o);
         });
     }
 
-    function selectMag(btn) {
-        document.querySelectorAll('.mag-tab').forEach(b => b.classList.remove('active'));
+    function selectMag(btn, scope) {
+        const tabs = scope === 'kubki' ? 'magTabsKubki' : 'magTabsTermiczne';
+        document.querySelectorAll(`#${tabs} .mag-tab`).forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        activeMag = btn.dataset.mag;
-        applyFilters();
+        if (scope === 'kubki')
+            activeMagKubki = btn.dataset.mag;
+        else
+            activeMagTermiczne = btn.dataset.mag;
+        applyFilters(scope);
     }
 
-    function applyFilters() {
-        const poj = document.getElementById('fPoj').value;
-        const mat = document.getElementById('fMat').value;
-        const sci = document.getElementById('fSci').value;
-        const art = document.getElementById('fArt').value;
-        const q = document.getElementById('searchInput').value.toLowerCase();
-        const filtered = allKubki.filter(k => {
-            if (poj && String(k.pojemnosc_ml) !== poj)
-                return false;
-            if (mat && k.typ_materialu !== mat)
-                return false;
-            if (sci && k.typ_scianki !== sci)
-                return false;
-            if (art && k.artysta !== art)
-                return false;
-            if (q && !k.grafika?.toLowerCase().includes(q) && !k.artysta?.toLowerCase().includes(q))
-                return false;
-            return true;
-        });
-        let ts = 0,
-            td = 0;
-        filtered.forEach(k => {
-            if (activeMag) {
-                const s = k.stany.find(x => x.magazyn_id === activeMag);
-                ts += s?.ilosc_dostepna || 0;
-                td += s?.ilosc_w_drodze || 0;
-            }
-            else {
-                ts += k.ilosc_lacznie;
-                td += k.ilosc_w_drodze;
-            }
-        });
-        document.getElementById('statModeli').textContent = filtered.length;
-        document.getElementById('statSztuk').textContent = ts;
-        document.getElementById('statDrodze').textContent = td;
-        renderCards(filtered);
+    // ── FILTERS ──
+    function applyFilters(scope) {
+        if (scope === 'kubki') {
+            const poj = document.getElementById('fPoj').value;
+            const mat = document.getElementById('fMat').value;
+            const sci = document.getElementById('fSci').value;
+            const art = document.getElementById('fArt').value;
+            const q = document.getElementById('searchKubki').value.toLowerCase();
+            const f = allKubki.filter(k => {
+                if (poj && String(k.pojemnosc_ml) !== poj)
+                    return false;
+                if (mat && k.typ_materialu !== mat)
+                    return false;
+                if (sci && k.typ_scianki !== sci)
+                    return false;
+                if (art && k.artysta !== art)
+                    return false;
+                if (q && !k.grafika?.toLowerCase().includes(q) && !k.artysta?.toLowerCase().includes(q))
+                    return false;
+                return true;
+            });
+            let ts = 0,
+                td = 0;
+            f.forEach(k => {
+                if (activeMagKubki) {
+                    const s = k.stany.find(x => x.magazyn_id === activeMagKubki);
+                    ts += s?.ilosc_dostepna || 0;
+                    td += s?.ilosc_w_drodze || 0;
+                }
+                else {
+                    ts += k.ilosc_lacznie;
+                    td += k.ilosc_w_drodze;
+                }
+            });
+            document.getElementById('skModeli').textContent = f.length;
+            document.getElementById('skSztuk').textContent = ts;
+            document.getElementById('skDrodze').textContent = td;
+            renderKubki(f, 'listKubki', activeMagKubki, false);
+        }
+        else if (scope === 'zlecone') {
+            const poj = document.getElementById('zfPoj').value;
+            const mat = document.getElementById('zfMat').value;
+            const art = document.getElementById('zfArt').value;
+            const q = document.getElementById('searchZlecone').value.toLowerCase();
+            const f = allZlecone.filter(k => {
+                if (poj && String(k.pojemnosc_ml) !== poj)
+                    return false;
+                if (mat && k.typ_materialu !== mat)
+                    return false;
+                if (art && k.artysta !== art)
+                    return false;
+                if (q && !k.grafika?.toLowerCase().includes(q) && !k.artysta?.toLowerCase().includes(q))
+                    return false;
+                return true;
+            });
+            renderKubki(f, 'listZlecone', '', true);
+        }
+        else if (scope === 'termiczne') {
+            const poj = document.getElementById('tfPoj').value;
+            const art = document.getElementById('tfArt').value;
+            const q = document.getElementById('searchTermiczne').value.toLowerCase();
+            const f = allTermiczne.filter(k => {
+                if (poj && String(k.pojemnosc_ml) !== poj)
+                    return false;
+                if (art && k.artysta !== art)
+                    return false;
+                if (q && !k.grafika?.toLowerCase().includes(q) && !k.artysta?.toLowerCase().includes(q))
+                    return false;
+                return true;
+            });
+            let ts = 0,
+                tk = 0;
+            f.forEach(k => {
+                if (activeMagTermiczne) {
+                    const s = k.stany.find(x => x.magazyn_id === activeMagTermiczne);
+                    ts += s?.ilosc_dostepna || 0;
+                }
+                else
+                    ts += k.ilosc_lacznie;
+            });
+            document.getElementById('stModeli').textContent = f.length;
+            document.getElementById('stSztuk').textContent = ts;
+            document.getElementById('stKomis').textContent = '—';
+            renderKubki(f, 'listTermiczne', activeMagTermiczne, false, true);
+        }
+        else if (scope === 'komis') {
+            const klient = document.getElementById('kfKlient').value;
+            const status = document.getElementById('kfStatus').value;
+            const f = allKomis.filter(k => {
+                if (klient && k.klient_id !== klient)
+                    return false;
+                if (status && k.status !== status)
+                    return false;
+                return true;
+            });
+            renderKomis(f);
+        }
     }
 
-    function renderCards(kubki) {
-        const list = document.getElementById('cardList');
+    // ── RENDER KUBKI ──
+    function renderKubki(kubki, listId, activeMag, showDate, isTermiczny=false) {
+        const list = document.getElementById(listId);
         if (!kubki.length) {
             list.innerHTML = `<div class="state-msg"><span class="big">🔍</span>Brak wyników.</div>`;
             return;
         }
         list.innerHTML = kubki.map(k => {
-            const stan = activeMag ? (k.stany.find(s => s.magazyn_id === activeMag)?.ilosc_dostepna || 0) : k.ilosc_lacznie;
-            const drodze = activeMag ? (k.stany.find(s => s.magazyn_id === activeMag)?.ilosc_w_drodze || 0) : k.ilosc_w_drodze;
+            const stan = activeMag ? (k.stany?.find(s => s.magazyn_id === activeMag)?.ilosc_dostepna || 0) : k.ilosc_lacznie || 0;
+            const drodze = activeMag ? (k.stany?.find(s => s.magazyn_id === activeMag)?.ilosc_w_drodze || 0) : k.ilosc_w_drodze || 0;
             const dotCls = stan === 0 ? 'stock-empty' : stan < 10 ? 'stock-low' : 'stock-ok';
-            const sciTag = k.typ_scianki ? `<span class="tag tag-sci">${k.typ_scianki === 'dwuściankowy' ? '2×' : k.typ_scianki === 'jednościankowy' ? '1×' : k.typ_scianki}</span>` : '';
-            const pakTag = k.sztuk_w_opakowaniu ? `<span class="tag tag-pak">${k.sztuk_w_opakowaniu} szt./op.</span>` : '';
-            return `<div class="card" onclick="openDrawer('${k.kubek_id}')">
-      <div class="card-thumb">☕</div>
+            const sciTag = k.typ_scianki ? `<span class="tag tag-sci">${k.typ_scianki === 'dwuściankowy' ? '2×' : '1×'}</span>` : '';
+            const pakTag = k.sztuk_w_opakowaniu ? `<span class="tag tag-pak">${k.sztuk_w_opakowaniu}/op.</span>` : '';
+            const termTag = isTermiczny ? `<span class="tag tag-term">🌡</span>` : '';
+            const thumb = k.miniaturka ? `<img src="${k.miniaturka}" alt="">` : '☕';
+            const dateHtml = showDate && k.data_zlecenia ? `<div class="card-date">${k.data_zlecenia}</div>` : '';
+            const stockHtml = showDate ? '' : `<div class="card-stock"><span class="stock-dot ${dotCls}"></span>${stan === 0 ? 'brak' : stan + ' szt.'}${drodze > 0 ? `<span class="stock-order">+${drodze} w drodze</span>` : ''}</div>`;
+            return `<div class="card" onclick="openDrawer('${k.kubek_id}','${showDate ? 'zlecony' : isTermiczny ? 'termiczny' : 'kubek'}')">
+      <div class="card-thumb">${thumb}</div>
       <div class="card-body">
         <div class="card-top"><div class="card-title">${
-
             k.grafika || '—'}</div><div class="card-price">${k.cena_netto != null ? Number(k.cena_netto).toFixed(2) + ' zł' : '—'}</div></div>
         <div class="card-artist">${k.artysta || 'brak artysty'}</div>
-        <div class="card-tags"><span class="tag tag-ml">${k.pojemnosc_ml} ml</span><span class="tag tag-mat">${k.typ_materialu}</span>${sciTag}${pakTag}</div>
-        <div class="card-stock"><span class="stock-dot ${dotCls}"></span>${stan === 0 ? 'brak' : stan + ' szt.'}${drodze > 0 ? `<span class="stock-order">+${drodze} w drodze</span>` : ''}</div>
+        <div class="card-tags"><span class="tag tag-ml">${k.pojemnosc_ml} ml</span>${k.typ_materialu ? `<span class="tag tag-mat">${k.typ_materialu}</span>` : ''}${sciTag}${pakTag}${termTag}</div>
+        ${stockHtml}${dateHtml}
       </div>
     </div>`
 
@@ -1219,206 +1713,202 @@
         }).join('');
     }
 
-    function openDrawer(kubek_id) {
-        const k = allKubki.find(x => x.kubek_id === kubek_id);
+    // ── DRAWER ──
+    function openDrawer(kubek_id, typ) {
+        let k;
+        if (typ === 'kubek')
+            k = allKubki.find(x => x.kubek_id === kubek_id);
+        else if (typ === 'zlecony')
+            k = allZlecone.find(x => x.kubek_id === kubek_id);
+        else if (typ === 'termiczny')
+            k = allTermiczne.find(x => x.kubek_id === kubek_id);
         if (!k)
             return;
-        const stanyHtml = k.stany.map(s => `
-    <div class="mag-card"><div class="mag-card-name">${s.magazyn}</div><div class="mag-card-num">${s.ilosc_dostepna}</div><div class="mag-card-sub">dostępnych</div>${s.ilosc_w_drodze > 0 ? `<div class="mag-card-order">+${s.ilosc_w_drodze} w drodze</div>` : ''}</div>`).join('');
+
+        const stanyHtml = k.stany?.map(s => `
+    <div class="mag-card"><div class="mag-card-name">${s.magazyn}</div><div class="mag-card-num">${s.ilosc_dostepna}</div><div class="mag-card-sub">dostępnych</div>${s.ilosc_w_drodze > 0 ? `<div class="mag-card-order">+${s.ilosc_w_drodze} w drodze</div>` : ''}</div>`).join('') || '';
+
+        const acceptHtml = typ === 'zlecony' ? `
+    <div class="d-section">Przyjmij do magazynu</div>
+    <div class="accept-form">
+      <div class="accept-title">Wpisz ile sztuk trafia do każdego magazynu:</div>
+      ${
+
+
+        allMagazyny.map(m => `
+        <div class="accept-row">
+          <span class="accept-label">${
+        m.nazwa}</span>
+          <input class="accept-input" type="number" min="0" value="0" data-mag="${m.id}" id="acc_${m.id}">
+        </div>`).join('')}
+      <button class="btn-primary" onclick="przyjmijDoMagazynu('${kubek_id}')">✓ Przyjmij do magazynu</button>
+      <div class="f-msg" id="accMsg"></div>
+    </div>`
+
+        : '';
+
         document.getElementById('drawerContent').innerHTML = `
     <div class="drawer-title">${k.grafika || '—'}</div>
-    <div class="drawer-artist">${k.artysta || 'brak artysty'}</div>
+    <div class="drawer-sub">${k.artysta || 'brak artysty'}${k.data_zlecenia ? ` &nbsp;·&nbsp; zlecono: ${k.data_zlecenia}` : ''}</div>
     <div class="d-section">Szczegóły</div>
     <div class="d-row"><span class="d-key">Pojemność</span><span class="d-val">${
         k.pojemnosc_ml} ml</span></div>
-    <div class="d-row"><span class="d-key">Materiał</span><span class="d-val">${k.typ_materialu}</span></div>
-    <div class="d-row"><span class="d-key">Ścianka</span><span class="d-val">${k.typ_scianki || '—'}</span></div>
-    <div class="d-row"><span class="d-key">Szt. w opakowaniu</span><span class="d-val">${k.sztuk_w_opakowaniu || '—'}</span></div>
+    ${k.typ_materialu ? `<div class="d-row"><span class="d-key">Materiał</span><span class="d-val">${k.typ_materialu}</span></div>` : ''}
+    ${k.typ_scianki ? `<div class="d-row"><span class="d-key">Ścianka</span><span class="d-val">${k.typ_scianki}</span></div>` : ''}
+    ${k.sztuk_w_opakowaniu ? `<div class="d-row"><span class="d-key">Szt. w opak.</span><span class="d-val">${k.sztuk_w_opakowaniu}</span></div>` : ''}
+    ${k.kolor ? `<div class="d-row"><span class="d-key">Kolor</span><span class="d-val">${k.kolor}</span></div>` : ''}
     <div class="d-row"><span class="d-key">Cena netto</span><span class="d-val acc">${k.cena_netto != null ? Number(k.cena_netto).toFixed(2) + ' zł' : '—'}</span></div>
-    <div class="d-row"><span class="d-key">Łącznie w magazynach</span><span class="d-val">${k.ilosc_lacznie} szt.</span></div>
-    <div class="d-row"><span class="d-key">W drodze</span><span class="d-val">${k.ilosc_w_drodze > 0 ? k.ilosc_w_drodze + ' szt.' : '—'}</span></div>
-    <div class="d-section">Stan wg magazynu</div>
-    <div class="mag-grid">${
-        stanyHtml}</div>
-    ${k.kod_qr ? `<div class="d-section">Kod QR</div><div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:12px;color:var(--ink2);word-break:break-all;margin-top:4px">${k.kod_qr}</div>` : ''}
+    ${stanyHtml ? `<div class="d-section">Stan wg magazynu</div><div class="mag-grid">${stanyHtml}</div>` : ''}
+    ${acceptHtml}
   `
         ;
         document.getElementById('overlay').classList.add('open');
         document.getElementById('drawer').classList.add('open');
     }
+
     function closeDrawer() {
         document.getElementById('overlay').classList.remove('open');
         document.getElementById('drawer').classList.remove('open');
     }
 
-    // ── DODAJ KUBEK ──
-    function updatePojemnosci() {
-        const mat = document.getElementById('nMat').value;
-        const sel = document.getElementById('nPoj');
-        const pojs = POJEMNOSCI[mat] || [];
-        if (!pojs.length) {
-            sel.innerHTML = '<option value="">— najpierw materiał —</option>';
-            return;
-        }
-        sel.innerHTML = `<option value="">— wybierz —</option>` + pojs.map(p => `<option value="${p}">${p} ml</option>`).join('');
-    }
-
-    function initDodajForm() {
-        // wypełnij select artystów
-        const sel = document.getElementById('nArtysta');
-        sel.innerHTML = '<option value="">— wybierz artystę —</option>';
-        allArtysci.forEach(a => {
-            const opt = document.createElement('option');
-            opt.value = a.id;
-            opt.textContent = a.imie_nazwisko;
-            sel.appendChild(opt);
+    // ── PRZYJMIJ DO MAGAZYNU ──
+    async function przyjmijDoMagazynu(kubek_id) {
+        const msg = document.getElementById('accMsg');
+        const inputs = document.querySelectorAll('[id^="acc_"]');
+        const stany = [];
+        inputs.forEach(inp => {
+            const ilosc = parseInt(inp.value) || 0;
+            if (ilosc > 0)
+                stany.push({
+                    kubek_id,
+                    magazyn_id: inp.dataset.mag,
+                    ilosc_dostepna: ilosc,
+                    ilosc_w_drodze: 0
+                });
         });
-        // pola stanów magazynowych
-        const wrap = document.getElementById('magStanyInputy');
-        wrap.innerHTML = allMagazyny.map(m => `
-    <div class="form-row" style="margin-bottom:10px">
-      <div class="form-group">
-        <label class="form-label">${
-
-        m.nazwa} — dostępne</label>
-        <input class="form-input" type="number" min="0" value="0" data-mag="${m.id}" data-typ="dostepna">
-      </div>
-      <div class="form-group">
-        <label class="form-label">${
-
-        m.nazwa} — w drodze</label>
-        <input class="form-input" type="number" min="0" value="0" data-mag="${m.id}" data-typ="drodze">
-      </div>
-    </div>`
-
-        ).join('');
-    }
-
-    async function dodajKubek() {
-        const mat = document.getElementById('nMat').value;
-        const poj = parseInt(document.getElementById('nPoj').value);
-        const sci = document.getElementById('nSci').value;
-        const pak = parseInt(document.getElementById('nPak').value) || null;
-        const cena = parseFloat(document.getElementById('nCena').value);
-        const grafNazwa = document.getElementById('nGrafika').value.trim();
-        const artId = document.getElementById('nArtysta').value;
-        const msg = document.getElementById('kubMsg');
-        const btn = document.getElementById('btnDodajKubek');
-
-        if (!mat || !poj || !sci || !grafNazwa || !artId || isNaN(cena)) {
-            msg.className = 'form-msg err';
-            msg.textContent = 'Wypełnij wszystkie wymagane pola.';
+        if (!stany.length) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'Wpisz przynajmniej jedną sztukę.';
             return;
         }
-
-        btn.disabled = true;
-        btn.textContent = 'Zapisuję…';
-        msg.textContent = '';
-
         try {
-            // 1. Utwórz grafikę
-            const [graf] = await sbFetch('grafika', '', {
-                method: 'POST',
-                body: JSON.stringify({
-                    artysta_id: artId,
-                    nazwa: grafNazwa
-                })
-            });
-
-            // 2. Utwórz kubek
-            const [kubek] = await sbFetch('kubek', '', {
-                method: 'POST',
-                body: JSON.stringify({
-                    grafika_id: graf.id,
-                    pojemnosc_ml: poj,
-                    typ_materialu: mat,
-                    typ_scianki: sci,
-                    sztuk_w_opakowaniu: pak,
-                    cena_netto: cena
-                })
-            });
-
-            // 3. Zapisz stany magazynowe
-            const stanyInputy = document.querySelectorAll('#magStanyInputy input');
-            const magMap = {};
-            stanyInputy.forEach(inp => {
-                const magId = inp.dataset.mag;
-                if (!magMap[magId])
-                    magMap[magId] = {
-                        magazyn_id: magId,
-                        kubek_id: kubek.id,
-                        ilosc_dostepna: 0,
-                        ilosc_w_drodze: 0
-                    };
-                if (inp.dataset.typ === 'dostepna')
-                    magMap[magId].ilosc_dostepna = parseInt(inp.value) || 0;
-                if (inp.dataset.typ === 'drodze')
-                    magMap[magId].ilosc_w_drodze = parseInt(inp.value) || 0;
-            });
+            // upsert stanów magazynowych
             await sbFetch('stan_magazynowy', '', {
                 method: 'POST',
-                body: JSON.stringify(Object.values(magMap)),
-                headers: {}
+                body: JSON.stringify(stany),
+                headers: {
+                    'Prefer': 'resolution=merge-duplicates'
+                }
             });
-
-            msg.className = 'form-msg ok';
-            msg.textContent = `✓ Kubek "${grafNazwa}" dodany do bazy!`;
-
-            // reset formularza
-            document.getElementById('nMat').value = '';
-            document.getElementById('nPoj').innerHTML = '<option value="">— najpierw materiał —</option>';
-            document.getElementById('nSci').value = '';
-            document.getElementById('nPak').value = '';
-            document.getElementById('nCena').value = '';
-            document.getElementById('nGrafika').value = '';
-            document.getElementById('nArtysta').value = '';
-            document.querySelectorAll('#magStanyInputy input').forEach(i => i.value = 0);
-
-            // odśwież katalog
-            loadAll();
+            // zmień status kubka na w_magazynie
+            await sbFetch('kubek', `?id=eq.${kubek_id}`, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    status: 'w_magazynie'
+                })
+            });
+            msg.className = 'f-msg ok';
+            msg.textContent = '✓ Kubek przyjęty do magazynu!';
+            setTimeout(() => {
+                closeDrawer();
+                loadAll();
+            }, 1200);
         } catch (e) {
-            msg.className = 'form-msg err';
+            msg.className = 'f-msg err';
             msg.textContent = 'Błąd: ' + e.message;
-        } finally {
-            btn.disabled = false;
-            btn.textContent = '+ Zapisz kubek';
         }
+    }
+
+    // ── KOMIS ──
+    async function loadKomis() {
+        document.getElementById('listKomis').innerHTML = `<div class="state-msg"><span class="big">⏳</span>Ładowanie…</div>`;
+        try {
+            const data = await sbFetch('v_komis_aktywny', '?select=*&order=dni_w_komisie.desc');
+            allKomis = data;
+            applyFilters('komis');
+        } catch (e) {
+            document.getElementById('listKomis').innerHTML = `<div class="state-msg"><span class="big">⚠️</span>${e.message}</div>`;
+        }
+    }
+
+    function renderKomis(komisy) {
+        const list = document.getElementById('listKomis');
+        if (!komisy.length) {
+            list.innerHTML = `<div class="state-msg"><span class="big">🤝</span>Brak aktywnych komisów.</div>`;
+            return;
+        }
+        // grupuj po kliencie
+        const byKlient = {};
+        komisy.forEach(k => {
+            if (!byKlient[k.klient_id])
+                byKlient[k.klient_id] = {
+                    klient: k.klient,
+                    pozycje: []
+                };
+            byKlient[k.klient_id].pozycje.push(k);
+        });
+        list.innerHTML = Object.values(byKlient).map(({klient, pozycje}) => `
+    <div class="komis-card">
+      <div class="komis-klient">${
+        klient}</div>
+      ${pozycje.map(p => `
+        <div class="komis-row">
+          <span class="komis-key">${
+        p.grafika} · ${p.pojemnosc_ml}ml</span>
+          <span class="komis-val">${p.ilosc} szt. · ${p.dni_w_komisie} dni</span>
+        </div>`).join('')}
+    </div>`
+        ).join('');
     }
 
     // ── ARTYŚCI ──
     async function loadArtysci() {
-        document.getElementById('artystList').innerHTML = `<div class="state-msg"><span class="big">⏳</span>Ładowanie…</div>`;
+        document.getElementById('listArtysci').innerHTML = `<div class="state-msg"><span class="big">⏳</span>Ładowanie…</div>`;
         try {
             const data = await sbFetch('v_artysta', '?select=*&order=imie_nazwisko.asc');
             renderArtysci(data);
         } catch (e) {
-            document.getElementById('artystList').innerHTML = `<div class="state-msg"><span class="big">⚠️</span>${e.message}</div>`;
+            document.getElementById('listArtysci').innerHTML = `<div class="state-msg"><span class="big">⚠️</span>${e.message}</div>`;
         }
     }
 
     function renderArtysci(artysci) {
-        const list = document.getElementById('artystList');
+        const list = document.getElementById('listArtysci');
         if (!artysci.length) {
             list.innerHTML = `<div class="state-msg"><span class="big">🎨</span>Brak artystów.</div>`;
             return;
         }
         list.innerHTML = artysci.map(a => `
     <div class="artysta-card">
-      <div>
-        <div class="artysta-name">${
+      <div class="artysta-top">
+        <div>
+          <div class="artysta-name">${
+
 
         a.imie_nazwisko}</div>
-        <div class="artysta-meta">Prowizja: ${Number(a.prowizja_za_sztuke).toFixed(3)} zł/szt.</div>
-        <div class="artysta-meta">Wypłacono: ${Number(a.wyplacono_lacznie).toFixed(2)} zł</div>
-      </div>
-      <div class="artysta-stats">
-        <div class="artysta-nalezne">${
+          <div class="artysta-meta">Prowizja: ${Number(a.prowizja_za_sztuke).toFixed(3)} zł/szt.</div>
+          <div class="artysta-meta">Wypłacono: ${Number(a.wyplacono_lacznie).toFixed(2)} zł</div>
+        </div>
+        <div>
+          <div class="artysta-nalezne">${
 
         Number(a.nalezne_lacznie).toFixed(2)} zł</div>
-        <div class="artysta-nalezne-lbl">należne</div>
+          <div class="artysta-nalezne-lbl">należne</div>
+        </div>
+      </div>
+      <div class="artysta-stats">
+        <div class="astat"><div class="astat-val">${
+
+
+
+        a.papierowe_w_magazynie}</div><div class="astat-lbl">Pap. w mag.</div></div>
+        <div class="astat"><div class="astat-val">${a.papierowe_zlecone}</div><div class="astat-lbl">Pap. zlecone</div></div>
+        <div class="astat"><div class="astat-val">${a.papierowe_sprzedane}</div><div class="astat-lbl">Pap. sprzedane</div></div>
+        <div class="astat highlight"><div class="astat-val">${a.termiczne_w_magazynie}</div><div class="astat-lbl">Term. w mag.</div></div>
+        <div class="astat highlight"><div class="astat-val">${a.termiczne_w_komisie}</div><div class="astat-lbl">Term. komis</div></div>
+        <div class="astat highlight"><div class="astat-val">${a.termiczne_sprzedane}</div><div class="astat-lbl">Term. sprzed.</div></div>
       </div>
     </div>`
-
 
         ).join('');
     }
@@ -1426,15 +1916,15 @@
     async function dodajArtyste() {
         const nazwa = document.getElementById('newArtName').value.trim();
         const prow = parseFloat(document.getElementById('newArtProw').value);
-        const msg = document.getElementById('formMsg');
-        const btn = document.getElementById('btnDodaj');
+        const msg = document.getElementById('artMsg');
+        const btn = document.getElementById('btnDodajArt');
         if (!nazwa) {
-            msg.className = 'form-msg err';
+            msg.className = 'f-msg err';
             msg.textContent = 'Wpisz imię i nazwisko.';
             return;
         }
         if (isNaN(prow) || prow < 0) {
-            msg.className = 'form-msg err';
+            msg.className = 'f-msg err';
             msg.textContent = 'Wpisz poprawną prowizję.';
             return;
         }
@@ -1449,30 +1939,186 @@
                     prowizja_za_sztuke: prow
                 })
             });
-            msg.className = 'form-msg ok';
+            msg.className = 'f-msg ok';
             msg.textContent = `✓ Dodano: ${nazwa}`;
             document.getElementById('newArtName').value = '';
             loadArtysci();
             const artysci = await sbFetch('artysta', '?select=id,imie_nazwisko&order=imie_nazwisko.asc');
             allArtysci = artysci;
-            buildArtystFilter(artysci);
+            buildArtystFilters(artysci);
         } catch (e) {
-            msg.className = 'form-msg err';
+            msg.className = 'f-msg err';
             msg.textContent = 'Błąd: ' + e.message;
-        } finally {
+        }
+        finally {
             btn.disabled = false;
             btn.textContent = '+ Dodaj artystę';
         }
     }
 
+    // ── DODAJ KUBEK ──
+    function onRodzajChange() {
+        const r = document.getElementById('nRodzaj').value;
+        document.getElementById('formPapierowy').style.display = r === 'papierowy' ? 'block' : 'none';
+        document.getElementById('formTermiczny').style.display = r === 'termiczny' ? 'block' : 'none';
+        document.getElementById('formWspolne').style.display = r ? 'block' : 'none';
+    }
+
+    function updatePojemnosci() {
+        const mat = document.getElementById('nMat').value;
+        const sel = document.getElementById('nPoj');
+        const pojs = POJEMNOSCI[mat] || [];
+        sel.innerHTML = pojs.length
+        ? `<option value="">— wybierz —</option>` + pojs.map(p => `<option value="${p}">${p} ml</option>`).join('')
+        : `<option value="">— najpierw materiał —</option>`;
+    }
+
+    function previewFile(input) {
+        const file = input.files[0];
+        if (!file)
+            return;
+        const reader = new FileReader();
+        reader.onload = e => {
+            const img = document.getElementById('uploadPreview');
+            img.src = e.target.result;
+            img.style.display = 'block';
+            document.getElementById('uploadTxt').textContent = file.name;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function initDodajForm() {
+        const sel = document.getElementById('nArtysta');
+        sel.innerHTML = '<option value="">— wybierz artystę —</option>';
+        allArtysci.forEach(a => {
+            const o = document.createElement('option');
+            o.value = a.id;
+            o.textContent = a.imie_nazwisko;
+            sel.appendChild(o);
+        });
+    }
+
+    async function dodajKubek() {
+        const rodzaj = document.getElementById('nRodzaj').value;
+        const grafNazwa = document.getElementById('nGrafika').value.trim();
+        const artId = document.getElementById('nArtysta').value;
+        const fileInput = document.getElementById('fileInput');
+        const msg = document.getElementById('kubMsg');
+        const btn = document.getElementById('btnDodajKubek');
+
+        if (!rodzaj || !grafNazwa || !artId) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'Wypełnij wszystkie wymagane pola.';
+            return;
+        }
+
+        let kubekData = {};
+        if (rodzaj === 'papierowy') {
+            const mat = document.getElementById('nMat').value;
+            const poj = parseInt(document.getElementById('nPoj').value);
+            const sci = document.getElementById('nSci').value;
+            const pak = parseInt(document.getElementById('nPak').value) || null;
+            const cena = parseFloat(document.getElementById('nCena').value);
+            if (!mat || !poj || !sci || isNaN(cena)) {
+                msg.className = 'f-msg err';
+                msg.textContent = 'Wypełnij wszystkie pola kubka papierowego.';
+                return;
+            }
+            kubekData = {
+                table: 'kubek',
+                data: {
+                    pojemnosc_ml: poj,
+                    typ_materialu: mat,
+                    typ_scianki: sci,
+                    sztuk_w_opakowaniu: pak,
+                    cena_netto: cena,
+                    status: 'zlecony',
+                    data_zlecenia: new Date().toISOString().slice(0, 10)
+                }
+            };
+        } else {
+            const poj = parseInt(document.getElementById('nTPoj').value);
+            const kolor = document.getElementById('nTKolor').value.trim() || null;
+            const cena = parseFloat(document.getElementById('nTCena').value);
+            if (!poj || isNaN(cena)) {
+                msg.className = 'f-msg err';
+                msg.textContent = 'Wypełnij wszystkie pola kubka termicznego.';
+                return;
+            }
+            kubekData = {
+                table: 'kubek_termiczny',
+                data: {
+                    pojemnosc_ml: poj,
+                    kolor,
+                    cena_netto: cena
+                }
+            };
+        }
+
+        btn.disabled = true;
+        btn.textContent = 'Zapisuję…';
+        msg.textContent = '';
+
+        try {
+            // wgraj zdjęcie
+            let miniaturkaUrl = null;
+            if (fileInput.files[0])
+                miniaturkaUrl = await sbUpload(fileInput.files[0]);
+
+            // zapisz grafikę
+            const [graf] = await sbFetch('grafika', '', {
+                method: 'POST',
+                body: JSON.stringify({
+                    artysta_id: artId,
+                    nazwa: grafNazwa,
+                    miniaturka_url: miniaturkaUrl
+                })
+            });
+
+            // zapisz kubek
+            await sbFetch(kubekData.table, '', {
+                method: 'POST',
+                body: JSON.stringify({
+                    ...kubekData.data,
+                    grafika_id: graf.id
+                })
+            });
+
+            msg.className = 'f-msg ok';
+            msg.textContent = `✓ Kubek "${grafNazwa}" zapisany jako zlecony!`;
+
+            // reset
+            document.getElementById('nRodzaj').value = '';
+            document.getElementById('nGrafika').value = '';
+            document.getElementById('nArtysta').value = '';
+            document.getElementById('uploadPreview').style.display = 'none';
+            document.getElementById('uploadTxt').textContent = '📷 Kliknij żeby wybrać zdjęcie';
+            fileInput.value = '';
+            onRodzajChange();
+            loadAll();
+        } catch (e) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'Błąd: ' + e.message;
+        }
+        finally {
+            btn.disabled = false;
+            btn.textContent = '+ Zapisz kubek (zlecony)';
+        }
+    }
+
     // ── INIT ──
-    window.addEventListener('load', () => {
+    window.addEventListener('load', async () => {
         const {url, key} = getCfg();
         if (url && key) {
             document.getElementById('cfgUrl').value = url;
             document.getElementById('cfgKey').value = key;
             document.getElementById('cfgModal').classList.remove('open');
-            loadAll();
+            // inicjalizuj tablice żeby nie było błędów przed loadAll
+            allZlecone = [];
+            await loadAll();
+            // załaduj zlecone osobno
+            allZlecone = await grupujZlecone();
+            applyFilters('zlecone');
         }
     });
     </script>
