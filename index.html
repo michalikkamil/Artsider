@@ -1464,8 +1464,9 @@
 
             // grupuj kubki papierowe (w_magazynie)
             allKubki = grupuj(stanKubki.filter(r => r.status === 'w_magazynie' || !r.status));
-            allZlecone = grupujZlecone(stanKubki.filter(r => r.status === 'zlecony'));
+
             allTermiczne = grupuj(stanTerm);
+            allZlecone = await ladujZlecone();
 
             applyFilters('kubki');
             applyFilters('zlecone');
@@ -1509,8 +1510,7 @@
         return Object.values(map);
     }
 
-    async function grupujZlecone(stanyRow) {
-        // kubki zlecone — pobierz je bezpośrednio z tabeli kubek
+    async function ladujZlecone() {
         try {
             const kubki = await sbFetch('kubek', '?status=eq.zlecony&select=*,grafika(nazwa,miniaturka_url,artysta(imie_nazwisko))');
             return kubki.map(k => ({
@@ -2113,12 +2113,8 @@
             document.getElementById('cfgUrl').value = url;
             document.getElementById('cfgKey').value = key;
             document.getElementById('cfgModal').classList.remove('open');
-            // inicjalizuj tablice żeby nie było błędów przed loadAll
             allZlecone = [];
             await loadAll();
-            // załaduj zlecone osobno
-            allZlecone = await grupujZlecone();
-            applyFilters('zlecone');
         }
     });
     </script>
