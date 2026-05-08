@@ -1683,7 +1683,7 @@
             const mat = document.getElementById('fMat').value;
             const sci = document.getElementById('fSci').value;
             const art = document.getElementById('fArt').value;
-            const q = document.getElementById('searchKubki').value.toLowerCase();
+            const q = document.getElementById('searchKubki')?.value?.toLowerCase() || '';
             const f = allKubki.filter(k => {
                 if (poj && String(k.pojemnosc_ml) !== poj)
                     return false;
