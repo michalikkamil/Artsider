@@ -1003,6 +1003,23 @@
         border-color: var(--accent);
         color: white;
     }
+
+    .drawer-back {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--ink3);
+        font-size: 12px;
+        cursor: pointer;
+        padding: 4px 0 16px;
+        border: none;
+        background: none;
+        font-family: var(--fm);
+    }
+
+    .drawer-back:hover {
+        color: var(--ink);
+    }
     </style>
 </head>
 <body>
@@ -1078,9 +1095,6 @@
                         <option value="">Wszyscy</option>
                     </select>
                 </div>
-            </div>
-            <div class="search-wrap">
-                <input type="search" id="searchKubki" placeholder="Szukaj grafiki lub artysty…" oninput="applyFilters('kubki')">
             </div>
             <div class="mag-tabs" id="magTabsKubki">
                 <button class="mag-tab active" data-mag="" onclick="selectMag(this,'kubki')">Wszystkie</button>
@@ -2243,19 +2257,26 @@
             return;
         }
         list.innerHTML = zamowienia.map(z => `
-    <div class="card" style="flex-direction:column;padding:14px 16px;cursor:pointer;" onclick="openZamowienieDrawer('${z.id}')">
-      <div class="card-top" style="margin-bottom:6px;">
-        <div class="card-title" style="white-space:normal;">${
-        z.klient}</div>
+    <div class="card" style="flex-direction:column;padding:14px 16px;">
+      <div class="card-top" style="margin-bottom:6px;cursor:pointer;" onclick="openZamowienieDrawer('${
+        z.id}')">
+        <div class="card-title" style="white-space:normal;">${z.klient}</div>
         <div class="card-price">${Number(z.wartosc_lacznie).toFixed(2)} zł</div>
       </div>
-      <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;">${
-        z.data_zamowienia} · ${z.zrodlo || '—'} · ${z.liczba_pozycji} poz.</div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;cursor:pointer;" onclick="openZamowienieDrawer('${
+        z.id}')">${z.data_zamowienia} · ${z.zrodlo || '—'} · ${z.liczba_pozycji} poz.</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
         <span class="tag" style="background:#F0F4FB;border-color:#B5C4F4;color:#1840A5;">${
         STATUS_LABELS[z.status_realizacji] || z.status_realizacji}</span>
         <span class="tag" style="background:${z.status_platnosci === 'oplacona' ? '#EAF3DE' : '#FBE9E9'};border-color:${z.status_platnosci === 'oplacona' ? '#C0DD97' : '#F4B5B5'};color:${z.status_platnosci === 'oplacona' ? '#3B6D11' : '#A32D2D'};">${PLATNOSC_LABELS[z.status_platnosci] || z.status_platnosci}</span>
         <span class="tag" style="background:#FBF3EA;border-color:#F0C8A8;color:#7A3D0F;">${FAKTURA_LABELS[z.status_faktury] || z.status_faktury}</span>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button onclick="zmienStatus('${
+
+        z.id}','status_realizacji','wyslane')" style="font-size:10px;padding:4px 10px;border-radius:20px;border:1px solid #C0DD97;background:#EAF3DE;color:#3B6D11;cursor:pointer;font-family:var(--fm);">🚚 Wyślij</button>
+        <button onclick="zmienStatus('${z.id}','status_platnosci','oplacona')" style="font-size:10px;padding:4px 10px;border-radius:20px;border:1px solid #B5D4F4;background:#EDF4FB;color:#185FA5;cursor:pointer;font-family:var(--fm);">💚 Opłacone</button>
+        <button onclick="zmienStatus('${z.id}','status_faktury','wyslana')" style="font-size:10px;padding:4px 10px;border-radius:20px;border:1px solid #F0C8A8;background:#FBF3EA;color:#7A3D0F;cursor:pointer;font-family:var(--fm);">📄 Faktura wys.</button>
       </div>
     </div>`
 
@@ -2276,8 +2297,15 @@
             }).join('');
 
             document.getElementById('drawerZamContent').innerHTML = `
-      <div class="drawer-title">${zam.klient}</div>
-      <div class="drawer-sub">${zam.data_zamowienia} · ${zam.zrodlo || '—'}</div>
+      <button class="drawer-back" onclick="closeZamDrawer()">← Wróć</button>
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px;">
+        <div class="drawer-title" style="margin-bottom:0;">${
+
+            zam.klient}</div>
+        <button onclick="openEdytujZamowienie('${zamId}')" style="background:var(--bg2);border:1.5px solid var(--border);border-radius:8px;padding:6px 12px;font-family:var(--fm);font-size:11px;cursor:pointer;flex-shrink:0;margin-left:8px;">✏️ Edytuj</button>
+      </div>
+      <div class="drawer-sub">${
+            zam.data_zamowienia} · ${zam.zrodlo || '—'} · ${zam.typ_zamowienia || ''}</div>
 
       <div class="d-section">Pozycje zamówienia</div>
       ${
@@ -2287,25 +2315,34 @@
 
       ${
             zam.tresc_zamowienia ? `<div class="d-section">Treść zamówienia</div><div style="background:var(--bg);border-radius:10px;padding:12px;font-size:12px;line-height:1.6;color:var(--ink2);white-space:pre-wrap;">${zam.tresc_zamowienia}</div>` : ''}
+      ${zam.numer_faktury ? `<div class="d-section">Faktura</div><div class="d-row"><span class="d-key">Numer</span><span class="d-val">${zam.numer_faktury}</span></div>` : ''}
 
+      <div class="d-section">Akcje</div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <button onclick="przygotujFakture('${
+
+
+            zamId}')" style="flex:1;background:#185FA5;color:white;border:none;border-radius:10px;padding:11px 8px;font-family:var(--fm);font-size:12px;cursor:pointer;">📄 Faktura</button>
+        <button onclick="wylijWysylke('${zamId}')" style="flex:1;background:#3B6D11;color:white;border:none;border-radius:10px;padding:11px 8px;font-family:var(--fm);font-size:12px;cursor:pointer;">🚚 Wyślij</button>
+      </div>
       <div class="d-section">Zmień status</div>
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px;">
-        <div style="display:flex;gap:8px;">
+        <div style="display:flex;gap:6px;">
           <button onclick="zmienStatus('${
 
 
 
-            zamId}','status_realizacji','w_produkcji')" class="btn-status ${zam.status_realizacji === 'w_produkcji' ? 'active' : ''}">🏭 W produkcji</button>
+            zamId}','status_realizacji','w_produkcji')" class="btn-status ${zam.status_realizacji === 'w_produkcji' ? 'active' : ''}">🏭 W prod.</button>
           <button onclick="zmienStatus('${zamId}','status_realizacji','wyslane')" class="btn-status ${zam.status_realizacji === 'wyslane' ? 'active' : ''}">🚚 Wysłane</button>
           <button onclick="zmienStatus('${zamId}','status_realizacji','zrealizowane')" class="btn-status ${zam.status_realizacji === 'zrealizowane' ? 'active' : ''}">✅ Zrealizowane</button>
         </div>
-        <div style="display:flex;gap:8px;">
+        <div style="display:flex;gap:6px;">
           <button onclick="zmienStatus('${
 
-            zamId}','status_faktury','nie_wyslana')" class="btn-status ${zam.status_faktury === 'nie_wyslana' ? 'active' : ''}">⏳ Faktura niewysłana</button>
-          <button onclick="zmienStatus('${zamId}','status_faktury','wyslana')" class="btn-status ${zam.status_faktury === 'wyslana' ? 'active' : ''}">📄 Faktura wysłana</button>
+            zamId}','status_faktury','nie_wyslana')" class="btn-status ${zam.status_faktury === 'nie_wyslana' ? 'active' : ''}">⏳ Fak. niewysł.</button>
+          <button onclick="zmienStatus('${zamId}','status_faktury','wyslana')" class="btn-status ${zam.status_faktury === 'wyslana' ? 'active' : ''}">📄 Fak. wysłana</button>
         </div>
-        <div style="display:flex;gap:8px;">
+        <div style="display:flex;gap:6px;">
           <button onclick="zmienStatus('${
 
             zamId}','status_platnosci','nieoplacona')" class="btn-status ${zam.status_platnosci === 'nieoplacona' ? 'active' : ''}">🔴 Nieopłacone</button>
@@ -2355,9 +2392,9 @@
     // ── NOWE ZAMÓWIENIE ──
     function openNoweZamowienie() {
         const klientOptions = allKlienci.map(k => `<option value="${k.id}">${k.nazwa_wlasna}</option>`).join('');
-        const kubkiOptions = allKubki.map(k => `<option value="${k.kubek_id}">${k.grafika || '—'} · ${k.pojemnosc_ml}ml ${k.typ_materialu || ''}</option>`).join('');
 
         document.getElementById('drawerZamContent').innerHTML = `
+    <button class="drawer-back" onclick="closeZamDrawer()">← Zamknij</button>
     <div class="drawer-title">Nowe zamówienie</div>
 
     <div class="d-section">Klient</div>
@@ -2365,6 +2402,7 @@
       <select class="f-select" id="zamKlient">
         <option value="">— wybierz klienta —</option>
         ${
+
 
 
 
@@ -2411,13 +2449,11 @@
     <div class="d-section">Produkty</div>
     <div id="pozycjeZam"></div>
     <button class="btn-secondary" onclick="dodajPozycje('kubek')" style="margin-bottom:6px;">+ Kubek papierowy</button>
-    <button class="btn-secondary" onclick="dodajPozycje('termiczny')" style="margin-bottom:6px;">+ Kubek termiczny</button>
     <button class="btn-secondary" onclick="dodajPozycje('przykrywka')" style="margin-bottom:6px;">+ Przykrywka</button>
 
     <button class="btn-primary" onclick="zapiszZamowienie()" style="margin-top:12px;">💾 Zapisz zamówienie</button>
     <div class="f-msg" id="zamMsg"></div>
   `
-
 
 
 
@@ -2469,31 +2505,92 @@
     }
 
     let pozycjeCounter = 0;
+
+    // kubki papierowe pogrupowane
+    function getKubkiByMat(mat) {
+        return allKubki.filter(k => !mat || k.typ_materialu === mat);
+    }
+    function getKubkiByMatPoj(mat, poj) {
+        return allKubki.filter(k => (!mat || k.typ_materialu === mat) && (!poj || String(k.pojemnosc_ml) === poj));
+    }
+
+    function onPozMaterialChange(id) {
+        const mat = document.getElementById(`poz_mat_${id}`)?.value || '';
+        // reset pojemność
+        const pojSel = document.getElementById(`poz_poj_${id}`);
+        if (!pojSel)
+            return;
+        const pojs = [...new Set(getKubkiByMat(mat).map(k => k.pojemnosc_ml))].sort((a, b) => a - b);
+        pojSel.innerHTML = '<option value="">— pojemność —</option>' + pojs.map(p => `<option value="${p}">${p} ml</option>`).join('');
+        // reset miniaturki
+        const kubSel = document.getElementById(`poz_kub_${id}`);
+        if (kubSel)
+            kubSel.innerHTML = '<option value="">— wybierz kubek —</option>';
+        document.getElementById(`poz_cena_${id}`).value = '';
+    }
+
+    function onPozPojChange(id) {
+        const mat = document.getElementById(`poz_mat_${id}`)?.value || '';
+        const poj = document.getElementById(`poz_poj_${id}`)?.value || '';
+        const kubSel = document.getElementById(`poz_kub_${id}`);
+        if (!kubSel)
+            return;
+        const kubki = getKubkiByMatPoj(mat, poj);
+        kubSel.innerHTML = '<option value="">— wybierz kubek —</option>' +
+        kubki.map(k => {
+            const thumb = k.miniaturka ? `🖼 ` : '☕ ';
+            return `<option value="${k.kubek_id}" data-cena="${k.cena_netto}">${thumb}${k.grafika || '—'} (${k.ilosc_lacznie} szt.)</option>`;
+        }).join('');
+        document.getElementById(`poz_cena_${id}`).value = '';
+    }
+
+    function onPozKubekChange(id) {
+        const sel = document.getElementById(`poz_kub_${id}`);
+        const opt = sel?.options[sel.selectedIndex];
+        const cena = opt?.dataset?.cena;
+        if (cena)
+            document.getElementById(`poz_cena_${id}`).value = Number(cena).toFixed(2);
+    }
+
     function dodajPozycje(typ) {
         const id = ++pozycjeCounter;
         const wrap = document.getElementById('pozycjeZam');
         const div = document.createElement('div');
         div.id = `poz_${id}`;
+        div.dataset.typ = typ;
         div.style.cssText = 'background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;position:relative;';
 
         let selectHTML = '';
         if (typ === 'kubek') {
-            selectHTML = `<select class="f-select" data-typ="kubek" data-field="kubek_id" style="margin-bottom:6px;">
-      <option value="">— wybierz kubek —</option>
-      ${
-            allKubki.map(k => `<option value="${k.kubek_id}">${k.grafika || '—'} · ${k.pojemnosc_ml}ml ${k.typ_materialu || ''} (${k.ilosc_lacznie} szt.)</option>`).join('')}
-    </select>`
+            const maty = [...new Set(allKubki.map(k => k.typ_materialu).filter(Boolean))].sort();
+            selectHTML = `
+      <select class="f-select" id="poz_mat_${id}" onchange="onPozMaterialChange(${id})" style="margin-bottom:6px;">
+        <option value="">— materiał —</option>
+        ${
+            maty.map(m => `<option value="${m}">${m}</option>`).join('')}
+      </select>
+      <select class="f-select" id="poz_poj_${
+            id}" onchange="onPozPojChange(${id})" style="margin-bottom:6px;" disabled>
+        <option value="">— najpierw materiał —</option>
+      </select>
+      <select class="f-select" id="poz_kub_${
+
+            id}" data-field="kubek_id" onchange="onPozKubekChange(${id})" style="margin-bottom:6px;" >
+        <option value="">— wybierz kubek —</option>
+      </select>`
+
             ;
-        } else if (typ === 'termiczny') {
-            selectHTML = `<select class="f-select" data-typ="termiczny" data-field="kubek_termiczny_id" style="margin-bottom:6px;">
-      <option value="">— wybierz kubek termiczny —</option>
-      ${
-            allTermiczne.map(k => `<option value="${k.kubek_id}">${k.grafika || '—'} · ${k.pojemnosc_ml}ml (${k.ilosc_lacznie} szt.)</option>`).join('')}
-    </select>`
-            ;
-        } else {
+            // enable poj after mat selected
+            setTimeout(() => {
+                document.getElementById(`poz_mat_${id}`)?.addEventListener('change', () => {
+                    const pojSel = document.getElementById(`poz_poj_${id}`);
+                    if (pojSel)
+                        pojSel.disabled = false;
+                });
+            }, 0);
+        } else if (typ === 'przykrywka') {
             selectHTML = `<div style="display:flex;gap:6px;margin-bottom:6px;">
-      <select class="f-select" data-typ="przykrywka" data-field="pr_mat" style="flex:1;">
+      <select class="f-select" data-field="pr_mat" style="flex:1;">
         <option value="papierowa">Papierowa</option><option value="plastikowa">Plastikowa</option>
       </select>
       <select class="f-select" data-field="pr_rozm" style="flex:1;">
@@ -2517,19 +2614,17 @@
 
         div.innerHTML = `
     <button onclick="document.getElementById('poz_${id}').remove()" style="position:absolute;top:8px;right:8px;background:none;border:none;font-size:16px;cursor:pointer;color:var(--ink3);">✕</button>
-    <div style="font-size:10px;text-transform:uppercase;color:var(--ink3);margin-bottom:8px;">${typ === 'kubek' ? 'Kubek papierowy' : typ === 'termiczny' ? 'Kubek termiczny' : 'Przykrywka'}</div>
+    <div style="font-size:10px;text-transform:uppercase;color:var(--ink3);margin-bottom:8px;">${typ === 'kubek' ? 'Kubek papierowy' : 'Przykrywka'}</div>
     ${selectHTML}
-    <div style="display:flex;gap:8px;align-items:center;">
+    <div style="display:flex;gap:8px;">
       <div class="f-group" style="flex:1;margin-bottom:0;"><label class="f-label">Ilość</label><input class="f-input" data-field="ilosc" type="number" min="1" value="1"></div>
-      <div class="f-group" style="flex:1;margin-bottom:0;"><label class="f-label">Cena jedn. netto</label><input class="f-input" data-field="cena" type="number" step="0.01" min="0" placeholder="0.00"></div>
+      <div class="f-group" style="flex:1;margin-bottom:0;"><label class="f-label">Cena netto (zł)</label><input class="f-input" id="poz_cena_${
+
+        id}" data-field="cena" type="number" step="0.01" min="0" placeholder="auto"></div>
     </div>
   `
 
-
-
-
         ;
-        div.dataset.typ = typ;
         wrap.appendChild(div);
     }
 
@@ -2687,6 +2782,323 @@
                 closeZamDrawer();
                 loadZamowienia();
             }, 1000);
+        } catch (e) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'Błąd: ' + e.message;
+        }
+    }
+
+    // ── FAKTUROWNIA ──
+    const FAKTUROWNIA_TOKEN = localStorage.getItem('fakturownia_token') || '';
+    const FAKTUROWNIA_DOMAIN = localStorage.getItem('fakturownia_domain') || '';
+
+    async function przygotujFakture(zamId) {
+        const {url, key} = getCfg();
+        const edgeFnUrl = `${url}/functions/v1/fakturownia-invoice`;
+        const msg = document.getElementById('zamStatusMsg');
+        if (msg) {
+            msg.className = 'f-msg';
+            msg.textContent = '⏳ Generuję fakturę…';
+        }
+        try {
+            const res = await fetch(edgeFnUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${key}`,
+                },
+                body: JSON.stringify({
+                    zamowienie_id: zamId
+                }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                if (msg) {
+                    msg.className = 'f-msg ok';
+                    msg.textContent = `✓ Faktura nr ${data.faktura_numer} utworzona!`;
+                }
+                setTimeout(() => {
+                    closeZamDrawer();
+                    loadZamowienia();
+                }, 1500);
+            } else {
+                if (msg) {
+                    msg.className = 'f-msg err';
+                    msg.textContent = 'Błąd: ' + (data.error || JSON.stringify(data));
+                }
+                else
+                    alert('Błąd Fakturowni: ' + (data.error || JSON.stringify(data)));
+            }
+        } catch (e) {
+            if (msg) {
+                msg.className = 'f-msg err';
+                msg.textContent = 'Błąd: ' + e.message;
+            }
+            else
+                alert('Błąd: ' + e.message);
+        }
+    }
+
+    async function wylijWysylke(zamId) {
+        try {
+            await sbFetch('zamowienie', `?id=eq.${zamId}`, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    status_realizacji: 'wyslane'
+                })
+            });
+            alert('✓ Status zmieniony na: Wysłane');
+            loadZamowienia();
+            closeZamDrawer();
+        } catch (e) {
+            alert('Błąd: ' + e.message);
+        }
+    }
+
+    // ── EDYTUJ ZAMÓWIENIE ──
+    async function openEdytujZamowienie(zamId) {
+        try {
+            const [zam] = await sbFetch('zamowienie', `?id=eq.${zamId}`);
+            const pozycje = await sbFetch('v_pozycje_zamowienia', `?zamowienie_id=eq.${zamId}`);
+            const klientOptions = allKlienci.map(k => `<option value="${k.id}" ${k.id === zam.klient_id ? 'selected' : ''}>${k.nazwa_wlasna}</option>`).join('');
+
+            // pozycje HTML do edycji
+            let pozIdx = pozycjeCounter;
+            const pozHTML = pozycje.map(p => {
+                pozIdx++;
+                const opis = p.rodzaj_produktu === 'kubek'
+                ? `${p.grafika || '—'} · ${p.pojemnosc_ml}ml ${p.typ_materialu || ''}`
+                : `Przykrywka ${p.pr_typ || ''} ${p.pr_rozmiar || ''}mm`;
+                return `<div id="epoz_${p.id}" style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <div style="flex:1;font-size:12px;">${opis}</div>
+        <div style="font-size:12px;color:var(--ink2);">${p.ilosc} szt. · ${Number(p.cena_jednostkowa).toFixed(2)} zł</div>
+        <button onclick="usunPozycje('${p.id}','epoz_${p.id}')" style="background:none;border:none;color:var(--accent);font-size:16px;cursor:pointer;padding:0 4px;">✕</button>
+      </div>`
+                ;
+            }).join('');
+
+            document.getElementById('drawerZamContent').innerHTML = `
+      <button class="drawer-back" onclick="openZamowienieDrawer('${zamId}')">← Wróć</button>
+      <div class="drawer-title">Edytuj zamówienie</div>
+
+      <div class="d-section">Klient</div>
+      <select class="f-select" id="eZamKlient">${
+
+
+            klientOptions}</select>
+
+      <div class="d-section">Szczegóły</div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <div class="f-group" style="flex:1;margin-bottom:0;"><label class="f-label">Źródło</label>
+          <select class="f-select" id="eZamZrodlo">
+            <option value="email" ${
+
+
+
+
+            zam.zrodlo === 'email' ? 'selected' : ''}>Email</option>
+            <option value="telefon" ${zam.zrodlo === 'telefon' ? 'selected' : ''}>Telefon</option>
+            <option value="sms" ${zam.zrodlo === 'sms' ? 'selected' : ''}>SMS</option>
+          </select>
+        </div>
+        <div class="f-group" style="flex:1;margin-bottom:0;"><label class="f-label">Typ</label>
+          <select class="f-select" id="eZamTyp">
+            <option value="artsider" ${
+
+
+
+            zam.typ_zamowienia === 'artsider' ? 'selected' : ''}>Artsider</option>
+            <option value="wlasne_logo" ${zam.typ_zamowienia === 'wlasne_logo' ? 'selected' : ''}>Własne logo</option>
+          </select>
+        </div>
+      </div>
+      <div class="f-group"><label class="f-label">Treść zamówienia</label>
+        <textarea class="f-input" id="eZamTresc" rows="4" style="resize:vertical;">${
+
+
+
+            zam.tresc_zamowienia || ''}</textarea>
+      </div>
+      <div class="f-group"><label class="f-label">Numer faktury</label>
+        <input class="f-input" id="eZamFaktura" value="${
+
+            zam.numer_faktury || ''}">
+      </div>
+
+      <div class="d-section">Pozycje zamówienia</div>
+      <div id="ePozycjeList">${
+
+
+            pozHTML}</div>
+      <button class="btn-secondary" onclick="dodajPozycjeEdit('kubek')" style="margin-bottom:6px;">+ Kubek papierowy</button>
+      <button class="btn-secondary" onclick="dodajPozycjeEdit('przykrywka')" style="margin-bottom:6px;">+ Przykrywka</button>
+      <div id="ePozycjeNowe"></div>
+
+      <button class="btn-primary" onclick="zapiszEdycjeZamowienia('${
+
+
+
+            zamId}')" style="margin-top:12px;">💾 Zapisz zmiany</button>
+      <div class="f-msg" id="eZamMsg"></div>
+    `
+
+            ;
+        } catch (e) {
+            alert('Błąd: ' + e.message);
+        }
+    }
+
+    async function usunPozycje(pozId, divId) {
+        try {
+            await sbFetch('pozycja_zamowienia', `?id=eq.${pozId}`, {
+                method: 'DELETE'
+            });
+            document.getElementById(divId)?.remove();
+        } catch (e) {
+            alert('Błąd usuwania: ' + e.message);
+        }
+    }
+
+    function dodajPozycjeEdit(typ) {
+        const wrap = document.getElementById('ePozycjeNowe');
+        const id = ++pozycjeCounter;
+        const div = document.createElement('div');
+        div.id = `epoz_new_${id}`;
+        div.dataset.typ = typ;
+        div.style.cssText = 'background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:6px;position:relative;';
+
+        let selectHTML = '';
+        if (typ === 'kubek') {
+            const maty = [...new Set(allKubki.map(k => k.typ_materialu).filter(Boolean))].sort();
+            selectHTML = `
+      <select class="f-select" id="epoz_mat_${id}" onchange="onPozMaterialChange(${id})" style="margin-bottom:6px;">
+        <option value="">— materiał —</option>
+        ${
+            maty.map(m => `<option value="${m}">${m}</option>`).join('')}
+      </select>
+      <select class="f-select" id="poz_poj_${
+            id}" onchange="onPozPojChange(${id})" style="margin-bottom:6px;">
+        <option value="">— pojemność —</option>
+      </select>
+      <select class="f-select" id="poz_kub_${
+
+            id}" data-field="kubek_id" onchange="onPozKubekChange(${id})" style="margin-bottom:6px;">
+        <option value="">— wybierz kubek —</option>
+      </select>`
+
+            ;
+        } else {
+            selectHTML = `<div style="display:flex;gap:6px;margin-bottom:6px;">
+      <select class="f-select" data-field="pr_mat" style="flex:1;"><option value="papierowa">Papierowa</option><option value="plastikowa">Plastikowa</option></select>
+      <select class="f-select" data-field="pr_rozm" style="flex:1;"><option value="80">80mm</option><option value="90">90mm</option><option value="72">72mm</option></select>
+      <select class="f-select" data-field="pr_kol" style="flex:1;"><option value="biały">Biały</option><option value="czarny">Czarny</option></select>
+    </div>`
+
+
+
+            ;
+        }
+
+        div.innerHTML = `
+    <button onclick="document.getElementById('epoz_new_${id}').remove()" style="position:absolute;top:8px;right:8px;background:none;border:none;font-size:16px;cursor:pointer;color:var(--ink3);">✕</button>
+    <div style="font-size:10px;text-transform:uppercase;color:var(--ink3);margin-bottom:8px;">${typ === 'kubek' ? 'Kubek papierowy' : 'Przykrywka'}</div>
+    ${selectHTML}
+    <div style="display:flex;gap:8px;">
+      <div class="f-group" style="flex:1;margin-bottom:0;"><label class="f-label">Ilość</label><input class="f-input" data-field="ilosc" type="number" min="1" value="1"></div>
+      <div class="f-group" style="flex:1;margin-bottom:0;"><label class="f-label">Cena netto</label><input class="f-input" id="poz_cena_${
+
+        id}" data-field="cena" type="number" step="0.01" min="0" placeholder="auto"></div>
+    </div>`
+        ;
+        // fix material select id
+        const matSel = div.querySelector(`#epoz_mat_${id}`);
+        if (matSel)
+            matSel.id = `poz_mat_${id}`;
+        wrap.appendChild(div);
+    }
+
+    async function zapiszEdycjeZamowienia(zamId) {
+        const klientId = document.getElementById('eZamKlient').value;
+        const zrodlo = document.getElementById('eZamZrodlo').value;
+        const typ = document.getElementById('eZamTyp').value;
+        const tresc = document.getElementById('eZamTresc').value.trim();
+        const faktura = document.getElementById('eZamFaktura').value.trim();
+        const msg = document.getElementById('eZamMsg');
+
+        msg.className = 'f-msg';
+        msg.textContent = 'Zapisuję…';
+
+        try {
+            // zaktualizuj zamówienie
+            await sbFetch('zamowienie', `?id=eq.${zamId}`, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    klient_id: klientId,
+                    zrodlo,
+                    typ_zamowienia: typ,
+                    tresc_zamowienia: tresc || null,
+                    numer_faktury: faktura || null,
+                })
+            });
+
+            // zapisz nowe pozycje
+            const nowe = document.querySelectorAll('#ePozycjeNowe > div[data-typ]');
+            for (const div of nowe) {
+                const typ2 = div.dataset.typ;
+                const ilosc = parseInt(div.querySelector('[data-field="ilosc"]')?.value) || 0;
+                const cena = parseFloat(div.querySelector('[data-field="cena"]')?.value) || 0;
+                if (ilosc <= 0 || cena <= 0)
+                    continue;
+                if (typ2 === 'kubek') {
+                    const kubId = div.querySelector('[data-field="kubek_id"]')?.value;
+                    if (!kubId)
+                        continue;
+                    await sbFetch('pozycja_zamowienia', '', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            zamowienie_id: zamId,
+                            rodzaj_produktu: 'kubek',
+                            kubek_id: kubId,
+                            ilosc,
+                            cena_jednostkowa: cena
+                        })
+                    });
+                } else if (typ2 === 'przykrywka') {
+                    const prMat = div.querySelector('[data-field="pr_mat"]')?.value;
+                    const prRozm = parseInt(div.querySelector('[data-field="pr_rozm"]')?.value);
+                    const prKol = div.querySelector('[data-field="pr_kol"]')?.value;
+                    let prs = await sbFetch('przykrywka', `?typ_materialu=eq.${prMat}&rozmiar_mm=eq.${prRozm}&kolor=eq.${prKol}`);
+                    let pr;
+                    if (prs.length > 0)
+                        pr = prs[0];
+                    else {
+                        const [n] = await sbFetch('przykrywka', '', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                typ_materialu: prMat,
+                                rozmiar_mm: prRozm,
+                                kolor: prKol,
+                                cena_netto: cena
+                            })
+                        });
+                        pr = n;
+                    }
+                    await sbFetch('pozycja_zamowienia', '', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            zamowienie_id: zamId,
+                            rodzaj_produktu: 'przykrywka',
+                            przykrywka_id: pr.id,
+                            ilosc,
+                            cena_jednostkowa: cena
+                        })
+                    });
+                }
+            }
+
+            msg.className = 'f-msg ok';
+            msg.textContent = '✓ Zapisano zmiany!';
+            setTimeout(() => openZamowienieDrawer(zamId), 1000);
         } catch (e) {
             msg.className = 'f-msg err';
             msg.textContent = 'Błąd: ' + e.message;
