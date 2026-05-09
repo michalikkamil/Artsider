@@ -1968,7 +1968,7 @@
     <div class="d-row"><span class="d-key">Cena netto</span><span class="d-val acc">${k.cena_netto != null ? Number(k.cena_netto).toFixed(2) + ' zł' : '—'}</span></div>
     ${stanyHtml ? `<div class="d-section">Stan wg magazynu</div><div class="mag-grid">${stanyHtml}</div>` : ''}
     ${acceptHtml}
-    ${typ === 'kubek' && activeMagKubki ? renderPrzeniesForm(k) : ''}
+    ${typ === 'kubek' && activeMagKubki ? renderPrzeniesForm(k) + renderZmienIlosc(k) : ''}${typ === 'kubek' && !activeMagKubki ? renderZmienIloscGlobal(k) : ''}
   `
         ;
         document.getElementById('overlay').classList.add('open');
@@ -2521,12 +2521,22 @@
     <div id="nowyKlientForm" style="display:none;">
       <div class="accept-form" style="margin-top:8px;">
         <div class="accept-title">Nowy klient</div>
-        <div class="f-group"><label class="f-label">Nazwa własna</label><input class="f-input" id="nkNazwa" placeholder="np. Jan Kowalski"></div>
+        <div class="f-group"><label class="f-label">Nazwa własna (robocza)</label><input class="f-input" id="nkNazwa" placeholder="np. Kasia z kawiarni"></div>
+        <div class="f-group"><label class="f-label">Nazwa formalna (do faktury)</label><input class="f-input" id="nkNazwaFormalna" placeholder="np. Kowalski Jan lub XYZ Sp. z o.o."></div>
+        <div class="f-group">
+          <label class="f-label">NIP</label>
+          <div style="display:flex;gap:8px;">
+            <input class="f-input" id="nkNip" placeholder="0000000000" style="flex:1;">
+            <button onclick="pobierzDaneZMF()" style="background:var(--accent);color:white;border:none;border-radius:8px;padding:0 14px;font-family:var(--fm);font-size:12px;cursor:pointer;flex-shrink:0;" id="btnGUS">🔍 GUS</button>
+          </div>
+          <div class="f-msg" id="gusMsg" style="text-align:left;"></div>
+        </div>
+        <div class="f-group"><label class="f-label">Adres (do faktury)</label><input class="f-input" id="nkAdresFaktury" placeholder="ul. Przykładowa 1, 00-000 Miasto"></div>
+        <div class="f-group"><label class="f-label">Adres dostawy</label><input class="f-input" id="nkAdresDostawy" placeholder="jak wyżej lub inny"></div>
         <div class="f-row">
           <div class="f-group"><label class="f-label">Email</label><input class="f-input" id="nkEmail" type="email" placeholder="jan@firma.pl"></div>
           <div class="f-group"><label class="f-label">Telefon</label><input class="f-input" id="nkTelefon" placeholder="+48 000 000 000"></div>
         </div>
-        <div class="f-group"><label class="f-label">NIP (opcjonalnie)</label><input class="f-input" id="nkNip" placeholder="000-000-00-00"></div>
         <button class="btn-primary" onclick="zapiszNowegoKlienta()" style="margin-top:8px;">Zapisz klienta i wybierz</button>
         <div class="f-msg" id="nkMsg"></div>
       </div>
@@ -2561,6 +2571,16 @@
     <button class="btn-primary" onclick="zapiszZamowienie()" style="margin-top:12px;">💾 Zapisz zamówienie</button>
     <div class="f-msg" id="zamMsg"></div>
   `
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2751,9 +2771,12 @@
 
     async function zapiszNowegoKlienta() {
         const nazwa = document.getElementById('nkNazwa').value.trim();
+        const nazwaFormalna = document.getElementById('nkNazwaFormalna')?.value.trim() || null;
         const email = document.getElementById('nkEmail').value.trim();
         const tel = document.getElementById('nkTelefon').value.trim();
         const nip = document.getElementById('nkNip').value.trim();
+        const adresFaktury = document.getElementById('nkAdresFaktury')?.value.trim() || null;
+        const adresDostawy = document.getElementById('nkAdresDostawy')?.value.trim() || null;
         const msg = document.getElementById('nkMsg');
         if (!nazwa) {
             msg.className = 'f-msg err';
@@ -2765,9 +2788,12 @@
                 method: 'POST',
                 body: JSON.stringify({
                     nazwa_wlasna: nazwa,
+                    nazwa_formalna: nazwaFormalna,
                     email: email || null,
                     telefon: tel || null,
-                    nip: nip || null
+                    nip: nip || null,
+                    adres_faktury: adresFaktury,
+                    adres_dostawy: adresDostawy
                 })
             });
             // dodaj do selecta i wybierz
@@ -3507,6 +3533,153 @@
         } catch (e) {
             msg.className = 'f-msg err';
             msg.textContent = 'Błąd: ' + e.message;
+        }
+    }
+
+    // ── ZMIEŃ ILOŚĆ ──
+    function renderZmienIlosc(k) {
+        const stanW = k.stany.find(s => s.magazyn_id === activeMagKubki)?.ilosc_dostepna || 0;
+        const nazwaM = allMagazyny.find(m => m.id === activeMagKubki)?.nazwa || '';
+        return `
+    <div class="d-section">Zmień ilość w magazynie ${nazwaM}</div>
+    <div class="accept-form">
+      <div class="accept-row">
+        <span class="accept-label">Nowa ilość dostępna</span>
+        <input class="accept-input" type="number" min="0" value="${
+
+
+        stanW}" id="nowaIlosc">
+      </div>
+      <div style="font-size:11px;color:var(--ink3);margin:4px 0 10px;">Obecna: ${
+        stanW} szt. (wpisz nową wartość)</div>
+      <button class="btn-primary" onclick="zmienIlosc('${k.kubek_id}','${activeMagKubki}')">✓ Zapisz ilość</button>
+      <div class="f-msg" id="zmienIloscMsg"></div>
+    </div>`
+
+        ;
+    }
+
+    function renderZmienIloscGlobal(k) {
+        return `
+    <div class="d-section">Zmień ilość w magazynie</div>
+    <div class="accept-form">
+      <div class="accept-title">Wybierz magazyn i wpisz nową ilość:</div>
+      ${
+
+
+        k.stany.map(s => `
+        <div class="accept-row" style="margin-bottom:6px;">
+          <span class="accept-label">${
+        s.magazyn}</span>
+          <input class="accept-input" type="number" min="0" value="${s.ilosc_dostepna}" data-mag="${s.magazyn_id}" id="gi_${s.magazyn_id}">
+        </div>`).join('')}
+      <button class="btn-primary" onclick="zmienIloscGlobal('${k.kubek_id}')">✓ Zapisz ilości</button>
+      <div class="f-msg" id="zmienIloscGlobalMsg"></div>
+    </div>`
+
+        ;
+    }
+
+    async function zmienIlosc(kubek_id, magazyn_id) {
+        const nowaIlosc = parseInt(document.getElementById('nowaIlosc').value);
+        const msg = document.getElementById('zmienIloscMsg');
+        if (isNaN(nowaIlosc) || nowaIlosc < 0) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'Wpisz poprawną ilość.';
+            return;
+        }
+        try {
+            await sbFetch('stan_magazynowy', `?kubek_id=eq.${kubek_id}&magazyn_id=eq.${magazyn_id}`, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    ilosc_dostepna: nowaIlosc
+                })
+            });
+            msg.className = 'f-msg ok';
+            msg.textContent = `✓ Zaktualizowano: ${nowaIlosc} szt.`;
+            setTimeout(() => {
+                closeDrawer();
+                loadAll();
+            }, 1000);
+        } catch (e) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'Błąd: ' + e.message;
+        }
+    }
+
+    async function zmienIloscGlobal(kubek_id) {
+        const inputs = document.querySelectorAll('[id^="gi_"]');
+        const msg = document.getElementById('zmienIloscGlobalMsg');
+        try {
+            for (const inp of inputs) {
+                const magId = inp.dataset.mag;
+                const ilosc = parseInt(inp.value) || 0;
+                await sbFetch('stan_magazynowy', `?kubek_id=eq.${kubek_id}&magazyn_id=eq.${magId}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({
+                        ilosc_dostepna: ilosc
+                    })
+                });
+            }
+            msg.className = 'f-msg ok';
+            msg.textContent = '✓ Zaktualizowano wszystkie magazyny.';
+            setTimeout(() => {
+                closeDrawer();
+                loadAll();
+            }, 1000);
+        } catch (e) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'Błąd: ' + e.message;
+        }
+    }
+
+    // ── POBIERZ DANE Z MF (białej listy VAT) ──
+    async function pobierzDaneZMF() {
+        const nip = document.getElementById('nkNip').value.replace(/[^0-9]/g, '');
+        const msg = document.getElementById('gusMsg');
+        const btn = document.getElementById('btnGUS');
+        if (nip.length !== 10) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'NIP musi mieć 10 cyfr.';
+            return;
+        }
+        btn.textContent = '⏳';
+        btn.disabled = true;
+        msg.className = 'f-msg';
+        msg.textContent = 'Szukam…';
+        try {
+            const today = new Date().toISOString().slice(0, 10);
+            const res = await fetch(`https://wl-api.mf.gov.pl/api/search/nip/${nip}?date=${today}`);
+            const data = await res.json();
+            const podmiot = data?.result?.subject;
+            if (!podmiot) {
+                msg.className = 'f-msg err';
+                msg.textContent = 'Nie znaleziono firmy w rejestrze MF.';
+                return;
+            }
+            // Wypełnij pola
+            const nazwaEl = document.getElementById('nkNazwaFormalna');
+            const adresEl = document.getElementById('nkAdresFaktury');
+            const adresDoEl = document.getElementById('nkAdresDostawy');
+            const nazwaWlEl = document.getElementById('nkNazwa');
+            if (nazwaEl)
+                nazwaEl.value = podmiot.name || '';
+            if (nazwaWlEl && !nazwaWlEl.value)
+                nazwaWlEl.value = podmiot.name || '';
+            // adres z pierwszego wpisu
+            const adr = podmiot.residenceAddress || podmiot.workingAddress || '';
+            if (adresEl)
+                adresEl.value = adr;
+            if (adresDoEl && !adresDoEl.value)
+                adresDoEl.value = adr;
+            msg.className = 'f-msg ok';
+            msg.textContent = `✓ Znaleziono: ${podmiot.name}`;
+        } catch (e) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'Błąd pobierania danych: ' + e.message;
+        } finally {
+            btn.textContent = '🔍 GUS';
+            btn.disabled = false;
         }
     }
 
