@@ -1606,12 +1606,10 @@
 
             allTermiczne = grupuj(stanTerm);
             allZlecone = await ladujZlecone();
+            await loadArchiwum();
 
             applyFilters('kubki');
             applyFilters('termiczne');
-            // Załaduj zlecone i archiwum w tle
-            ladujZlecone().then(d => allZlecone = d);
-            loadArchiwum();
         } catch (e) {
             document.getElementById('listKubki').innerHTML = `<div class="state-msg"><span class="big">⚠️</span>Błąd połączenia.<br><small>${e.message}</small></div>`;
         }
@@ -1787,6 +1785,8 @@
 
     function buildKlientFilter(klienci) {
         const sel = document.getElementById('kfKlient');
+        if (!sel)
+            return;
         sel.innerHTML = '<option value="">Wszyscy</option>';
         klienci.forEach(k => {
             const o = document.createElement('option');
@@ -1879,7 +1879,7 @@
                     return false;
                 if (mat && k.typ_materialu !== mat)
                     return false;
-                if (sci && k.typ_scianki !== sci)
+                if (sci && (k.typ_scianki || '') !== sci)
                     return false;
                 if (art && k.artysta !== art)
                     return false;
@@ -1983,7 +1983,7 @@
     function renderKubki(kubki, listId, activeMag, showDate, isTermiczny=false) {
         const list = document.getElementById(listId);
         if (!kubki.length) {
-            list.innerHTML = `<div class="state-msg"><span class="big">🔍</span>Brak wyników.</div>`;
+            list.innerHTML = `<div class="state-msg"><span class="big">🔍</span>Brak kubków.<br><small style="color:var(--ink3);font-size:11px;">Kubki w produkcji znajdziesz w zakładce 🏭 Zlecone</small></div>`;
             return;
         }
         list.innerHTML = kubki.map(k => {
