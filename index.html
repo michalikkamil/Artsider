@@ -1272,6 +1272,68 @@
         </div>
     </div>
 
+    <!-- ══ ZAMÓWIENIA ══ -->
+    <div class="page" id="page-zamowienia">
+        <div class="dark-header" style="padding-bottom:14px;">
+            <div class="filters">
+                <div class="filter-group">
+                    <span class="filter-label">Status</span>
+                    <select class="dark-select" id="wfStatus" onchange="applyFilters('zamowienia')">
+                        <option value="">Wszystkie</option>
+                        <option value="w_produkcji">W produkcji</option>
+                        <option value="wyslane">Wysłane</option>
+                        <option value="zrealizowane">Zrealizowane</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <span class="filter-label">Płatność</span>
+                    <select class="dark-select" id="wfPlatnosc" onchange="applyFilters('zamowienia')">
+                        <option value="">Wszystkie</option>
+                        <option value="nieoplacona">Nieopłacone</option>
+                        <option value="oplacona">Opłacone</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <span class="filter-label">Faktura</span>
+                    <select class="dark-select" id="wfFaktura" onchange="applyFilters('zamowienia')">
+                        <option value="">Wszystkie</option>
+                        <option value="nie_wyslana">Niewysłana</option>
+                        <option value="wyslana">Wysłana</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <span class="filter-label">Źródło</span>
+                    <select class="dark-select" id="wfZrodlo" onchange="applyFilters('zamowienia')">
+                        <option value="">Wszystkie</option>
+                        <option value="email">Email</option>
+                        <option value="telefon">Telefon</option>
+                        <option value="sms">SMS</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="page-body" style="padding-top:12px;padding-bottom:0;">
+            <div style="display:flex;gap:8px;margin-bottom:12px;">
+                <button class="btn-primary" style="flex:1;" onclick="openNoweZamowienie()">+ Nowe zamówienie</button>
+                <button class="btn-primary" style="flex:1;background:#185FA5;" id="btnImportKlientow" onclick="importujKlientowZFakturowni()">📥 Importuj klientów</button>
+            </div>
+            <div class="f-msg" id="importMsg" style="margin-bottom:8px;"></div>
+        </div>
+        <div class="list" id="listZamowienia">
+            <div class="state-msg">
+                <span class="big">📦</span>
+                Ładowanie…
+            </div>
+        </div>
+    </div>
+
+    <!-- DRAWER: NOWE ZAMÓWIENIE / EDYCJA -->
+    <div class="overlay" id="overlayZam" onclick="closeZamDrawer()"></div>
+    <div class="drawer" id="drawerZam" style="max-height:95vh;">
+        <div class="drawer-handle" onclick="closeZamDrawer()"></div>
+        <div id="drawerZamContent"></div>
+    </div>
+
     <!-- ══ ARTYŚCI ══ -->
     <div class="page" id="page-artysci">
         <div class="page-body" style="padding-bottom:16px;">
@@ -1814,7 +1876,7 @@
                     return false;
                 if (q && !k.grafika?.toLowerCase().includes(q) && !k.artysta?.toLowerCase().includes(q))
                     return false;
-                if (activeMagKubki) {
+                if (activeMagKubki && activeMagKubki !== 'zlecone' && activeMagKubki !== 'archiwum') {
                     const s = k.stany.find(x => x.magazyn_id === activeMagKubki);
                     if (!s || s.ilosc_dostepna <= 0)
                         return false;
