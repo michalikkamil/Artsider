@@ -1149,6 +1149,7 @@
             <button class="nav-tab active" onclick="showPage('kubki',this)">☕ Kubki</button>
             <button class="nav-tab" onclick="showPage('termiczne',this)">🌡 Termiczne</button>
             <button class="nav-tab" onclick="showPage('zamowienia',this)">📦 Zamówienia</button>
+            <button class="nav-tab" onclick="showPage('cennik',this)">💰 Cennik</button>
             <button class="nav-tab" onclick="showPage('artysci',this)">🎨 Artyści</button>
             <button class="nav-tab" onclick="showPage('dodaj',this)">+ Dodaj</button>
         </div>
@@ -1334,6 +1335,25 @@
         <div id="drawerZamContent"></div>
     </div>
 
+    <!-- ══ CENNIK ══ -->
+    <div class="page" id="page-cennik">
+        <div class="page-body">
+            <div class="form-card">
+                <div class="form-card-title">Cennik kubków papierowych</div>
+                <div class="f-note">Cena zależy od pojemności, materiału i rodzaju ścianki. Kliknij komórkę żeby edytować.</div>
+                <div id="cennikPapTable"></div>
+                <button class="btn-primary" style="margin-top:12px;" onclick="dodajCennikPap()">+ Dodaj pozycję</button>
+                <div id="cennikPapForm" style="display:none;margin-top:12px;"></div>
+            </div>
+            <div class="form-card">
+                <div class="form-card-title">Cennik kubków termicznych</div>
+                <div id="cennikTermTable"></div>
+                <button class="btn-primary" style="margin-top:12px;" onclick="dodajCennikTerm()">+ Dodaj pozycję</button>
+                <div id="cennikTermForm" style="display:none;margin-top:12px;"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- ══ ARTYŚCI ══ -->
     <div class="page" id="page-artysci">
         <div class="page-body" style="padding-bottom:16px;">
@@ -1406,7 +1426,7 @@
                     <div class="f-row">
                         <div class="f-group">
                             <label class="f-label">Typ ścianki</label>
-                            <select class="f-select" id="nSci">
+                            <select class="f-select" id="nSci" onchange="autoCenaPapierowy()">
                                 <option value="">— wybierz —</option>
                                 <option value="jednościankowy">Jednościankowy</option>
                                 <option value="dwuściankowy">Dwuściankowy</option>
@@ -1430,7 +1450,7 @@
                     <div class="f-row">
                         <div class="f-group">
                             <label class="f-label">Pojemność</label>
-                            <select class="f-select" id="nTPoj">
+                            <select class="f-select" id="nTPoj" onchange="autoCenaTermiczny()">
                                 <option value="">— wybierz —</option>
                                 <option value="250">250 ml</option>
                                 <option value="330">330 ml</option>
@@ -1478,6 +1498,13 @@
                             <input type="file" id="fileInput" accept="image/*" onchange="previewFile(this)">
                             <img id="uploadPreview" class="upload-preview" style="display:none">
                             <div class="upload-txt" id="uploadTxt">📷 Kliknij żeby wybrać zdjęcie</div>
+                        </div>
+                    </div>
+                    <div id="nZleconaWrap" style="display:none;">
+                        <div class="f-section">Ilość zlecona do produkcji</div>
+                        <div class="f-group">
+                            <label class="f-label">Ile sztuk zamówiłeś u producenta?</label>
+                            <input class="f-input" id="nIloscZlecona" type="number" min="1" placeholder="np. 200">
                         </div>
                     </div>
                     <button class="btn-primary" id="btnDodajKubek" onclick="dodajKubek()">+ Zapisz kubek</button>
@@ -1579,6 +1606,8 @@
             loadArchiwum();
         if (name === 'zamowienia')
             loadZamowienia();
+        if (name === 'cennik')
+            loadCennik();
         if (name === 'dodaj')
             initDodajForm();
     }
@@ -1632,6 +1661,7 @@
                     grafika: r.grafika,
                     artysta: r.artysta,
                     miniaturka: r.miniaturka_url,
+                    ilosc_zlecona: r.ilosc_zlecona,
                     stany: [],
                     ilosc_lacznie: 0,
                     ilosc_w_drodze: 0
@@ -1659,6 +1689,7 @@
                 typ_scianki: k.typ_scianki,
                 sztuk_w_opakowaniu: k.sztuk_w_opakowaniu,
                 cena_netto: k.cena_netto,
+                ilosc_zlecona: k.ilosc_zlecona || 0,
                 grafika: k.grafika?.nazwa,
                 artysta: k.grafika?.artysta?.imie_nazwisko,
                 miniaturka: k.grafika?.miniaturka_url,
@@ -1676,7 +1707,12 @@
         if (scope === 'kubki') {
             wrap.innerHTML = '';
             // najpierw dodaj magazyny, Kraków jako domyślny
-            magazyny.forEach(m => {
+            const kolejnosc = ['Kraków', 'Sącz', 'Biecz'];
+            const posortowane = [
+            ...kolejnosc.map(n => magazyny.find(m => m.nazwa === n)).filter(Boolean),
+            ...magazyny.filter(m => !kolejnosc.includes(m.nazwa))
+            ];
+            posortowane.forEach(m => {
                 const btn = document.createElement('button');
                 btn.className = 'mag-tab';
                 btn.dataset.mag = m.id;
@@ -1994,7 +2030,7 @@
             const pakTag = k.sztuk_w_opakowaniu ? `<span class="tag tag-pak">${k.sztuk_w_opakowaniu}/op.</span>` : '';
             const termTag = isTermiczny ? `<span class="tag tag-term">🌡</span>` : '';
             const thumb = k.miniaturka ? `<img src="${k.miniaturka}" alt="">` : '☕';
-            const dateHtml = showDate && k.data_zlecenia ? `<div class="card-date">${k.data_zlecenia}</div>` : '';
+            const dateHtml = showDate && k.data_zlecenia ? `<div class="card-date">${k.data_zlecenia}${k.ilosc_zlecona ? ` · ${k.ilosc_zlecona} szt.` : ''}</div>` : '';
             const stockHtml = showDate ? '' : `<div class="card-stock"><span class="stock-dot ${dotCls}"></span>${stan === 0 ? 'brak' : stan + ' szt.'}${drodze > 0 ? `<span class="stock-order">+${drodze} w drodze</span>` : ''}</div>`;
             return `<div class="card" onclick="openDrawer('${k.kubek_id}','${showDate ? 'zlecony' : isTermiczny ? 'termiczny' : 'kubek'}')">
       <div class="card-thumb">${thumb}</div>
@@ -2322,7 +2358,7 @@
         let kubekData = {};
         if (rodzaj === 'papierowy') {
             const mat = document.getElementById('nMat').value;
-            const poj = parseInt(document.getElementById('nPoj').value);
+            const poj = parseInt(document.getElementById('ekPoj')?.value || document.getElementById('nPoj')?.value);
             const sci = document.getElementById('nSci').value;
             const pak = parseInt(document.getElementById('nPak').value) || null;
             const cena = parseFloat(document.getElementById('nCena').value);
@@ -2332,6 +2368,7 @@
                 return;
             }
             const bezProdukcji = document.getElementById('nBezProdukcji')?.checked;
+            const iloscZlecona = bezProdukcji ? 0 : (parseInt(document.getElementById('nIloscZlecona')?.value) || 0);
             kubekData = {
                 table: 'kubek',
                 data: {
@@ -2339,9 +2376,10 @@
                     typ_materialu: mat,
                     typ_scianki: sci,
                     sztuk_w_opakowaniu: pak,
-                    cena_netto: cena,
+                    cena_netto: cena || 0,
                     status: bezProdukcji ? 'w_magazynie' : 'zlecony',
-                    data_zlecenia: bezProdukcji ? null : new Date().toISOString().slice(0, 10)
+                    data_zlecenia: bezProdukcji ? null : new Date().toISOString().slice(0, 10),
+                    ilosc_zlecona: iloscZlecona
                 }
             };
         } else {
@@ -3507,7 +3545,7 @@
         const grafNazwa = document.getElementById('ekGrafika').value.trim();
         const artId = document.getElementById('ekArtysta').value;
         const mat = document.getElementById('ekMat').value;
-        const poj = parseInt(document.getElementById('nPoj').value);
+        const poj = parseInt(document.getElementById('ekPoj')?.value || document.getElementById('nPoj')?.value);
         const sci = document.getElementById('ekSci').value;
         const pak = parseInt(document.getElementById('ekPak').value) || null;
         const cena = parseFloat(document.getElementById('ekCena').value);
@@ -4018,6 +4056,9 @@
     function toggleBezProdukcji() {
         const checked = document.getElementById('nBezProdukcji')?.checked;
         const wrap = document.getElementById('nMagStany');
+        const zleconaWrap = document.getElementById('nZleconaWrap');
+        if (zleconaWrap)
+            zleconaWrap.style.display = checked ? 'none' : 'block';
         if (!wrap)
             return;
         if (checked) {
@@ -4035,6 +4076,383 @@
             wrap.style.display = 'none';
             wrap.innerHTML = '';
         }
+    }
+
+
+    function updateEkPojemnosci() {
+        const mat = document.getElementById('ekMat')?.value || '';
+        const sel = document.getElementById('ekPoj');
+        if (!sel)
+            return;
+        const pojs = POJEMNOSCI[mat] || [];
+        sel.innerHTML = pojs.map(p => `<option value="${p}">${p} ml</option>`).join('');
+    }
+
+    // ── CENNIK ──
+    let cennikPap = [],
+        cennikTerm = [];
+
+    async function loadCennik() {
+        try {
+            const [pap, term] = await Promise.all([
+            sbFetch('cennik_papierowe', '?select=*&order=pojemnosc_ml.asc,typ_materialu.asc'),
+            sbFetch('cennik_termiczne', '?select=*&order=pojemnosc_ml.asc'),
+            ]);
+            cennikPap = pap;
+            cennikTerm = term;
+            renderCennikPap();
+            renderCennikTerm();
+        } catch (e) {
+            console.warn('cennik error:', e);
+        }
+    }
+
+    function renderCennikPap() {
+        const wrap = document.getElementById('cennikPapTable');
+        if (!wrap)
+            return;
+        if (!cennikPap.length) {
+            wrap.innerHTML = '<div style="color:var(--ink3);font-size:12px;padding:8px 0;">Brak pozycji cennika.</div>';
+            return;
+        }
+        wrap.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px;">
+    <tr style="font-size:10px;color:var(--ink3);text-transform:uppercase;border-bottom:1px solid var(--border);">
+      <th style="text-align:left;padding:6px 4px;">Pojemność</th>
+      <th style="text-align:left;padding:6px 4px;">Materiał</th>
+      <th style="text-align:left;padding:6px 4px;">Ścianka</th>
+      <th style="text-align:right;padding:6px 4px;">Cena netto</th>
+      <th style="padding:6px 4px;"></th>
+    </tr>
+    ${
+
+
+
+
+
+
+        cennikPap.map(c => `
+    <tr style="border-bottom:1px solid var(--bg2);">
+      <td style="padding:8px 4px;">${
+        c.pojemnosc_ml} ml</td>
+      <td style="padding:8px 4px;">${c.typ_materialu}</td>
+      <td style="padding:8px 4px;">${c.typ_scianki}</td>
+      <td style="padding:8px 4px;text-align:right;font-weight:500;color:var(--accent);">${Number(c.cena_netto).toFixed(4)} zł</td>
+      <td style="padding:8px 4px;text-align:right;">
+        <button onclick="edytujCennikPap('${
+        c.id}',${c.pojemnosc_ml},'${c.typ_materialu}','${c.typ_scianki}',${c.cena_netto})" style="background:none;border:none;cursor:pointer;color:var(--ink3);font-size:12px;">✏️</button>
+        <button onclick="usunCennik('cennik_papierowe','${c.id}','pap')" style="background:none;border:none;cursor:pointer;color:var(--accent);font-size:12px;">✕</button>
+      </td>
+    </tr>`
+        ).join('')}
+  </table>`
+        ;
+    }
+
+    function renderCennikTerm() {
+        const wrap = document.getElementById('cennikTermTable');
+        if (!wrap)
+            return;
+        if (!cennikTerm.length) {
+            wrap.innerHTML = '<div style="color:var(--ink3);font-size:12px;padding:8px 0;">Brak pozycji cennika.</div>';
+            return;
+        }
+        wrap.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px;">
+    <tr style="font-size:10px;color:var(--ink3);text-transform:uppercase;border-bottom:1px solid var(--border);">
+      <th style="text-align:left;padding:6px 4px;">Pojemność</th>
+      <th style="text-align:right;padding:6px 4px;">Cena netto</th>
+      <th style="padding:6px 4px;"></th>
+    </tr>
+    ${
+
+
+
+
+        cennikTerm.map(c => `
+    <tr style="border-bottom:1px solid var(--bg2);">
+      <td style="padding:8px 4px;">${
+        c.pojemnosc_ml} ml</td>
+      <td style="padding:8px 4px;text-align:right;font-weight:500;color:var(--accent);">${Number(c.cena_netto).toFixed(4)} zł</td>
+      <td style="padding:8px 4px;text-align:right;">
+        <button onclick="edytujCennikTerm('${
+        c.id}',${c.pojemnosc_ml},${c.cena_netto})" style="background:none;border:none;cursor:pointer;color:var(--ink3);font-size:12px;">✏️</button>
+        <button onclick="usunCennik('cennik_termiczne','${c.id}','term')" style="background:none;border:none;cursor:pointer;color:var(--accent);font-size:12px;">✕</button>
+      </td>
+    </tr>`
+        ).join('')}
+  </table>`
+        ;
+    }
+
+    function dodajCennikPap() {
+        const f = document.getElementById('cennikPapForm');
+        f.style.display = 'block';
+        f.innerHTML = `
+    <div class="f-row">
+      <div class="f-group"><label class="f-label">Pojemność</label>
+        <select class="f-select" id="cpPoj"><option value="100">100ml</option><option value="180">180ml</option><option value="250">250ml</option><option value="300">300ml</option><option value="400">400ml</option><option value="500">500ml</option></select>
+      </div>
+      <div class="f-group"><label class="f-label">Materiał</label>
+        <select class="f-select" id="cpMat"><option value="PE">PE</option><option value="BIO">BIO</option><option value="rPET">rPET</option></select>
+      </div>
+    </div>
+    <div class="f-row">
+      <div class="f-group"><label class="f-label">Ścianka</label>
+        <select class="f-select" id="cpSci"><option value="jednościankowy">Jednościankowy</option><option value="dwuściankowy">Dwuściankowy</option><option value="inny">Inny</option></select>
+      </div>
+      <div class="f-group"><label class="f-label">Cena netto (zł)</label>
+        <input class="f-input" id="cpCena" type="number" step="0.0001" min="0" placeholder="0.0000">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button class="btn-primary" onclick="zapiszCennikPap(null)">Zapisz</button>
+      <button class="btn-secondary" onclick="document.getElementById('cennikPapForm').style.display='none'">Anuluj</button>
+    </div>
+    <div class="f-msg" id="cpMsg"></div>`
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        ;
+    }
+
+    function edytujCennikPap(id, poj, mat, sci, cena) {
+        const f = document.getElementById('cennikPapForm');
+        f.style.display = 'block';
+        f.innerHTML = `
+    <div class="f-row">
+      <div class="f-group"><label class="f-label">Pojemność</label>
+        <select class="f-select" id="cpPoj"><option value="100" ${
+
+        poj == 100 ? 'selected' : ''}>100ml</option><option value="180" ${poj == 180 ? 'selected' : ''}>180ml</option><option value="250" ${poj == 250 ? 'selected' : ''}>250ml</option><option value="300" ${poj == 300 ? 'selected' : ''}>300ml</option><option value="400" ${poj == 400 ? 'selected' : ''}>400ml</option><option value="500" ${poj == 500 ? 'selected' : ''}>500ml</option></select>
+      </div>
+      <div class="f-group"><label class="f-label">Materiał</label>
+        <select class="f-select" id="cpMat"><option value="PE" ${
+
+        mat === 'PE' ? 'selected' : ''}>PE</option><option value="BIO" ${mat === 'BIO' ? 'selected' : ''}>BIO</option><option value="rPET" ${mat === 'rPET' ? 'selected' : ''}>rPET</option></select>
+      </div>
+    </div>
+    <div class="f-row">
+      <div class="f-group"><label class="f-label">Ścianka</label>
+        <select class="f-select" id="cpSci"><option value="jednościankowy" ${
+
+
+
+        sci === 'jednościankowy' ? 'selected' : ''}>Jednościankowy</option><option value="dwuściankowy" ${sci === 'dwuściankowy' ? 'selected' : ''}>Dwuściankowy</option><option value="inny" ${sci === 'inny' ? 'selected' : ''}>Inny</option></select>
+      </div>
+      <div class="f-group"><label class="f-label">Cena netto (zł)</label>
+        <input class="f-input" id="cpCena" type="number" step="0.0001" min="0" value="${
+
+        cena}">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button class="btn-primary" onclick="zapiszCennikPap('${
+
+
+        id}')">Zapisz</button>
+      <button class="btn-secondary" onclick="document.getElementById('cennikPapForm').style.display='none'">Anuluj</button>
+    </div>
+    <div class="f-msg" id="cpMsg"></div>`
+
+
+        ;
+    }
+
+    async function zapiszCennikPap(id) {
+        const poj = parseInt(document.getElementById('cpPoj').value);
+        const mat = document.getElementById('cpMat').value;
+        const sci = document.getElementById('cpSci').value;
+        const cena = parseFloat(document.getElementById('cpCena').value);
+        const msg = document.getElementById('cpMsg');
+        if (!poj || !mat || !sci || isNaN(cena)) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'Wypełnij wszystkie pola.';
+            return;
+        }
+        try {
+            if (id) {
+                await sbFetch('cennik_papierowe', `?id=eq.${id}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({
+                        pojemnosc_ml: poj,
+                        typ_materialu: mat,
+                        typ_scianki: sci,
+                        cena_netto: cena
+                    })
+                });
+            } else {
+                await sbFetch('cennik_papierowe', '', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        pojemnosc_ml: poj,
+                        typ_materialu: mat,
+                        typ_scianki: sci,
+                        cena_netto: cena
+                    })
+                });
+            }
+            document.getElementById('cennikPapForm').style.display = 'none';
+            loadCennik();
+        } catch (e) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'Błąd: ' + e.message;
+        }
+    }
+
+    function dodajCennikTerm() {
+        const f = document.getElementById('cennikTermForm');
+        f.style.display = 'block';
+        f.innerHTML = `
+    <div class="f-row">
+      <div class="f-group"><label class="f-label">Pojemność</label>
+        <select class="f-select" id="ctPoj"><option value="250">250ml</option><option value="330">330ml</option><option value="350">350ml</option><option value="400">400ml</option><option value="500">500ml</option></select>
+      </div>
+      <div class="f-group"><label class="f-label">Cena netto (zł)</label>
+        <input class="f-input" id="ctCena" type="number" step="0.01" min="0" placeholder="0.00">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button class="btn-primary" onclick="zapiszCennikTerm(null)">Zapisz</button>
+      <button class="btn-secondary" onclick="document.getElementById('cennikTermForm').style.display='none'">Anuluj</button>
+    </div>
+    <div class="f-msg" id="ctMsg"></div>`
+
+
+
+
+
+
+
+
+
+
+
+
+        ;
+    }
+
+    function edytujCennikTerm(id, poj, cena) {
+        const f = document.getElementById('cennikTermForm');
+        f.style.display = 'block';
+        f.innerHTML = `
+    <div class="f-row">
+      <div class="f-group"><label class="f-label">Pojemność</label>
+        <select class="f-select" id="ctPoj"><option value="250" ${
+
+        poj == 250 ? 'selected' : ''}>250ml</option><option value="330" ${poj == 330 ? 'selected' : ''}>330ml</option><option value="350" ${poj == 350 ? 'selected' : ''}>350ml</option><option value="400" ${poj == 400 ? 'selected' : ''}>400ml</option><option value="500" ${poj == 500 ? 'selected' : ''}>500ml</option></select>
+      </div>
+      <div class="f-group"><label class="f-label">Cena netto (zł)</label>
+        <input class="f-input" id="ctCena" type="number" step="0.01" min="0" value="${
+
+        cena}">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button class="btn-primary" onclick="zapiszCennikTerm('${
+
+
+        id}')">Zapisz</button>
+      <button class="btn-secondary" onclick="document.getElementById('cennikTermForm').style.display='none'">Anuluj</button>
+    </div>
+    <div class="f-msg" id="ctMsg"></div>`
+
+
+        ;
+    }
+
+    async function zapiszCennikTerm(id) {
+        const poj = parseInt(document.getElementById('ctPoj').value);
+        const cena = parseFloat(document.getElementById('ctCena').value);
+        const msg = document.getElementById('ctMsg');
+        if (!poj || isNaN(cena)) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'Wypełnij wszystkie pola.';
+            return;
+        }
+        try {
+            if (id) {
+                await sbFetch('cennik_termiczne', `?id=eq.${id}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({
+                        pojemnosc_ml: poj,
+                        cena_netto: cena
+                    })
+                });
+            } else {
+                await sbFetch('cennik_termiczne', '', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        pojemnosc_ml: poj,
+                        cena_netto: cena
+                    })
+                });
+            }
+            document.getElementById('cennikTermForm').style.display = 'none';
+            loadCennik();
+        } catch (e) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'Błąd: ' + e.message;
+        }
+    }
+
+    async function usunCennik(table, id, typ) {
+        if (!confirm('Usunąć tę pozycję cennika?'))
+            return;
+        try {
+            await sbFetch(table, `?id=eq.${id}`, {
+                method: 'DELETE'
+            });
+            loadCennik();
+        } catch (e) {
+            alert('Błąd: ' + e.message);
+        }
+    }
+
+    // Auto-load price from cennik when selecting cup in add form
+    async function autoCenaPapierowy() {
+        const mat = document.getElementById('nMat')?.value;
+        const poj = document.getElementById('nPoj')?.value;
+        const sci = document.getElementById('nSci')?.value;
+        if (!mat || !poj || !sci)
+            return;
+        try {
+            const [c] = await sbFetch('cennik_papierowe', `?typ_materialu=eq.${mat}&pojemnosc_ml=eq.${poj}&typ_scianki=eq.${sci}`);
+            if (c) {
+                const ceEl = document.getElementById('nCena');
+                if (ceEl)
+                    ceEl.value = Number(c.cena_netto).toFixed(4);
+            }
+        } catch (e) {}
+    }
+
+    async function autoCenaTermiczny() {
+        const poj = document.getElementById('nTPoj')?.value;
+        if (!poj)
+            return;
+        try {
+            const [c] = await sbFetch('cennik_termiczne', `?pojemnosc_ml=eq.${poj}`);
+            if (c) {
+                const ceEl = document.getElementById('nTCena');
+                if (ceEl)
+                    ceEl.value = Number(c.cena_netto).toFixed(2);
+            }
+        } catch (e) {}
     }
 
     // ── INIT ──
