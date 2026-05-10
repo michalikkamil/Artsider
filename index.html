@@ -2134,14 +2134,23 @@
             return;
         }
         try {
-            // upsert stanów magazynowych
-            await sbFetch('stan_magazynowy', '', {
-                method: 'POST',
-                body: JSON.stringify(stany),
-                headers: {
-                    'Prefer': 'resolution=merge-duplicates'
+            // PATCH istniejących wpisów, POST nowych
+            for (const s of stany) {
+                const existing = await sbFetch('stan_magazynowy', `?kubek_id=eq.${s.kubek_id}&magazyn_id=eq.${s.magazyn_id}`);
+                if (existing.length > 0) {
+                    await sbFetch('stan_magazynowy', `?kubek_id=eq.${s.kubek_id}&magazyn_id=eq.${s.magazyn_id}`, {
+                        method: 'PATCH',
+                        body: JSON.stringify({
+                            ilosc_dostepna: s.ilosc_dostepna
+                        })
+                    });
+                } else {
+                    await sbFetch('stan_magazynowy', '', {
+                        method: 'POST',
+                        body: JSON.stringify(s)
+                    });
                 }
-            });
+            }
             // zmień status kubka na w_magazynie
             await sbFetch('kubek', `?id=eq.${kubek_id}`, {
                 method: 'PATCH',
@@ -3585,18 +3594,52 @@
     }
 
     async function usunKubek(kubek_id) {
-        if (!confirm('Czy na pewno usunąć ten kubek? Tej operacji nie można cofnąć.'))
+        const choice = confirm('Czy na pewno usunąć ten kubek?\n\nJeśli kubek był w zamówieniach, nie można go usunąć — zostanie wtedy zarchiwizowany (stan = 0).');
+        if (!choice)
             return;
         try {
             const [kubek] = await sbFetch('kubek', `?id=eq.${kubek_id}`);
-            await sbFetch('kubek', `?id=eq.${kubek_id}`, {
-                method: 'DELETE'
-            });
-            await sbFetch('grafika', `?id=eq.${kubek.grafika_id}`, {
-                method: 'DELETE'
-            });
-            closeDrawer();
-            loadAll();
+            try {
+                // Spróbuj usunąć
+                await sbFetch('stan_magazynowy', `?kubek_id=eq.${kubek_id}`, {
+                    method: 'DELETE'
+                });
+                await sbFetch('kubek', `?id=eq.${kubek_id}`, {
+                    method: 'DELETE'
+                });
+                try {
+                    await sbFetch('grafika', `?id=eq.${kubek.grafika_id}`, {
+                        method: 'DELETE'
+                    });
+                } catch (e) {}
+                closeDrawer();
+                loadAll();
+            } catch (e) {
+                if (e.message.includes('23503') || e.message.includes('foreign key')) {
+                    // Ma powiązane zamówienia — zarchiwizuj zamiast usuwać
+                    const mag = await sbFetch('stan_magazynowy', `?kubek_id=eq.${kubek_id}`);
+                    for (const s of mag) {
+                        await sbFetch('stan_magazynowy', `?id=eq.${s.id}`, {
+                            method: 'PATCH',
+                            body: JSON.stringify({
+                                ilosc_dostepna: 0,
+                                ilosc_w_drodze: 0
+                            })
+                        });
+                    }
+                    await sbFetch('kubek', `?id=eq.${kubek_id}`, {
+                        method: 'PATCH',
+                        body: JSON.stringify({
+                            status: 'w_magazynie'
+                        })
+                    });
+                    alert('✓ Kubek zarchiwizowany (był w zamówieniach — stan ustawiony na 0, znajdziesz go w Archiwum).');
+                    closeDrawer();
+                    loadAll();
+                } else {
+                    alert('Błąd: ' + e.message);
+                }
+            }
         } catch (e) {
             alert('Błąd: ' + e.message);
         }
@@ -3858,7 +3901,8 @@
 
     async function loadArchiwum() {
         try {
-            const kubki = await sbFetch('kubek', '?status=eq.w_magazynie&select=*,grafika(nazwa,miniaturka_url,artysta(imie_nazwisko))');
+            // Archiwum = wszystkie kubki z sumą stanu = 0 (niezależnie od statusu)
+            const kubki = await sbFetch('kubek', '?select=*,grafika(nazwa,miniaturka_url,artysta(imie_nazwisko))');
             const stany = await sbFetch('stan_magazynowy', '?select=kubek_id,ilosc_dostepna');
             const sumy = {};
             stany.forEach(s => {
@@ -3872,6 +3916,7 @@
                 typ_materialu: k.typ_materialu,
                 typ_scianki: k.typ_scianki,
                 cena_netto: k.cena_netto,
+                status: k.status,
                 grafika: k.grafika?.nazwa,
                 artysta: k.grafika?.artysta?.imie_nazwisko,
                 miniaturka: k.grafika?.miniaturka_url,
