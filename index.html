@@ -1340,7 +1340,6 @@
         <div class="page-body">
             <div class="form-card">
                 <div class="form-card-title">Cennik kubków papierowych</div>
-                <div class="f-note">Cena zależy od pojemności, materiału i rodzaju ścianki. Kliknij komórkę żeby edytować.</div>
                 <div id="cennikPapTable"></div>
                 <button class="btn-primary" style="margin-top:12px;" onclick="dodajCennikPap()">+ Dodaj pozycję</button>
                 <div id="cennikPapForm" style="display:none;margin-top:12px;"></div>
@@ -1350,6 +1349,12 @@
                 <div id="cennikTermTable"></div>
                 <button class="btn-primary" style="margin-top:12px;" onclick="dodajCennikTerm()">+ Dodaj pozycję</button>
                 <div id="cennikTermForm" style="display:none;margin-top:12px;"></div>
+            </div>
+            <div class="form-card">
+                <div class="form-card-title">Cennik przykrywek</div>
+                <div id="cennikPrzTable"></div>
+                <button class="btn-primary" style="margin-top:12px;" onclick="dodajCennikPrz()">+ Dodaj pozycję</button>
+                <div id="cennikPrzForm" style="display:none;margin-top:12px;"></div>
             </div>
         </div>
     </div>
@@ -1615,9 +1620,10 @@
     // ── LOAD ALL ──
     async function loadAll() {
         try {
-            const [stanKubki, stanTerm, magazyny, artysci, klienci] = await Promise.all([
+            const [stanKubki, stanTerm, stanPrzykrywki, magazyny, artysci, klienci] = await Promise.all([
             sbFetch('v_stan_kubkow', '?select=*'),
             sbFetch('v_stan_termicznych', '?select=*'),
+            sbFetch('v_stan_kubkow_przykrywki', '?select=*').catch(() => []),
             sbFetch('magazyn', '?select=*&order=nazwa.asc'),
             sbFetch('artysta', '?select=id,imie_nazwisko&order=imie_nazwisko.asc'),
             sbFetch('klient', '?select=id,nazwa_wlasna&order=nazwa_wlasna.asc'),
@@ -1632,6 +1638,39 @@
 
             // grupuj kubki papierowe (w_magazynie)
             allKubki = grupuj(stanKubki);
+            // Dodaj przykrywki do kubki (zmapowane jako BIO/PE)
+            if (stanPrzykrywki && stanPrzykrywki.length) {
+                const prMap = {};
+                for (const r of stanPrzykrywki) {
+                    const kid = r.przykrywka_id;
+                    if (!prMap[kid]) {
+                        prMap[kid] = {
+                            kubek_id: 'pr_' + kid,
+                            pojemnosc_ml: r.pojemnosc_przefiltrowana,
+                            typ_materialu: r.typ_materialu_przefiltrowany,
+                            typ_scianki: null,
+                            cena_netto: r.cena_netto,
+                            grafika: r.opis,
+                            artysta: null,
+                            miniaturka: null,
+                            isPrzykrywka: true,
+                            przykrywka_id: kid,
+                            stany: [],
+                            ilosc_lacznie: 0,
+                            ilosc_w_drodze: 0,
+                        };
+                    }
+                    prMap[kid].stany.push({
+                        magazyn_id: r.magazyn_id,
+                        magazyn: r.magazyn,
+                        ilosc_dostepna: r.ilosc_dostepna,
+                        ilosc_w_drodze: r.ilosc_w_drodze
+                    });
+                    prMap[kid].ilosc_lacznie += (r.ilosc_dostepna || 0);
+                    prMap[kid].ilosc_w_drodze += (r.ilosc_w_drodze || 0);
+                }
+                allKubki = [...allKubki, ...Object.values(prMap)];
+            }
 
             allTermiczne = grupuj(stanTerm);
             allZlecone = await ladujZlecone();
@@ -2029,7 +2068,7 @@
             const sciTag = k.typ_scianki ? `<span class="tag tag-sci">${k.typ_scianki === 'dwuściankowy' ? '2×' : '1×'}</span>` : '';
             const pakTag = k.sztuk_w_opakowaniu ? `<span class="tag tag-pak">${k.sztuk_w_opakowaniu}/op.</span>` : '';
             const termTag = isTermiczny ? `<span class="tag tag-term">🌡</span>` : '';
-            const thumb = k.miniaturka ? `<img src="${k.miniaturka}" alt="">` : '☕';
+            const thumb = k.miniaturka ? `<img src="${k.miniaturka}" alt="">` : k.isPrzykrywka ? '🫗' : '☕';
             const dateHtml = showDate && k.data_zlecenia ? `<div class="card-date">${k.data_zlecenia}${k.ilosc_zlecona ? ` · ${k.ilosc_zlecona} szt.` : ''}</div>` : '';
             const stockHtml = showDate ? '' : `<div class="card-stock"><span class="stock-dot ${dotCls}"></span>${stan === 0 ? 'brak' : stan + ' szt.'}${drodze > 0 ? `<span class="stock-order">+${drodze} w drodze</span>` : ''}</div>`;
             return `<div class="card" onclick="openDrawer('${k.kubek_id}','${showDate ? 'zlecony' : isTermiczny ? 'termiczny' : 'kubek'}')">
@@ -2056,6 +2095,9 @@
             k = allZlecone.find(x => x.kubek_id === kubek_id);
         else if (typ === 'termiczny')
             k = allTermiczne.find(x => x.kubek_id === kubek_id);
+        // też szukaj w allKubki dla przykrywek
+        if (!k)
+            k = allKubki.find(x => x.kubek_id === kubek_id);
         if (!k)
             return;
 
@@ -2378,18 +2420,20 @@
             }
             const bezProdukcji = document.getElementById('nBezProdukcji')?.checked;
             const iloscZlecona = bezProdukcji ? 0 : (parseInt(document.getElementById('nIloscZlecona')?.value) || 0);
+            const dataZlecenia = bezProdukcji ? '1970-01-01' : new Date().toISOString().slice(0, 10);
+            const kubData = {
+                pojemnosc_ml: poj,
+                typ_materialu: mat,
+                typ_scianki: sci,
+                sztuk_w_opakowaniu: pak,
+                cena_netto: cena || 0,
+                status: bezProdukcji ? 'w_magazynie' : 'zlecony',
+                ilosc_zlecona: iloscZlecona,
+                data_zlecenia: dataZlecenia
+            };
             kubekData = {
                 table: 'kubek',
-                data: {
-                    pojemnosc_ml: poj,
-                    typ_materialu: mat,
-                    typ_scianki: sci,
-                    sztuk_w_opakowaniu: pak,
-                    cena_netto: cena || 0,
-                    status: bezProdukcji ? 'w_magazynie' : 'zlecony',
-                    data_zlecenia: bezProdukcji ? null : new Date().toISOString().slice(0, 10),
-                    ilosc_zlecona: iloscZlecona
-                }
+                data: kubData
             };
         } else {
             const poj = parseInt(document.getElementById('nTPoj').value);
@@ -3801,8 +3845,13 @@
             msg.textContent = 'Wpisz poprawną ilość.';
             return;
         }
+        const k = allKubki.find(x => x.kubek_id === kubek_id);
+        const isPrz = k?.isPrzykrywka;
+        const realId = isPrz ? k.przykrywka_id : kubek_id;
+        const table = isPrz ? 'stan_magazynowy_przykrywki' : 'stan_magazynowy';
+        const idField = isPrz ? 'przykrywka_id' : 'kubek_id';
         try {
-            await sbFetch('stan_magazynowy', `?kubek_id=eq.${kubek_id}&magazyn_id=eq.${magazyn_id}`, {
+            await sbFetch(table, `?${idField}=eq.${realId}&magazyn_id=eq.${magazyn_id}`, {
                 method: 'PATCH',
                 body: JSON.stringify({
                     ilosc_dostepna: nowaIlosc
@@ -3823,16 +3872,34 @@
     async function zmienIloscGlobal(kubek_id) {
         const inputs = document.querySelectorAll('[id^="gi_"]');
         const msg = document.getElementById('zmienIloscGlobalMsg');
+        const k = allKubki.find(x => x.kubek_id === kubek_id);
+        const isPrz = k?.isPrzykrywka;
+        const realId = isPrz ? k.przykrywka_id : kubek_id;
+        const table = isPrz ? 'stan_magazynowy_przykrywki' : 'stan_magazynowy';
+        const idField = isPrz ? 'przykrywka_id' : 'kubek_id';
         try {
             for (const inp of inputs) {
                 const magId = inp.dataset.mag;
                 const ilosc = parseInt(inp.value) || 0;
-                await sbFetch('stan_magazynowy', `?kubek_id=eq.${kubek_id}&magazyn_id=eq.${magId}`, {
-                    method: 'PATCH',
-                    body: JSON.stringify({
-                        ilosc_dostepna: ilosc
-                    })
-                });
+                const existing = await sbFetch(table, `?${idField}=eq.${realId}&magazyn_id=eq.${magId}`);
+                if (existing.length > 0) {
+                    await sbFetch(table, `?${idField}=eq.${realId}&magazyn_id=eq.${magId}`, {
+                        method: 'PATCH',
+                        body: JSON.stringify({
+                            ilosc_dostepna: ilosc
+                        })
+                    });
+                } else {
+                    await sbFetch(table, '', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            [idField]: realId,
+                            magazyn_id: magId,
+                            ilosc_dostepna: ilosc,
+                            ilosc_w_drodze: 0
+                        })
+                    });
+                }
             }
             msg.className = 'f-msg ok';
             msg.textContent = '✓ Zaktualizowano! Kubek pojawi się w odpowiednim magazynie.';
@@ -4150,6 +4217,7 @@
         } catch (e) {
             console.warn('cennik error:', e);
         }
+        loadCennikPrz();
     }
 
     function renderCennikPap() {
@@ -4498,6 +4566,253 @@
                     ceEl.value = Number(c.cena_netto).toFixed(2);
             }
         } catch (e) {}
+    }
+
+    // ── CENNIK PRZYKRYWEK ──
+    let cennikPrz = [];
+
+    async function loadCennikPrz() {
+        try {
+            const prz = await sbFetch('przykrywka', '?select=*&order=typ_materialu.asc,rozmiar_mm.asc,kolor.asc');
+            cennikPrz = prz;
+            renderCennikPrz();
+        } catch (e) {
+            console.warn('cennik prz error:', e);
+        }
+    }
+
+    function renderCennikPrz() {
+        const wrap = document.getElementById('cennikPrzTable');
+        if (!wrap)
+            return;
+        if (!cennikPrz.length) {
+            wrap.innerHTML = '<div style="color:var(--ink3);font-size:12px;padding:8px 0;">Brak przykrywek w cenniku.</div>';
+            return;
+        }
+        wrap.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px;">
+    <tr style="font-size:10px;color:var(--ink3);text-transform:uppercase;border-bottom:1px solid var(--border);">
+      <th style="text-align:left;padding:6px 4px;">Typ</th>
+      <th style="text-align:left;padding:6px 4px;">Rozmiar</th>
+      <th style="text-align:left;padding:6px 4px;">Kolor</th>
+      <th style="text-align:right;padding:6px 4px;">Cena netto</th>
+      <th style="padding:6px 4px;"></th>
+    </tr>
+    ${
+
+
+
+
+
+
+        cennikPrz.map(p => `
+    <tr style="border-bottom:1px solid var(--bg2);">
+      <td style="padding:8px 4px;">${
+        p.typ_materialu}</td>
+      <td style="padding:8px 4px;">${p.rozmiar_mm} mm</td>
+      <td style="padding:8px 4px;">${p.kolor || '—'}</td>
+      <td style="padding:8px 4px;text-align:right;font-weight:500;color:var(--accent);">${Number(p.cena_netto).toFixed(4)} zł</td>
+      <td style="padding:8px 4px;text-align:right;">
+        <button onclick="edytujCennikPrz('${
+        p.id}','${p.typ_materialu}',${p.rozmiar_mm},'${p.kolor || ''}',${p.cena_netto})" style="background:none;border:none;cursor:pointer;color:var(--ink3);font-size:12px;">✏️</button>
+        <button onclick="usunCennikPrz('${p.id}')" style="background:none;border:none;cursor:pointer;color:var(--accent);font-size:12px;">✕</button>
+      </td>
+    </tr>`
+        ).join('')}
+  </table>`
+        ;
+    }
+
+    function dodajCennikPrz() {
+        const f = document.getElementById('cennikPrzForm');
+        f.style.display = 'block';
+        f.innerHTML = `
+    <div class="f-row">
+      <div class="f-group"><label class="f-label">Typ materiału</label>
+        <select class="f-select" id="przMat" onchange="togglePrzKolor()">
+          <option value="papierowa">Papierowa</option>
+          <option value="plastikowa">Plastikowa</option>
+        </select>
+      </div>
+      <div class="f-group"><label class="f-label">Rozmiar (mm)</label>
+        <select class="f-select" id="przRozm">
+          <option value="72">72 mm</option>
+          <option value="80">80 mm</option>
+          <option value="90">90 mm</option>
+        </select>
+      </div>
+    </div>
+    <div class="f-row">
+      <div class="f-group" id="przKolorWrap"><label class="f-label">Kolor</label>
+        <select class="f-select" id="przKolor">
+          <option value="biały">Biały</option>
+          <option value="czarny">Czarny</option>
+        </select>
+      </div>
+      <div class="f-group"><label class="f-label">Cena netto (zł)</label>
+        <input class="f-input" id="przCena" type="number" step="0.0001" min="0" placeholder="0.0000">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button class="btn-primary" onclick="zapiszCennikPrz(null)">Zapisz</button>
+      <button class="btn-secondary" onclick="document.getElementById('cennikPrzForm').style.display='none'">Anuluj</button>
+    </div>
+    <div class="f-msg" id="przMsg"></div>`
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        ;
+    }
+
+    function edytujCennikPrz(id, typ, rozm, kolor, cena) {
+        const f = document.getElementById('cennikPrzForm');
+        f.style.display = 'block';
+        f.innerHTML = `
+    <div class="f-row">
+      <div class="f-group"><label class="f-label">Typ materiału</label>
+        <select class="f-select" id="przMat">
+          <option value="papierowa" ${
+
+
+        typ === 'papierowa' ? 'selected' : ''}>Papierowa</option>
+          <option value="plastikowa" ${typ === 'plastikowa' ? 'selected' : ''}>Plastikowa</option>
+        </select>
+      </div>
+      <div class="f-group"><label class="f-label">Rozmiar (mm)</label>
+        <select class="f-select" id="przRozm">
+          <option value="72" ${
+
+
+
+        rozm == 72 ? 'selected' : ''}>72 mm</option>
+          <option value="80" ${rozm == 80 ? 'selected' : ''}>80 mm</option>
+          <option value="90" ${rozm == 90 ? 'selected' : ''}>90 mm</option>
+        </select>
+      </div>
+    </div>
+    <div class="f-row">
+      <div class="f-group"><label class="f-label">Kolor</label>
+        <select class="f-select" id="przKolor">
+          <option value="biały" ${
+
+
+
+
+
+        kolor === 'biały' ? 'selected' : ''}>Biały</option>
+          <option value="czarny" ${kolor === 'czarny' ? 'selected' : ''}>Czarny</option>
+        </select>
+      </div>
+      <div class="f-group"><label class="f-label">Cena netto (zł)</label>
+        <input class="f-input" id="przCena" type="number" step="0.0001" min="0" value="${
+
+
+        cena}">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button class="btn-primary" onclick="zapiszCennikPrz('${
+
+
+        id}')">Zapisz</button>
+      <button class="btn-secondary" onclick="document.getElementById('cennikPrzForm').style.display='none'">Anuluj</button>
+    </div>
+    <div class="f-msg" id="przMsg"></div>`
+
+
+        ;
+    }
+
+    function togglePrzKolor() {
+        const typ = document.getElementById('przMat')?.value;
+        const wrap = document.getElementById('przKolorWrap');
+        if (wrap)
+            wrap.style.display = typ === 'plastikowa' ? 'block' : 'none';
+    }
+
+    async function zapiszCennikPrz(id) {
+        const typ = document.getElementById('przMat').value;
+        const rozm = parseInt(document.getElementById('przRozm').value);
+        const kolor = document.getElementById('przKolor')?.value || 'biały';
+        const cena = parseFloat(document.getElementById('przCena').value);
+        const msg = document.getElementById('przMsg');
+        if (!typ || !rozm || isNaN(cena)) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'Wypełnij wszystkie pola.';
+            return;
+        }
+        try {
+            if (id) {
+                await sbFetch('przykrywka', `?id=eq.${id}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({
+                        typ_materialu: typ,
+                        rozmiar_mm: rozm,
+                        kolor,
+                        cena_netto: cena
+                    })
+                });
+            } else {
+                await sbFetch('przykrywka', '', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        typ_materialu: typ,
+                        rozmiar_mm: rozm,
+                        kolor,
+                        cena_netto: cena
+                    })
+                });
+            }
+            document.getElementById('cennikPrzForm').style.display = 'none';
+            loadCennikPrz();
+            loadAll(); // odśwież widok kubków
+        } catch (e) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'Błąd: ' + e.message;
+        }
+    }
+
+    async function usunCennikPrz(id) {
+        if (!confirm('Usunąć tę przykrywkę z cennika i bazy?'))
+            return;
+        try {
+            await sbFetch('stan_magazynowy_przykrywki', `?przykrywka_id=eq.${id}`, {
+                method: 'DELETE'
+            });
+            await sbFetch('przykrywka', `?id=eq.${id}`, {
+                method: 'DELETE'
+            });
+            loadCennikPrz();
+            loadAll();
+        } catch (e) {
+            alert('Błąd: ' + e.message);
+        }
     }
 
     // ── INIT ──
