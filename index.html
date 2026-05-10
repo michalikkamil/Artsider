@@ -283,7 +283,7 @@
 
     .card-body {
         flex: 1;
-        padding: 10px 12px;
+        padding: 10px 12px 28px;
         min-width: 0;
     }
 
@@ -367,10 +367,10 @@
     .card-stock {
         position: absolute;
         right: 12px;
-        bottom: 10px;
+        bottom: 8px;
         display: flex;
         align-items: center;
-        gap: 5px;
+        gap: 6px;
         font-size: 11px;
         color: var(--ink2);
     }
@@ -389,6 +389,13 @@
     .stock-dot {
         width: 7px;
         height: 7px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .stock-dot-big {
+        width: 14px;
+        height: 14px;
         border-radius: 50%;
         flex-shrink: 0;
     }
@@ -1700,7 +1707,8 @@
                     grafika: r.grafika,
                     artysta: r.artysta,
                     miniaturka: r.miniaturka_url,
-                    ilosc_zlecona: r.ilosc_zlecona,
+                    ilosc_zlecona: r.ilosc_zlecona || 0,
+                    data_zlecenia: r.data_zlecenia,
                     stany: [],
                     ilosc_lacznie: 0,
                     ilosc_w_drodze: 0
@@ -1729,6 +1737,7 @@
                 sztuk_w_opakowaniu: k.sztuk_w_opakowaniu,
                 cena_netto: k.cena_netto,
                 ilosc_zlecona: k.ilosc_zlecona || 0,
+                data_zlecenia: k.data_zlecenia,
                 grafika: k.grafika?.nazwa,
                 artysta: k.grafika?.artysta?.imie_nazwisko,
                 miniaturka: k.grafika?.miniaturka_url,
@@ -1979,18 +1988,18 @@
             });
             let ts = 0,
                 td = 0;
-            f.forEach(k => {
-                if (activeMagKubki) {
+            const fKubki = f.filter(k => !k.isPrzykrywka);
+            fKubki.forEach(k => {
+                if (activeMagKubki && activeMagKubki !== 'zlecone' && activeMagKubki !== 'archiwum') {
                     const s = k.stany.find(x => x.magazyn_id === activeMagKubki);
                     ts += s?.ilosc_dostepna || 0;
                     td += s?.ilosc_w_drodze || 0;
-                }
-                else {
+                } else {
                     ts += k.ilosc_lacznie;
                     td += k.ilosc_w_drodze;
                 }
             });
-            document.getElementById('skModeli').textContent = f.length;
+            document.getElementById('skModeli').textContent = fKubki.length;
             document.getElementById('skSztuk').textContent = ts;
             document.getElementById('skDrodze').textContent = td;
             renderKubki(f, 'listKubki', activeMagKubki, false);
@@ -2068,13 +2077,16 @@
         list.innerHTML = kubki.map(k => {
             const stan = activeMag ? (k.stany?.find(s => s.magazyn_id === activeMag)?.ilosc_dostepna || 0) : k.ilosc_lacznie || 0;
             const drodze = activeMag ? (k.stany?.find(s => s.magazyn_id === activeMag)?.ilosc_w_drodze || 0) : k.ilosc_w_drodze || 0;
-            const dotCls = stan === 0 ? 'stock-empty' : stan < 10 ? 'stock-low' : 'stock-ok';
+            const dotCls = stan === 0 ? 'stock-empty' : stan < 500 ? 'stock-low' : 'stock-ok';
             const sciTag = k.typ_scianki ? `<span class="tag tag-sci">${k.typ_scianki === 'dwuściankowy' ? '2×' : '1×'}</span>` : '';
             const pakTag = k.sztuk_w_opakowaniu ? `<span class="tag tag-pak">${k.sztuk_w_opakowaniu}/op.</span>` : '';
             const termTag = isTermiczny ? `<span class="tag tag-term">🌡</span>` : '';
             const thumb = k.miniaturka ? `<img src="${k.miniaturka}" alt="">` : k.isPrzykrywka ? '🫗' : '☕';
-            const dateHtml = showDate && k.data_zlecenia ? `<div class="card-date">${k.data_zlecenia}${k.ilosc_zlecona ? ` · ${k.ilosc_zlecona} szt.` : ''}</div>` : '';
-            const stockHtml = showDate ? '' : `<div class="card-stock"><span class="stock-dot ${dotCls}"></span>${stan === 0 ? 'brak' : stan + ' szt.'}${drodze > 0 ? `<span class="stock-order">+${drodze} w drodze</span>` : ''}</div>`;
+            const totalLacznie = k.ilosc_lacznie || 0;
+            const zleconoTag = k.ilosc_zlecona > 0 ? `<span style="font-size:10px;color:var(--ink3);margin-left:4px;">zlecono ${k.ilosc_zlecona} szt.</span>` : '';
+            const totalTag = activeMagKubki && activeMagKubki !== 'zlecone' && activeMagKubki !== 'archiwum' && stan !== totalLacznie ? `<span style="font-size:10px;color:var(--ink3);margin-left:4px;">z ${totalLacznie} szt.</span>` : '';
+            const dateHtml = showDate && k.data_zlecenia && k.data_zlecenia !== '1970-01-01' ? `<div class="card-date">${k.data_zlecenia}${k.ilosc_zlecona ? ` · ${k.ilosc_zlecona} szt.` : ''}</div>` : '';
+            const stockHtml = showDate ? '' : `<div class="card-stock"><span class="stock-dot-big ${dotCls}"></span><span style="font-size:15px;font-weight:600;">${stan === 0 ? 'brak' : stan + ' szt.'}</span>${totalTag}${zleconoTag}</div>`;
             return `<div class="card" onclick="openDrawer('${k.kubek_id}','${showDate ? 'zlecony' : isTermiczny ? 'termiczny' : 'kubek'}')">
       <div class="card-thumb">${thumb}</div>
       <div class="card-body">
@@ -2148,6 +2160,7 @@
     ${acceptHtml}
     ${typ === 'kubek' && activeMagKubki && activeMagKubki !== 'zlecone' && activeMagKubki !== 'archiwum' ? renderPrzeniesForm(k) + renderZmienIlosc(k) : ''}
     ${typ === 'kubek' && (!activeMagKubki || activeMagKubki === 'archiwum' || k.ilosc_lacznie === 0) ? renderZmienIloscGlobal(k) : ''}
+    ${typ === 'kubek' ? renderZamowDoProdukcji(k) : ''}
     ${typ === 'kubek' && (activeMagKubki === 'archiwum' || k.ilosc_lacznie === 0) ? `
     <div class="d-section">Usuń z archiwum</div>
     <button class="btn-secondary" style="background:#FBE9E9;border-color:#F4B5B5;color:#A32D2D;width:100%;margin-top:4px;" onclick="usunKubek('${
@@ -4821,6 +4834,64 @@
             loadAll();
         } catch (e) {
             alert('Błąd: ' + e.message);
+        }
+    }
+
+    // ── ZAMÓW DO PRODUKCJI ──
+    function renderZamowDoProdukcji(k) {
+        const dataZl = k.data_zlecenia && k.data_zlecenia !== '1970-01-01' ? k.data_zlecenia : '';
+        return `
+    <div class="d-section">Zamów do produkcji</div>
+    <div class="accept-form">
+      <div class="f-row" style="margin-bottom:8px;">
+        <div class="accept-row" style="flex:1;">
+          <span class="accept-label">Ilość do zamówienia</span>
+          <input class="accept-input" type="number" min="0" value="${
+
+
+
+
+        k.ilosc_zlecona || 0}" id="zlecIlosc" style="width:90px;">
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <span style="font-size:12px;color:var(--ink2);flex-shrink:0;">Data zlecenia:</span>
+        <input class="f-input" type="date" id="zlecData" value="${
+
+
+
+        dataZl || new Date().toISOString().slice(0, 10)}" style="flex:1;">
+      </div>
+      <button class="btn-primary" onclick="zapiszZlecenie('${
+        k.kubek_id}')">📋 Zapisz zlecenie</button>
+      <div class="f-msg" id="zlecMsg"></div>
+    </div>`
+
+        ;
+    }
+
+    async function zapiszZlecenie(kubek_id) {
+        const ilosc = parseInt(document.getElementById('zlecIlosc').value) || 0;
+        const data = document.getElementById('zlecData').value;
+        const msg = document.getElementById('zlecMsg');
+        try {
+            await sbFetch('kubek', `?id=eq.${kubek_id}`, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    ilosc_zlecona: ilosc,
+                    data_zlecenia: data || null,
+                    status: ilosc > 0 ? 'zlecony' : 'w_magazynie'
+                })
+            });
+            msg.className = 'f-msg ok';
+            msg.textContent = `✓ Zlecono ${ilosc} szt. na ${data}`;
+            setTimeout(() => {
+                closeDrawer();
+                loadAll();
+            }, 1000);
+        } catch (e) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'Błąd: ' + e.message;
         }
     }
 
