@@ -1452,6 +1452,15 @@
 
                 <!-- WSPÓLNE: grafika + artysta + zdjęcie -->
                 <div id="formWspolne" style="display:none">
+                    <div class="f-section">Sposób dodania</div>
+                    <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border:1.5px solid var(--border);border-radius:8px;padding:12px;background:var(--bg);margin-bottom:12px;">
+                        <input type="checkbox" id="nBezProdukcji" onchange="toggleBezProdukcji()" style="width:18px;height:18px;cursor:pointer;flex-shrink:0;">
+                        <div>
+                            <div style="font-size:13px;font-weight:500;">Kubki już są w magazynie</div>
+                            <div style="font-size:11px;color:var(--ink3);">Pomiń produkcję — przypisz ilości od razu</div>
+                        </div>
+                    </div>
+                    <div id="nMagStany" style="display:none;margin-bottom:12px;"></div>
                     <div class="f-section">Grafika i artysta</div>
                     <div class="f-group">
                         <label class="f-label">Nazwa grafiki</label>
@@ -1471,7 +1480,7 @@
                             <div class="upload-txt" id="uploadTxt">📷 Kliknij żeby wybrać zdjęcie</div>
                         </div>
                     </div>
-                    <button class="btn-primary" id="btnDodajKubek" onclick="dodajKubek()">+ Zapisz kubek (zlecony)</button>
+                    <button class="btn-primary" id="btnDodajKubek" onclick="dodajKubek()">+ Zapisz kubek</button>
                     <div class="f-msg" id="kubMsg"></div>
                 </div>
             </div>
@@ -1593,7 +1602,7 @@
             buildKlientFilter(klienci);
 
             // grupuj kubki papierowe (w_magazynie)
-            allKubki = grupuj(stanKubki.filter(r => r.status === 'w_magazynie' || !r.status));
+            allKubki = grupuj(stanKubki);
 
             allTermiczne = grupuj(stanTerm);
             allZlecone = await ladujZlecone();
@@ -1876,11 +1885,17 @@
                     return false;
                 if (q && !k.grafika?.toLowerCase().includes(q) && !k.artysta?.toLowerCase().includes(q))
                     return false;
+                // w konkretnym magazynie: tylko kubki w_magazynie z >0 sztuk
                 if (activeMagKubki && activeMagKubki !== 'zlecone' && activeMagKubki !== 'archiwum') {
+                    if (k.status === 'zlecony')
+                        return false;
                     const s = k.stany.find(x => x.magazyn_id === activeMagKubki);
                     if (!s || s.ilosc_dostepna <= 0)
                         return false;
                 }
+                // w trybie wszystkie: ukryj zlecone (są w osobnej zakładce)
+                if (!activeMagKubki && k.status === 'zlecony')
+                    return false;
                 return true;
             });
             let ts = 0,
@@ -2049,7 +2064,8 @@
     <div class="d-row"><span class="d-key">Cena netto</span><span class="d-val acc">${k.cena_netto != null ? Number(k.cena_netto).toFixed(2) + ' zł' : '—'}</span></div>
     ${stanyHtml ? `<div class="d-section">Stan wg magazynu</div><div class="mag-grid">${stanyHtml}</div>` : ''}
     ${acceptHtml}
-    ${typ === 'kubek' && activeMagKubki ? renderPrzeniesForm(k) + renderZmienIlosc(k) : ''}${typ === 'kubek' && !activeMagKubki ? renderZmienIloscGlobal(k) : ''}
+    ${typ === 'kubek' && activeMagKubki && activeMagKubki !== 'zlecone' && activeMagKubki !== 'archiwum' ? renderPrzeniesForm(k) + renderZmienIlosc(k) : ''}
+    ${typ === 'kubek' && (!activeMagKubki || activeMagKubki === 'archiwum' || k.ilosc_lacznie === 0) ? renderZmienIloscGlobal(k) : ''}
   `
         ;
         document.getElementById('overlay').classList.add('open');
@@ -2315,6 +2331,7 @@
                 msg.textContent = 'Wypełnij wszystkie pola kubka papierowego.';
                 return;
             }
+            const bezProdukcji = document.getElementById('nBezProdukcji')?.checked;
             kubekData = {
                 table: 'kubek',
                 data: {
@@ -2323,8 +2340,8 @@
                     typ_scianki: sci,
                     sztuk_w_opakowaniu: pak,
                     cena_netto: cena,
-                    status: 'zlecony',
-                    data_zlecenia: new Date().toISOString().slice(0, 10)
+                    status: bezProdukcji ? 'w_magazynie' : 'zlecony',
+                    data_zlecenia: bezProdukcji ? null : new Date().toISOString().slice(0, 10)
                 }
             };
         } else {
@@ -2367,7 +2384,7 @@
             });
 
             // zapisz kubek
-            await sbFetch(kubekData.table, '', {
+            const [nowyKubek] = await sbFetch(kubekData.table, '', {
                 method: 'POST',
                 body: JSON.stringify({
                     ...kubekData.data,
@@ -2375,8 +2392,41 @@
                 })
             });
 
-            msg.className = 'f-msg ok';
-            msg.textContent = `✓ Kubek "${grafNazwa}" zapisany jako zlecony!`;
+            // utwórz stany magazynowe
+            if (kubekData.table === 'kubek' && nowyKubek?.id) {
+                if (bezProdukcji) {
+                    // z ilościami per magazyn
+                    const stanyDoUtworzenia = allMagazyny.map(m => {
+                        const ilosc = parseInt(document.getElementById(`nStanMag_${m.id}`)?.value) || 0;
+                        return {
+                            kubek_id: nowyKubek.id,
+                            magazyn_id: m.id,
+                            ilosc_dostepna: ilosc,
+                            ilosc_w_drodze: 0
+                        };
+                    });
+                    await sbFetch('stan_magazynowy', '', {
+                        method: 'POST',
+                        body: JSON.stringify(stanyDoUtworzenia)
+                    });
+                    msg.className = 'f-msg ok';
+                    msg.textContent = `✓ Kubek "${grafNazwa}" dodany do magazynu!`;
+                } else {
+                    // zlecony — tylko 0 sztuk jako placeholder
+                    const stanyDoUtworzenia = allMagazyny.map(m => ({
+                        kubek_id: nowyKubek.id,
+                        magazyn_id: m.id,
+                        ilosc_dostepna: 0,
+                        ilosc_w_drodze: 0,
+                    }));
+                    await sbFetch('stan_magazynowy', '', {
+                        method: 'POST',
+                        body: JSON.stringify(stanyDoUtworzenia)
+                    });
+                    msg.className = 'f-msg ok';
+                    msg.textContent = `✓ Kubek "${grafNazwa}" dodany jako Zlecony!`;
+                }
+            }
 
             // reset
             document.getElementById('nRodzaj').value = '';
@@ -2393,7 +2443,7 @@
         }
         finally {
             btn.disabled = false;
-            btn.textContent = '+ Zapisz kubek (zlecony)';
+            btn.textContent = '+ Zapisz kubek';
         }
     }
 
@@ -3704,7 +3754,7 @@
                 });
             }
             msg.className = 'f-msg ok';
-            msg.textContent = '✓ Zaktualizowano wszystkie magazyny.';
+            msg.textContent = '✓ Zaktualizowano! Kubek pojawi się w odpowiednim magazynie.';
             setTimeout(() => {
                 closeDrawer();
                 loadAll();
@@ -3961,6 +4011,29 @@
         finally {
             btn.disabled = false;
             btn.textContent = '📥 Importuj klientów z Fakturowni';
+        }
+    }
+
+    // ── TOGGLE BEZ PRODUKCJI ──
+    function toggleBezProdukcji() {
+        const checked = document.getElementById('nBezProdukcji')?.checked;
+        const wrap = document.getElementById('nMagStany');
+        if (!wrap)
+            return;
+        if (checked) {
+            wrap.style.display = 'block';
+            wrap.innerHTML = allMagazyny.map(m => `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <span style="flex:1;font-size:12px;color:var(--ink2);">${
+            m.nazwa}</span>
+        <input class="f-input" id="nStanMag_${m.id}" type="number" min="0" value="0" style="width:80px;text-align:center;">
+        <span style="font-size:11px;color:var(--ink3);">szt.</span>
+      </div>`
+
+            ).join('');
+        } else {
+            wrap.style.display = 'none';
+            wrap.innerHTML = '';
         }
     }
 
