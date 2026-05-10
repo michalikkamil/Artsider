@@ -1147,10 +1147,7 @@
         </div>
         <div class="nav-tabs">
             <button class="nav-tab active" onclick="showPage('kubki',this)">☕ Kubki</button>
-            <button class="nav-tab" onclick="showPage('zlecone',this)">🏭 Zlecone</button>
             <button class="nav-tab" onclick="showPage('termiczne',this)">🌡 Termiczne</button>
-            <button class="nav-tab" onclick="showPage('komis',this)">🤝 Komis</button>
-            <button class="nav-tab" onclick="showPage('archiwum',this)">🗄 Archiwum</button>
             <button class="nav-tab" onclick="showPage('zamowienia',this)">📦 Zamówienia</button>
             <button class="nav-tab" onclick="showPage('artysci',this)">🎨 Artyści</button>
             <button class="nav-tab" onclick="showPage('dodaj',this)">+ Dodaj</button>
@@ -1179,7 +1176,7 @@
                     <select class="dark-select" id="fMat" onchange="applyFilters('kubki')">
                         <option value="">Wszystkie</option>
                         <option value="BIO">BIO</option>
-                        <option value="PE">PE</option>
+                        <option value="PE" selected>PE</option>
                         <option value="rPET">rPET</option>
                     </select>
                 </div>
@@ -1188,7 +1185,7 @@
                     <select class="dark-select" id="fSci" onchange="applyFilters('kubki')">
                         <option value="">Wszystkie</option>
                         <option value="jednościankowy">Jedno</option>
-                        <option value="dwuściankowy">Dwu</option>
+                        <option value="dwuściankowy" selected>Dwu</option>
                     </select>
                 </div>
                 <div class="filter-group">
@@ -1220,50 +1217,6 @@
             <div class="state-msg">
                 <span class="big">☕</span>
                 Łączenie z bazą…
-            </div>
-        </div>
-    </div>
-
-    <!-- ══ ZLECONE ══ -->
-    <div class="page" id="page-zlecone">
-        <div class="dark-header">
-            <div class="filters">
-                <div class="filter-group">
-                    <span class="filter-label">Pojemność</span>
-                    <select class="dark-select" id="zfPoj" onchange="applyFilters('zlecone')">
-                        <option value="">Wszystkie</option>
-                        <option value="100">100 ml</option>
-                        <option value="180">180 ml</option>
-                        <option value="250">250 ml</option>
-                        <option value="300">300 ml</option>
-                        <option value="400">400 ml</option>
-                        <option value="500">500 ml</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <span class="filter-label">Materiał</span>
-                    <select class="dark-select" id="zfMat" onchange="applyFilters('zlecone')">
-                        <option value="">Wszystkie</option>
-                        <option value="BIO">BIO</option>
-                        <option value="PE">PE</option>
-                        <option value="rPET">rPET</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <span class="filter-label">Artysta</span>
-                    <select class="dark-select" id="zfArt" onchange="applyFilters('zlecone')">
-                        <option value="">Wszyscy</option>
-                    </select>
-                </div>
-            </div>
-            <div class="search-wrap">
-                <input type="search" id="searchZlecone" placeholder="Szukaj grafiki lub artysty…" oninput="applyFilters('zlecone')">
-            </div>
-        </div>
-        <div class="list" id="listZlecone">
-            <div class="state-msg">
-                <span class="big">🏭</span>
-                Ładowanie…
             </div>
         </div>
     </div>
@@ -1317,141 +1270,6 @@
                 Ładowanie…
             </div>
         </div>
-    </div>
-
-    <!-- ══ KOMIS ══ -->
-    <div class="page" id="page-komis">
-        <div class="dark-header" style="padding-bottom:14px;">
-            <div class="filters">
-                <div class="filter-group">
-                    <span class="filter-label">Klient</span>
-                    <select class="dark-select" id="kfKlient" onchange="applyFilters('komis')">
-                        <option value="">Wszyscy</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <span class="filter-label">Status</span>
-                    <select class="dark-select" id="kfStatus" onchange="applyFilters('komis')">
-                        <option value="aktywny">Aktywne</option>
-                        <option value="">Wszystkie</option>
-                        <option value="zwrocony">Zwrócone</option>
-                        <option value="sprzedany">Sprzedane</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-        <div class="list" id="listKomis">
-            <div class="state-msg">
-                <span class="big">🤝</span>
-                Ładowanie…
-            </div>
-        </div>
-    </div>
-
-    <!-- ══ ARCHIWUM ══ -->
-    <div class="page" id="page-archiwum">
-        <div class="dark-header">
-            <div class="filters">
-                <div class="filter-group">
-                    <span class="filter-label">Pojemność</span>
-                    <select class="dark-select" id="afPoj" onchange="applyFilters('archiwum')">
-                        <option value="">Wszystkie</option>
-                        <option value="100">100 ml</option>
-                        <option value="180">180 ml</option>
-                        <option value="250">250 ml</option>
-                        <option value="300">300 ml</option>
-                        <option value="400">400 ml</option>
-                        <option value="500">500 ml</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <span class="filter-label">Materiał</span>
-                    <select class="dark-select" id="afMat" onchange="applyFilters('archiwum')">
-                        <option value="">Wszystkie</option>
-                        <option value="BIO">BIO</option>
-                        <option value="PE">PE</option>
-                        <option value="rPET">rPET</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <span class="filter-label">Artysta</span>
-                    <select class="dark-select" id="afArt" onchange="applyFilters('archiwum')">
-                        <option value="">Wszyscy</option>
-                    </select>
-                </div>
-            </div>
-            <div class="search-wrap">
-                <input type="search" id="searchArchiwum" placeholder="Szukaj grafiki lub artysty…" oninput="applyFilters('archiwum')">
-            </div>
-        </div>
-        <div class="list" id="listArchiwum">
-            <div class="state-msg">
-                <span class="big">🗄</span>
-                Ładowanie…
-            </div>
-        </div>
-    </div>
-
-    <!-- ══ ZAMÓWIENIA ══ -->
-    <div class="page" id="page-zamowienia">
-        <div class="dark-header" style="padding-bottom:14px;">
-            <div class="filters">
-                <div class="filter-group">
-                    <span class="filter-label">Status</span>
-                    <select class="dark-select" id="wfStatus" onchange="applyFilters('zamowienia')">
-                        <option value="">Wszystkie</option>
-                        <option value="w_produkcji">W produkcji</option>
-                        <option value="wyslane">Wysłane</option>
-                        <option value="zrealizowane">Zrealizowane</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <span class="filter-label">Płatność</span>
-                    <select class="dark-select" id="wfPlatnosc" onchange="applyFilters('zamowienia')">
-                        <option value="">Wszystkie</option>
-                        <option value="nieoplacona">Nieopłacone</option>
-                        <option value="oplacona">Opłacone</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <span class="filter-label">Faktura</span>
-                    <select class="dark-select" id="wfFaktura" onchange="applyFilters('zamowienia')">
-                        <option value="">Wszystkie</option>
-                        <option value="nie_wyslana">Niewysłana</option>
-                        <option value="wyslana">Wysłana</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <span class="filter-label">Źródło</span>
-                    <select class="dark-select" id="wfZrodlo" onchange="applyFilters('zamowienia')">
-                        <option value="">Wszystkie</option>
-                        <option value="email">Email</option>
-                        <option value="telefon">Telefon</option>
-                        <option value="sms">SMS</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-        <div class="page-body" style="padding-top:12px;padding-bottom:0;">
-            <div style="display:flex;gap:8px;margin-bottom:12px;">
-                <button class="btn-primary" style="flex:1;" onclick="openNoweZamowienie()">+ Nowe zamówienie</button>
-                <button class="btn-primary" style="flex:1;background:#185FA5;" id="btnImportKlientow" onclick="importujKlientowZFakturowni()">📥 Importuj klientów</button>
-            </div>
-            <div class="f-msg" id="importMsg" style="margin-bottom:8px;"></div>
-        </div>
-        <div class="list" id="listZamowienia">
-            <div class="state-msg">
-                <span class="big">📦</span>
-                Ładowanie…
-            </div>
-        </div>
-    </div>
-
-    <!-- DRAWER: NOWE ZAMÓWIENIE -->
-    <div class="overlay" id="overlayZam" onclick="closeZamDrawer()"></div>
-    <div class="drawer" id="drawerZam" style="max-height:95vh;">
-        <div class="drawer-handle" onclick="closeZamDrawer()"></div>
-        <div id="drawerZamContent"></div>
     </div>
 
     <!-- ══ ARTYŚCI ══ -->
@@ -1719,8 +1537,10 @@
             allZlecone = await ladujZlecone();
 
             applyFilters('kubki');
-            applyFilters('zlecone');
             applyFilters('termiczne');
+            // Załaduj zlecone i archiwum w tle
+            ladujZlecone().then(d => allZlecone = d);
+            loadArchiwum();
         } catch (e) {
             document.getElementById('listKubki').innerHTML = `<div class="state-msg"><span class="big">⚠️</span>Błąd połączenia.<br><small>${e.message}</small></div>`;
         }
@@ -1782,21 +1602,105 @@
 
     function buildMagTabs(magazyny, elId, scope) {
         const wrap = document.getElementById(elId);
-        wrap.innerHTML = `<button class="mag-tab active" data-mag="" onclick="selectMag(this,'${scope}')">Wszystkie</button>`;
-        magazyny.forEach(m => {
-            const btn = document.createElement('button');
-            btn.className = 'mag-tab';
-            btn.dataset.mag = m.id;
-            btn.textContent = m.nazwa;
-            btn.onclick = function() {
+        // Kubki: Kraków domyślny + Zlecone + Archiwum
+        // Termiczne: magazyny + Komis
+        if (scope === 'kubki') {
+            wrap.innerHTML = '';
+            // najpierw dodaj magazyny, Kraków jako domyślny
+            magazyny.forEach(m => {
+                const btn = document.createElement('button');
+                btn.className = 'mag-tab';
+                btn.dataset.mag = m.id;
+                btn.dataset.typ = 'magazyn';
+                btn.textContent = m.nazwa;
+                btn.onclick = function() {
+                    selectMag(this, scope);
+                };
+                if (m.nazwa === 'Kraków') {
+                    btn.classList.add('active');
+                    activeMagKubki = m.id;
+                }
+                wrap.appendChild(btn);
+            });
+            // Zlecone
+            const btnZ = document.createElement('button');
+            btnZ.className = 'mag-tab';
+            btnZ.dataset.mag = 'zlecone';
+            btnZ.dataset.typ = 'zlecone';
+            btnZ.textContent = '🏭 Zlecone';
+            btnZ.onclick = function() {
                 selectMag(this, scope);
             };
-            wrap.appendChild(btn);
-        });
+            wrap.appendChild(btnZ);
+            // Archiwum
+            const btnA = document.createElement('button');
+            btnA.className = 'mag-tab';
+            btnA.dataset.mag = 'archiwum';
+            btnA.dataset.typ = 'archiwum';
+            btnA.textContent = '🗄 Archiwum';
+            btnA.onclick = function() {
+                selectMag(this, scope);
+            };
+            wrap.appendChild(btnA);
+            // Wszystkie
+            const btnW = document.createElement('button');
+            btnW.className = 'mag-tab';
+            btnW.dataset.mag = '';
+            btnW.dataset.typ = 'magazyn';
+            btnW.textContent = 'Wszystkie';
+            btnW.onclick = function() {
+                selectMag(this, scope);
+            };
+            wrap.appendChild(btnW);
+        } else if (scope === 'termiczne') {
+            wrap.innerHTML = '';
+            const btnW = document.createElement('button');
+            btnW.className = 'mag-tab active';
+            btnW.dataset.mag = '';
+            btnW.dataset.typ = 'magazyn';
+            btnW.textContent = 'Wszystkie';
+            btnW.onclick = function() {
+                selectMag(this, scope);
+            };
+            wrap.appendChild(btnW);
+            magazyny.forEach(m => {
+                const btn = document.createElement('button');
+                btn.className = 'mag-tab';
+                btn.dataset.mag = m.id;
+                btn.dataset.typ = 'magazyn';
+                btn.textContent = m.nazwa;
+                btn.onclick = function() {
+                    selectMag(this, scope);
+                };
+                wrap.appendChild(btn);
+            });
+            // Komis
+            const btnK = document.createElement('button');
+            btnK.className = 'mag-tab';
+            btnK.dataset.mag = 'komis';
+            btnK.dataset.typ = 'komis';
+            btnK.textContent = '🤝 Komis';
+            btnK.onclick = function() {
+                selectMag(this, scope);
+            };
+            wrap.appendChild(btnK);
+        } else {
+            wrap.innerHTML = `<button class="mag-tab active" data-mag="" onclick="selectMag(this,'${scope}')">Wszystkie</button>`;
+            magazyny.forEach(m => {
+                const btn = document.createElement('button');
+                btn.className = 'mag-tab';
+                btn.dataset.mag = m.id;
+                btn.textContent = m.nazwa;
+                btn.onclick = function() {
+                    selectMag(this, scope);
+                };
+                wrap.appendChild(btn);
+            });
+        }
     }
 
     function buildArtystFilters(artysci) {
-        ['fArt', 'zfArt', 'tfArt', 'afArt'].forEach(id => {
+        ['fArt', 'tfArt'].forEach(id => {
             const sel = document.getElementById(id);
             if (!sel)
                 return;
@@ -1825,11 +1729,70 @@
         const tabs = scope === 'kubki' ? 'magTabsKubki' : 'magTabsTermiczne';
         document.querySelectorAll(`#${tabs} .mag-tab`).forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        if (scope === 'kubki')
-            activeMagKubki = btn.dataset.mag;
-        else
-            activeMagTermiczne = btn.dataset.mag;
+        const mag = btn.dataset.mag;
+        const typ = btn.dataset.typ || 'magazyn';
+        if (scope === 'kubki') {
+            activeMagKubki = mag;
+            if (mag === 'zlecone') {
+                renderKubki(allZlecone, 'listKubki', '', true);
+                updateStatsKubki([]);
+                return;
+            }
+            if (mag === 'archiwum') {
+                renderKubki(allArchiwum, 'listKubki', '', false);
+                updateStatsKubki([]);
+                return;
+            }
+        } else {
+            activeMagTermiczne = mag;
+            if (mag === 'komis') {
+                loadKomis();
+                renderKomisInTermiczne();
+                return;
+            }
+        }
         applyFilters(scope);
+    }
+
+    function updateStatsKubki(f) {
+        document.getElementById('skModeli').textContent = f.length || '—';
+        document.getElementById('skSztuk').textContent = '—';
+        document.getElementById('skDrodze').textContent = '—';
+    }
+
+    function renderKomisInTermiczne() {
+        const list = document.getElementById('listTermiczne');
+        list.innerHTML = `<div class="state-msg"><span class="big">⏳</span>Ładowanie komisu…</div>`;
+        sbFetch('v_komis_aktywny', '?select=*&order=dni_w_komisie.desc').then(data => {
+            allKomis = data;
+            if (!data.length) {
+                list.innerHTML = `<div class="state-msg"><span class="big">🤝</span>Brak aktywnych komisów.</div>`;
+                return;
+            }
+            const byKlient = {};
+            data.forEach(k => {
+                if (!byKlient[k.klient_id])
+                    byKlient[k.klient_id] = {
+                        klient: k.klient,
+                        pozycje: []
+                    };
+                byKlient[k.klient_id].pozycje.push(k);
+            });
+            list.innerHTML = Object.values(byKlient).map(({klient, pozycje}) => `
+      <div class="komis-card">
+        <div class="komis-klient">${
+            klient}</div>
+        ${pozycje.map(p => `
+          <div class="komis-row">
+            <span class="komis-key">${
+            p.grafika} · ${p.pojemnosc_ml}ml</span>
+            <span class="komis-val">${p.ilosc} szt. · ${p.dni_w_komisie} dni</span>
+          </div>`).join('')}
+      </div>`
+            ).join('');
+        }).catch(e => {
+            list.innerHTML = `<div class="state-msg"><span class="big">⚠️</span>${e.message}</div>`;
+        });
     }
 
     // ── FILTERS ──
@@ -1921,9 +1884,6 @@
             document.getElementById('stSztuk').textContent = ts;
             document.getElementById('stKomis').textContent = '—';
             renderKubki(f, 'listTermiczne', activeMagTermiczne, false, true);
-        }
-        else if (scope === 'archiwum') {
-            applyFiltersArchiwum();
         }
         else if (scope === 'zamowienia') {
             applyFiltersZamowienia();
@@ -3747,12 +3707,9 @@
     let allArchiwum = [];
 
     async function loadArchiwum() {
-        document.getElementById('listArchiwum').innerHTML = `<div class="state-msg"><span class="big">⏳</span>Ładowanie…</div>`;
         try {
-            // kubki z zerowym stanem we wszystkich magazynach i nie zlecone
             const kubki = await sbFetch('kubek', '?status=eq.w_magazynie&select=*,grafika(nazwa,miniaturka_url,artysta(imie_nazwisko))');
             const stany = await sbFetch('stan_magazynowy', '?select=kubek_id,ilosc_dostepna');
-            // suma per kubek
             const sumy = {};
             stany.forEach(s => {
                 sumy[s.kubek_id] = (sumy[s.kubek_id] || 0) + s.ilosc_dostepna;
@@ -3772,9 +3729,8 @@
                 ilosc_lacznie: 0,
                 ilosc_w_drodze: 0,
             }));
-            applyFilters('archiwum');
         } catch (e) {
-            document.getElementById('listArchiwum').innerHTML = `<div class="state-msg"><span class="big">⚠️</span>${e.message}</div>`;
+            console.warn('loadArchiwum error:', e);
         }
     }
 
@@ -3954,6 +3910,7 @@
             document.getElementById('cfgKey').value = key;
             document.getElementById('cfgModal').classList.remove('open');
             allZlecone = [];
+            allArchiwum = [];
             await loadAll();
         }
     });
