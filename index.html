@@ -1968,9 +1968,13 @@
                     if (!s || s.ilosc_dostepna <= 0)
                         return false;
                 }
-                // w trybie wszystkie: ukryj zlecone (są w osobnej zakładce)
-                if (!activeMagKubki && k.status === 'zlecony')
-                    return false;
+                // w trybie wszystkie: ukryj zlecone i archiwum (0 sztuk)
+                if (!activeMagKubki) {
+                    if (k.status === 'zlecony')
+                        return false;
+                    if (k.ilosc_lacznie <= 0 && !k.isPrzykrywka)
+                        return false;
+                }
                 return true;
             });
             let ts = 0,
@@ -2144,6 +2148,11 @@
     ${acceptHtml}
     ${typ === 'kubek' && activeMagKubki && activeMagKubki !== 'zlecone' && activeMagKubki !== 'archiwum' ? renderPrzeniesForm(k) + renderZmienIlosc(k) : ''}
     ${typ === 'kubek' && (!activeMagKubki || activeMagKubki === 'archiwum' || k.ilosc_lacznie === 0) ? renderZmienIloscGlobal(k) : ''}
+    ${typ === 'kubek' && (activeMagKubki === 'archiwum' || k.ilosc_lacznie === 0) ? `
+    <div class="d-section">Usuń z archiwum</div>
+    <button class="btn-secondary" style="background:#FBE9E9;border-color:#F4B5B5;color:#A32D2D;width:100%;margin-top:4px;" onclick="usunKubek('${
+        k.kubek_id}')">🗑 Usuń kubek z bazy</button>
+    ` : ''}
   `
         ;
         document.getElementById('overlay').classList.add('open');
