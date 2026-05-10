@@ -2399,6 +2399,7 @@
         const fileInput = document.getElementById('fileInput');
         const msg = document.getElementById('kubMsg');
         const btn = document.getElementById('btnDodajKubek');
+        const bezProdukcji = document.getElementById('nBezProdukcji')?.checked || false;
 
         if (!rodzaj || !grafNazwa || !artId) {
             msg.className = 'f-msg err';
@@ -2413,12 +2414,11 @@
             const sci = document.getElementById('nSci').value;
             const pak = parseInt(document.getElementById('nPak').value) || null;
             const cena = parseFloat(document.getElementById('nCena').value);
-            if (!mat || !poj || !sci || isNaN(cena)) {
+            if (!mat || !poj || !sci) {
                 msg.className = 'f-msg err';
                 msg.textContent = 'Wypełnij wszystkie pola kubka papierowego.';
                 return;
             }
-            const bezProdukcji = document.getElementById('nBezProdukcji')?.checked;
             const iloscZlecona = bezProdukcji ? 0 : (parseInt(document.getElementById('nIloscZlecona')?.value) || 0);
             const dataZlecenia = bezProdukcji ? '1970-01-01' : new Date().toISOString().slice(0, 10);
             const kubData = {
