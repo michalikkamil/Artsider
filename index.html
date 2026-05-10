@@ -405,7 +405,7 @@
     }
 
     .stock-low {
-        background: #BA7517;
+        background: #F5C400;
     }
 
     .stock-empty {
@@ -1512,11 +1512,17 @@
                             <div class="upload-txt" id="uploadTxt">📷 Kliknij żeby wybrać zdjęcie</div>
                         </div>
                     </div>
-                    <div id="nZleconaWrap" style="display:none;">
-                        <div class="f-section">Ilość zlecona do produkcji</div>
-                        <div class="f-group">
-                            <label class="f-label">Ile sztuk zamówiłeś u producenta?</label>
-                            <input class="f-input" id="nIloscZlecona" type="number" min="1" placeholder="np. 200">
+                    <div id="nZleconaWrap">
+                        <div class="f-section">Zlecenie produkcji</div>
+                        <div class="f-row">
+                            <div class="f-group">
+                                <label class="f-label">Ilość sztuk w zleceniu</label>
+                                <input class="f-input" id="nIloscZlecona" type="number" min="1" placeholder="np. 200">
+                            </div>
+                            <div class="f-group">
+                                <label class="f-label">Data zlecenia</label>
+                                <input class="f-input" id="nDataZlecenia" type="date">
+                            </div>
                         </div>
                     </div>
                     <button class="btn-primary" id="btnDodajKubek" onclick="dodajKubek()">+ Zapisz kubek</button>
@@ -1649,7 +1655,8 @@
             if (stanPrzykrywki && stanPrzykrywki.length) {
                 const prMap = {};
                 for (const r of stanPrzykrywki) {
-                    const kid = r.przykrywka_id;
+                    // klucz: przykrywka_id + pojemność (ta sama przykrywka może być na kilku pojemnościach)
+                    const kid = r.przykrywka_id + '_' + r.pojemnosc_przefiltrowana;
                     if (!prMap[kid]) {
                         prMap[kid] = {
                             kubek_id: 'pr_' + kid,
@@ -2090,10 +2097,16 @@
             return `<div class="card" onclick="openDrawer('${k.kubek_id}','${showDate ? 'zlecony' : isTermiczny ? 'termiczny' : 'kubek'}')">
       <div class="card-thumb">${thumb}</div>
       <div class="card-body">
-        <div class="card-top"><div class="card-title">${
-            k.grafika || '—'}</div><div class="card-price">${k.cena_netto != null ? Number(k.cena_netto).toFixed(2) + ' zł' : '—'}</div></div>
-        <div class="card-artist">${k.artysta || 'brak artysty'}</div>
-        <div class="card-tags"><span class="tag tag-ml">${k.pojemnosc_ml} ml</span>${k.typ_materialu ? `<span class="tag tag-mat">${k.typ_materialu}</span>` : ''}${sciTag}${pakTag}${termTag}</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+          <span style="font-family:var(--fh);font-size:18px;font-weight:700;color:var(--ink);">${
+
+            k.pojemnosc_ml} ml</span>
+          ${k.typ_materialu ? `<span class="tag tag-mat" style="font-size:11px;padding:2px 8px;">${k.typ_materialu}</span>` : ''}
+          ${pakTag}${termTag}
+          <span style="margin-left:auto;font-size:12px;font-weight:500;color:var(--accent);">${k.cena_netto != null ? Number(k.cena_netto).toFixed(2) + ' zł' : '—'}</span>
+        </div>
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${
+            k.grafika || '—'}${k.artysta ? ' · ' + k.artysta : ''}</div>
         ${stockHtml}${dateHtml}
       </div>
     </div>`
@@ -2153,8 +2166,21 @@
         k.pojemnosc_ml} ml</span></div>
     ${k.typ_materialu ? `<div class="d-row"><span class="d-key">Materiał</span><span class="d-val">${k.typ_materialu}</span></div>` : ''}
     ${k.typ_scianki ? `<div class="d-row"><span class="d-key">Ścianka</span><span class="d-val">${k.typ_scianki}</span></div>` : ''}
-    ${k.sztuk_w_opakowaniu ? `<div class="d-row"><span class="d-key">Szt. w opak.</span><span class="d-val">${k.sztuk_w_opakowaniu}</span></div>` : ''}
-    ${k.kolor ? `<div class="d-row"><span class="d-key">Kolor</span><span class="d-val">${k.kolor}</span></div>` : ''}
+    <div class="d-row">
+      <span class="d-key">Szt. w opakowaniu</span>
+      <span class="d-val" style="display:flex;align-items:center;gap:8px;">
+        <input type="number" min="1" value="${
+
+
+        k.sztuk_w_opakowaniu || ''}" id="editPak_${k.kubek_id}"
+          style="width:70px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;padding:4px 8px;font-family:var(--fm);font-size:13px;text-align:center;">
+        <button onclick="zapiszPak('${
+        k.kubek_id}')" style="background:var(--accent);color:white;border:none;border-radius:6px;padding:4px 10px;font-family:var(--fm);font-size:11px;cursor:pointer;">✓</button>
+      </span>
+    </div>
+    ${
+
+        k.kolor ? `<div class="d-row"><span class="d-key">Kolor</span><span class="d-val">${k.kolor}</span></div>` : ''}
     <div class="d-row"><span class="d-key">Cena netto</span><span class="d-val acc">${k.cena_netto != null ? Number(k.cena_netto).toFixed(2) + ' zł' : '—'}</span></div>
     ${stanyHtml ? `<div class="d-section">Stan wg magazynu</div><div class="mag-grid">${stanyHtml}</div>` : ''}
     ${acceptHtml}
@@ -2383,10 +2409,16 @@
     function updatePojemnosci() {
         const mat = document.getElementById('nMat').value;
         const sel = document.getElementById('nPoj');
+        if (!sel)
+            return;
         const pojs = POJEMNOSCI[mat] || [];
         sel.innerHTML = pojs.length
         ? `<option value="">— wybierz —</option>` + pojs.map(p => `<option value="${p}">${p} ml</option>`).join('')
         : `<option value="">— najpierw materiał —</option>`;
+        sel.onchange = () => autoCenaPapierowy();
+        const ceEl = document.getElementById('nCena');
+        if (ceEl)
+            ceEl.value = '';
     }
 
     function previewFile(input) {
@@ -2412,6 +2444,9 @@
             o.textContent = a.imie_nazwisko;
             sel.appendChild(o);
         });
+        const dateEl = document.getElementById('nDataZlecenia');
+        if (dateEl)
+            dateEl.value = new Date().toISOString().slice(0, 10);
     }
 
     async function dodajKubek() {
@@ -2442,7 +2477,7 @@
                 return;
             }
             const iloscZlecona = bezProdukcji ? 0 : (parseInt(document.getElementById('nIloscZlecona')?.value) || 0);
-            const dataZlecenia = bezProdukcji ? '1970-01-01' : new Date().toISOString().slice(0, 10);
+            const dataZlecenia = bezProdukcji ? null : (document.getElementById('nDataZlecenia')?.value || new Date().toISOString().slice(0, 10));
             const kubData = {
                 pojemnosc_ml: poj,
                 typ_materialu: mat,
@@ -2450,9 +2485,10 @@
                 sztuk_w_opakowaniu: pak,
                 cena_netto: cena || 0,
                 status: bezProdukcji ? 'w_magazynie' : 'zlecony',
-                ilosc_zlecona: iloscZlecona,
-                data_zlecenia: dataZlecenia
+                ilosc_zlecona: iloscZlecona
             };
+            if (dataZlecenia)
+                kubData.data_zlecenia = dataZlecenia;
             kubekData = {
                 table: 'kubek',
                 data: kubData
@@ -4567,11 +4603,17 @@
         if (!mat || !poj || !sci)
             return;
         try {
-            const [c] = await sbFetch('cennik_papierowe', `?typ_materialu=eq.${mat}&pojemnosc_ml=eq.${poj}&typ_scianki=eq.${sci}`);
+            const res = await sbFetch('cennik_papierowe', `?typ_materialu=eq.${mat}&pojemnosc_ml=eq.${poj}&typ_scianki=eq.${sci}`);
+            const c = res[0];
             if (c) {
                 const ceEl = document.getElementById('nCena');
-                if (ceEl)
+                if (ceEl) {
                     ceEl.value = Number(c.cena_netto).toFixed(4);
+                    ceEl.style.borderColor = 'var(--green)';
+                    setTimeout(() => {
+                        ceEl.style.borderColor = '';
+                    }, 1500);
+                }
             }
         } catch (e) {}
     }
@@ -4581,11 +4623,17 @@
         if (!poj)
             return;
         try {
-            const [c] = await sbFetch('cennik_termiczne', `?pojemnosc_ml=eq.${poj}`);
+            const res = await sbFetch('cennik_termiczne', `?pojemnosc_ml=eq.${poj}`);
+            const c = res[0];
             if (c) {
                 const ceEl = document.getElementById('nTCena');
-                if (ceEl)
+                if (ceEl) {
                     ceEl.value = Number(c.cena_netto).toFixed(2);
+                    ceEl.style.borderColor = 'var(--green)';
+                    setTimeout(() => {
+                        ceEl.style.borderColor = '';
+                    }, 1500);
+                }
             }
         } catch (e) {}
     }
@@ -4895,6 +4943,29 @@
         }
     }
 
+
+    async function zapiszPak(kubek_id) {
+        const val = parseInt(document.getElementById('editPak_' + kubek_id)?.value) || null;
+        try {
+            await sbFetch('kubek', `?id=eq.${kubek_id}`, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    sztuk_w_opakowaniu: val
+                })
+            });
+            // update local state
+            const k = allKubki.find(x => x.kubek_id === kubek_id) || allZlecone.find(x => x.kubek_id === kubek_id);
+            if (k)
+                k.sztuk_w_opakowaniu = val;
+            const btn = document.querySelector(`button[onclick="zapiszPak('${kubek_id}')"]`);
+            if (btn) {
+                btn.textContent = '✓';
+                btn.style.background = 'var(--green)';
+            }
+        } catch (e) {
+            alert('Błąd: ' + e.message);
+        }
+    }
     // ── INIT ──
     window.addEventListener('load', async () => {
         const {url, key} = getCfg();
