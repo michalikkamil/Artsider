@@ -1373,6 +1373,8 @@
                         <option value="email">Email</option>
                         <option value="telefon">Telefon</option>
                         <option value="sms">SMS</option>
+                        <option value="strona">Strona</option>
+                        <option value="instagram">Instagram</option>
                     </select>
                 </div>
             </div>
@@ -2892,9 +2894,14 @@
         <div class="drawer-title" style="margin-bottom:0;">${
 
             zam.klient}</div>
-        <button onclick="openEdytujZamowienie('${zamId}')" style="background:var(--bg2);border:1.5px solid var(--border);border-radius:8px;padding:6px 12px;font-family:var(--fm);font-size:11px;cursor:pointer;flex-shrink:0;margin-left:8px;">✏️ Edytuj</button>
+        <div style="display:flex;gap:6px;">
+          <button onclick="openEdytujZamowienie('${
+            zamId}')" style="background:var(--bg2);border:1.5px solid var(--border);border-radius:8px;padding:6px 12px;font-family:var(--fm);font-size:11px;cursor:pointer;">✏️ Edytuj</button>
+          <button onclick="usunZamowienie('${zamId}')" style="background:#FBE9E9;border:1.5px solid #F4B5B5;color:#A32D2D;border-radius:8px;padding:6px 12px;font-family:var(--fm);font-size:11px;cursor:pointer;">🗑</button>
+        </div>
       </div>
       <div class="drawer-sub">${
+
             zam.data_zamowienia} · ${zam.zrodlo || '—'} · ${zam.typ_zamowienia || ''}</div>
 
       <div class="d-section">Pozycje zamówienia</div>
@@ -2990,11 +2997,23 @@
     <div class="d-section">Klient</div>
     <div class="f-group">
       <div class="autocomplete-wrap">
-        <input class="autocomplete-input" id="zamKlientInput" placeholder="Wpisz nazwę klienta…" oninput="autocompleteKlient(this.value)" autocomplete="off">
+        <input class="autocomplete-input" id="zamKlientInput" placeholder="Wpisz nazwę klienta…" oninput="autocompleteKlientFull(this.value)" autocomplete="off">
         <input type="hidden" id="zamKlient">
         <div class="autocomplete-list" id="zamKlientList"></div>
       </div>
       <button class="btn-secondary" onclick="openNowyKlientInline()" style="margin-top:6px;font-size:12px;padding:8px;">+ Dodaj nowego klienta</button>
+    </div>
+    <div id="zamKlientInfo" style="display:none;margin-top:8px;">
+      <div class="f-group">
+        <label class="f-label">Nazwa własna klienta (edytuj)</label>
+        <input class="f-input" id="zamKlientNazwaWlasna" placeholder="np. Kasia z kawiarni">
+      </div>
+      <div class="f-group">
+        <label class="f-label">Notatka o kliencie</label>
+        <textarea class="f-input" id="zamKlientNotatka" rows="2" placeholder="np. zamawia zawsze kubki BIO, preferuje faktury na koniec miesiąca…" style="resize:vertical;"></textarea>
+      </div>
+      <button class="btn-secondary" onclick="zapiszDaneKlienta()" style="font-size:12px;padding:8px;">💾 Zapisz dane klienta</button>
+      <div class="f-msg" id="klientSaveMsg"></div>
     </div>
     <div id="nowyKlientForm" style="display:none;">
       <div class="accept-form" style="margin-top:8px;">
@@ -3027,6 +3046,8 @@
           <option value="email">Email</option>
           <option value="telefon">Telefon</option>
           <option value="sms">SMS</option>
+          <option value="strona">Strona</option>
+          <option value="instagram">Instagram</option>
         </select>
       </div>
       <div class="f-group"><label class="f-label">Grafika</label>
@@ -3044,11 +3065,29 @@
     <div id="tresc-sticky-placeholder"></div>
     <div id="pozycjeZam"></div>
     <button class="btn-secondary" onclick="dodajPozycje('kubek');makeTrescSticky();" style="margin-bottom:6px;">+ Kubek papierowy</button>
-    <button class="btn-secondary" onclick="dodajPozycje('przykrywka');makeTrescSticky();" style="margin-bottom:6px;">+ Przykrywka</button>
+    <button class="btn-secondary" onclick="dodajPozycje('przykrywka');makeTrescSticky();" style="margin-bottom:6px;">+ Wieczko</button>
+    <button class="btn-secondary" onclick="dodajPozycjeTermiczne();makeTrescSticky();" style="margin-bottom:6px;">+ Termiczne</button>
+    <button class="btn-secondary" onclick="dodajPozycje('wysylka');makeTrescSticky();" style="margin-bottom:6px;">+ Wysyłka</button>
 
     <button class="btn-primary" onclick="zapiszZamowienie()" style="margin-top:12px;">💾 Zapisz zamówienie</button>
     <div class="f-msg" id="zamMsg"></div>
   `
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3177,32 +3216,31 @@
 
         let selectHTML = '';
         if (typ === 'kubek') {
-            const maty = [...new Set(allKubki.map(k => k.typ_materialu).filter(Boolean))].sort();
+            const kubkiDostepne = allKubki
+            .filter(k => !k.isPrzykrywka && k.ilosc_lacznie > 0)
+            .sort((a, b) => a.pojemnosc_ml !== b.pojemnosc_ml ? a.pojemnosc_ml - b.pojemnosc_ml : b.ilosc_lacznie - a.ilosc_lacznie);
+            const maty = [...new Set(kubkiDostepne.map(k => k.typ_materialu).filter(Boolean))].sort();
+            window['kubkiPicker_' + id] = kubkiDostepne;
             selectHTML = `
-      <select class="f-select" id="poz_mat_${id}" onchange="onPozMaterialChange(${id})" style="margin-bottom:6px;">
-        <option value="">— materiał —</option>
-        ${
+      <div style="display:flex;gap:6px;margin-bottom:8px;">
+        <select class="f-select" id="poz_mat_${
+            id}" onchange="filterKubkiPicker(${id})" style="flex:1;">
+          <option value="">— materiał —</option>
+          ${
             maty.map(m => `<option value="${m}">${m}</option>`).join('')}
-      </select>
-      <select class="f-select" id="poz_poj_${
-            id}" onchange="onPozPojChange(${id})" style="margin-bottom:6px;" disabled>
-        <option value="">— najpierw materiał —</option>
-      </select>
-      <select class="f-select" id="poz_kub_${
+        </select>
+        <select class="f-select" id="poz_poj_${
+            id}" onchange="filterKubkiPicker(${id})" style="flex:1;">
+          <option value="">— pojemność —</option>
+        </select>
+      </div>
+      <input type="hidden" id="poz_kub_${
 
-            id}" data-field="kubek_id" onchange="onPozKubekChange(${id})" style="margin-bottom:6px;" >
-        <option value="">— wybierz kubek —</option>
-      </select>`
 
+            id}" data-field="kubek_id">
+      <div id="poz_picker_${id}" style="display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto;"></div>
+    `
             ;
-            // enable poj after mat selected
-            setTimeout(() => {
-                document.getElementById(`poz_mat_${id}`)?.addEventListener('change', () => {
-                    const pojSel = document.getElementById(`poz_poj_${id}`);
-                    if (pojSel)
-                        pojSel.disabled = false;
-                });
-            }, 0);
         } else if (typ === 'przykrywka') {
             selectHTML = `<div style="display:flex;gap:6px;margin-bottom:6px;">
       <select class="f-select" data-field="pr_mat" style="flex:1;">
@@ -3394,6 +3432,21 @@
                 await sbFetch('pozycja_zamowienia', '', {
                     method: 'POST',
                     body: JSON.stringify(pozDoZapisu)
+                });
+            }
+
+            // Utwórz komisaty dla termicznych
+            for (const k of komisDoUtworzenia) {
+                await sbFetch('komis', '', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        kubek_id: k.kubek_id,
+                        klient_id: klientId,
+                        ilosc: k.ilosc,
+                        cena_komisowa: k.cena_komisowa,
+                        status: 'aktywny',
+                        data_przekazania: new Date().toISOString().slice(0, 10),
+                    })
                 });
             }
 
@@ -5163,6 +5216,291 @@
             alert('Błąd: ' + e.message);
         }
     }
+
+    // ── AUTOCOMPLETE KLIENT FULL (z notatką) ──
+    function autocompleteKlientFull(q) {
+        const list = document.getElementById('zamKlientList');
+        const hidden = document.getElementById('zamKlient');
+        if (!q || q.length < 1) {
+            list.classList.remove('open');
+            return;
+        }
+        const filtered = allKlienci.filter(k => k.nazwa_wlasna.toLowerCase().includes(q.toLowerCase()));
+        if (!filtered.length) {
+            list.classList.remove('open');
+            return;
+        }
+        list.innerHTML = filtered.slice(0, 8).map(k => {
+            const hl = k.nazwa_wlasna.replace(new RegExp(`(${q})`, 'gi'), '<strong>$1</strong>');
+            return `<div class="autocomplete-item" onclick="selectKlientFull('${k.id}','${k.nazwa_wlasna.replace(/'/g, "\\'")}')">${hl}</div>`;
+        }).join('');
+        list.classList.add('open');
+    }
+
+    async function selectKlientFull(id, nazwa) {
+        document.getElementById('zamKlient').value = id;
+        document.getElementById('zamKlientInput').value = nazwa;
+        document.getElementById('zamKlientList').classList.remove('open');
+        // Załaduj dane klienta
+        try {
+            const [k] = await sbFetch('klient', `?id=eq.${id}`);
+            if (k) {
+                document.getElementById('zamKlientNazwaWlasna').value = k.nazwa_wlasna || '';
+                document.getElementById('zamKlientNotatka').value = k.notatki || '';
+                document.getElementById('zamKlientInfo').style.display = 'block';
+            }
+        } catch (e) {}
+    }
+
+    async function zapiszDaneKlienta() {
+        const id = document.getElementById('zamKlient').value;
+        const nazwa = document.getElementById('zamKlientNazwaWlasna').value.trim();
+        const notatka = document.getElementById('zamKlientNotatka').value.trim();
+        const msg = document.getElementById('klientSaveMsg');
+        if (!id)
+            return;
+        try {
+            await sbFetch('klient', `?id=eq.${id}`, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    nazwa_wlasna: nazwa || undefined,
+                    notatki: notatka || null
+                })
+            });
+            // Update local list
+            const k = allKlienci.find(x => x.id === id);
+            if (k && nazwa)
+                k.nazwa_wlasna = nazwa;
+            msg.className = 'f-msg ok';
+            msg.textContent = '✓ Zapisano';
+            setTimeout(() => msg.textContent = '', 2000);
+        } catch (e) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'Błąd: ' + e.message;
+        }
+    }
+
+    function updateWysylkaNazwa(id) {
+        const typ = document.getElementById('poz_wtyp_' + id)?.value || '';
+        const el = document.getElementById('poz_wnazwa_' + id);
+        if (el && typ !== 'inny')
+            el.value = 'Wysyłka ' + typ;
+    }
+
+    // ── DODAJ POZYCJE TERMICZNE ──
+    async function dodajPozycjeTermiczne() {
+        const klientId = document.getElementById('zamKlient')?.value;
+        const id = ++pozycjeCounter;
+        const wrap = document.getElementById('pozycjeZam');
+        const div = document.createElement('div');
+        div.id = `poz_${id}`;
+        div.dataset.typ = 'termiczny';
+        div.style.cssText = 'background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;position:relative;';
+
+        // Załaduj kubki termiczne
+        let kubkiTermHTML = '<option value="">— ładowanie —</option>';
+        let komisHTML = '<option value="">— ładowanie —</option>';
+        try {
+            const kt = await sbFetch('v_stan_termicznych', '?select=*');
+            // Grupuj per model
+            const map = {};
+            kt.forEach(r => {
+                if (!map[r.kubek_id])
+                    map[r.kubek_id] = {
+                        id: r.kubek_id,
+                        grafika: r.grafika,
+                        pojemnosc: r.pojemnosc_ml,
+                        ilosc: 0,
+                        cena: r.cena_netto
+                    };
+                map[r.kubek_id].ilosc += (r.ilosc_dostepna || 0);
+            });
+            const ktList = Object.values(map).filter(k => k.ilosc > 0).sort((a, b) => a.pojemnosc - b.pojemnosc);
+            kubkiTermHTML = `<option value="">— wybierz kubek —</option>` + ktList.map(k => `<option value="${k.id}" data-cena="${k.cena}">${k.grafika || '—'} · ${k.pojemnosc}ml (${k.ilosc} szt.)</option>`).join('');
+
+            // Komis dla danego klienta
+            if (klientId) {
+                const komis = await sbFetch('v_komis_aktywny', `?klient_id=eq.${klientId}&select=*`);
+                komisHTML = komis.length
+                ? `<option value="">— wybierz z komisu —</option>` + komis.map(k => `<option value="${k.kubek_id}" data-komis="${k.komis_id}" data-cena="${k.cena_netto || 0}">${k.grafika || '—'} · ${k.pojemnosc_ml}ml (${k.ilosc} szt. w komisie)</option>`).join('')
+                : `<option value="">Brak kubków w komisie u tego klienta</option>`;
+            }
+        } catch (e) {
+            console.warn(e);
+        }
+
+        div.innerHTML = `
+    <button onclick="document.getElementById('poz_${id}').remove()" style="position:absolute;top:8px;right:8px;background:none;border:none;font-size:16px;cursor:pointer;color:var(--ink3);">✕</button>
+    <div style="font-size:10px;text-transform:uppercase;color:var(--ink3);margin-bottom:8px;">🌡 Kubek termiczny</div>
+    <div style="display:flex;gap:8px;margin-bottom:8px;">
+      <button onclick="setTermTyp(${
+
+        id},'sprzedaz',this)" class="btn-status active" style="flex:1;">💰 Sprzedaż</button>
+      <button onclick="setTermTyp(${id},'komis',this)" class="btn-status" style="flex:1;">🤝 Komis</button>
+    </div>
+    <div id="poz_term_sprzedaz_${
+        id}">
+      <div style="margin-bottom:6px;font-size:11px;color:var(--ink3);">Źródło:</div>
+      <div style="display:flex;gap:6px;margin-bottom:6px;">
+        <button onclick="setTermSprzedazTyp(${
+
+        id},'magazyn',this)" class="btn-status active" style="flex:1;font-size:11px;">Z magazynu</button>
+        <button onclick="setTermSprzedazTyp(${id},'komis',this)" class="btn-status" style="flex:1;font-size:11px;">Z komisu</button>
+      </div>
+      <select class="f-select" id="poz_term_kub_${
+        id}" data-field="kubek_termiczny_id" onchange="onTermKubekChange(${id})" style="margin-bottom:6px;">
+        ${kubkiTermHTML}
+      </select>
+      <div id="poz_term_komis_sel_${
+        id}" style="display:none;">
+        <select class="f-select" id="poz_term_komis_kub_${id}" onchange="onTermKomisChange(${id})" style="margin-bottom:6px;">
+          ${komisHTML}
+        </select>
+      </div>
+    </div>
+    <div id="poz_term_komis_${
+
+
+        id}" style="display:none;">
+      <select class="f-select" id="poz_term_komis_wyslij_${id}" data-field="kubek_termiczny_komis_id" style="margin-bottom:6px;">
+        ${kubkiTermHTML}
+      </select>
+      <div class="f-group" style="margin-bottom:0;"><label class="f-label">Cena komisowa (zł/szt.)</label><input class="f-input" id="poz_term_cena_kom_${
+        id}" type="number" step="0.01" placeholder="np. 45.00"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <div class="f-group" style="flex:1;margin-bottom:0;"><label class="f-label">Ilość</label><input class="f-input" id="poz_term_ilosc_${
+
+        id}" data-field="ilosc" type="number" min="1" value="1"></div>
+      <div class="f-group" style="flex:1;margin-bottom:0;"><label class="f-label">Cena netto (zł)</label><input class="f-input" id="poz_term_cena_${id}" data-field="cena" type="number" step="0.01" placeholder="0.00"></div>
+    </div>
+    <input type="hidden" id="poz_term_typ_${
+        id}" value="sprzedaz">
+    <input type="hidden" id="poz_term_zrodlo_${id}" value="magazyn">
+  `
+        ;
+        div.dataset.typTermiczny = 'sprzedaz';
+        wrap.appendChild(div);
+    }
+
+    function setTermTyp(id, typ, btn) {
+        document.querySelectorAll(`#poz_${id} .btn-status`).forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(`poz_term_typ_${id}`).value = typ;
+        document.getElementById(`poz_term_sprzedaz_${id}`).style.display = typ === 'sprzedaz' ? 'block' : 'none';
+        document.getElementById(`poz_term_komis_${id}`).style.display = typ === 'komis' ? 'block' : 'none';
+    }
+
+    function setTermSprzedazTyp(id, zrodlo, btn) {
+        const btns = document.querySelectorAll(`#poz_term_sprzedaz_${id} .btn-status`);
+        btns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(`poz_term_zrodlo_${id}`).value = zrodlo;
+        document.getElementById(`poz_term_kub_${id}`).style.display = zrodlo === 'magazyn' ? 'block' : 'none';
+        document.getElementById(`poz_term_komis_sel_${id}`).style.display = zrodlo === 'komis' ? 'block' : 'none';
+    }
+
+    function onTermKubekChange(id) {
+        const sel = document.getElementById(`poz_term_kub_${id}`);
+        const opt = sel?.options[sel.selectedIndex];
+        const cena = opt?.dataset?.cena;
+        if (cena)
+            document.getElementById(`poz_term_cena_${id}`).value = Number(cena).toFixed(2);
+    }
+
+    function onTermKomisChange(id) {
+        const sel = document.getElementById(`poz_term_komis_kub_${id}`);
+        const opt = sel?.options[sel.selectedIndex];
+        const cena = opt?.dataset?.cena;
+        if (cena)
+            document.getElementById(`poz_term_cena_${id}`).value = Number(cena).toFixed(2);
+    }
+
+    // ── USUŃ ZAMÓWIENIE ──
+    async function usunZamowienie(zamId) {
+        if (!confirm('Czy na pewno usunąć to zamówienie? Tej operacji nie można cofnąć.'))
+            return;
+        try {
+            await sbFetch('pozycja_zamowienia', `?zamowienie_id=eq.${zamId}`, {
+                method: 'DELETE'
+            });
+            await sbFetch('zamowienie', `?id=eq.${zamId}`, {
+                method: 'DELETE'
+            });
+            closeZamDrawer();
+            loadZamowienia();
+        } catch (e) {
+            alert('Błąd: ' + e.message);
+        }
+    }
+
+
+    function filterKubkiPicker(id) {
+        const mat = document.getElementById(`poz_mat_${id}`)?.value || '';
+        // update pojemnosci
+        const pojSel = document.getElementById(`poz_poj_${id}`);
+        if (pojSel) {
+            const kubki = window['kubkiPicker_' + id] || allKubki.filter(k => !k.isPrzykrywka && k.ilosc_lacznie > 0);
+            const pojs = [...new Set(kubki.filter(k => !mat || k.typ_materialu === mat).map(k => k.pojemnosc_ml))].sort((a, b) => a - b);
+            const curPoj = pojSel.value;
+            pojSel.innerHTML = '<option value="">— pojemność —</option>' + pojs.map(p => `<option value="${p}" ${p == curPoj ? 'selected' : ''}>${p} ml</option>`).join('');
+        }
+        renderKubkiPicker(id);
+    }
+
+    function renderKubkiPicker(id) {
+        const mat = document.getElementById(`poz_mat_${id}`)?.value || '';
+        const poj = document.getElementById(`poz_poj_${id}`)?.value || '';
+        const wrap = document.getElementById(`poz_picker_${id}`);
+        if (!wrap)
+            return;
+        const kubki = (window['kubkiPicker_' + id] || allKubki.filter(k => !k.isPrzykrywka && k.ilosc_lacznie > 0))
+        .filter(k => (!mat || k.typ_materialu === mat) && (!poj || String(k.pojemnosc_ml) === poj));
+        if (!kubki.length) {
+            wrap.innerHTML = '<div style="color:var(--ink3);font-size:12px;padding:8px;">Brak kubków spełniających kryteria.</div>';
+            return;
+        }
+        wrap.innerHTML = kubki.map(k => {
+            const thumb = k.miniaturka ? `<img src="${k.miniaturka}" style="width:44px;height:44px;border-radius:6px;object-fit:cover;">` : `<div style="width:44px;height:44px;border-radius:6px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:20px;">☕</div>`;
+            const dotCls = k.ilosc_lacznie === 0 ? 'stock-empty' : k.ilosc_lacznie < 500 ? 'stock-low' : 'stock-ok';
+            return `<div id="picker_item_${id}_${k.kubek_id}" onclick="selectKubkiPicker(${id},'${k.kubek_id}',${k.cena_netto || 0})"
+      style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;border:2px solid var(--border);cursor:pointer;background:var(--surface);">
+      ${
+            thumb}
+      <div style="flex:1;min-width:0;">
+        <div style="font-family:var(--fh);font-size:15px;font-weight:700;">${
+            k.pojemnosc_ml} ml <span style="font-size:11px;font-weight:400;color:var(--ink3);">${k.typ_materialu}</span></div>
+        <div style="font-size:11px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${k.grafika || '—'}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;">
+        <div style="display:flex;align-items:center;gap:5px;"><span class="stock-dot-big ${
+
+            dotCls}"></span><span style="font-size:14px;font-weight:600;">${k.ilosc_lacznie}</span></div>
+        <div style="font-size:11px;color:var(--accent);">${k.cena_netto != null ? Number(k.cena_netto).toFixed(2) + ' zł' : '—'}</div>
+      </div>
+    </div>`
+
+            ;
+        }).join('');
+    }
+
+    function selectKubkiPicker(id, kubek_id, cena) {
+        // Highlight selected
+        document.querySelectorAll(`[id^="picker_item_${id}_"]`).forEach(el => {
+            el.style.borderColor = 'var(--border)';
+            el.style.background = 'var(--surface)';
+        });
+        const el = document.getElementById(`picker_item_${id}_${kubek_id}`);
+        if (el) {
+            el.style.borderColor = 'var(--accent)';
+            el.style.background = '#FEF0EB';
+        }
+        document.getElementById(`poz_kub_${id}`).value = kubek_id;
+        const ceEl = document.getElementById(`poz_cena_${id}`);
+        if (ceEl && cena)
+            ceEl.value = Number(cena).toFixed(2);
+    }
+
     // ── INIT ──
     window.addEventListener('load', async () => {
         const {url, key} = getCfg();
