@@ -3222,19 +3222,28 @@
             const maty = [...new Set(kubkiDostepne.map(k => k.typ_materialu).filter(Boolean))].sort();
             window['kubkiPicker_' + id] = kubkiDostepne;
             selectHTML = `
-      <div style="display:flex;gap:6px;margin-bottom:8px;">
+      <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
         <select class="f-select" id="poz_mat_${
-            id}" onchange="filterKubkiPicker(${id})" style="flex:1;">
+            id}" onchange="filterKubkiPicker(${id})" style="flex:1;min-width:80px;">
           <option value="">— materiał —</option>
           ${
             maty.map(m => `<option value="${m}">${m}</option>`).join('')}
         </select>
         <select class="f-select" id="poz_poj_${
-            id}" onchange="filterKubkiPicker(${id})" style="flex:1;">
+            id}" onchange="filterKubkiPicker(${id})" style="flex:1;min-width:80px;">
           <option value="">— pojemność —</option>
+        </select>
+        <select class="f-select" id="poz_sci_${
+
+            id}" onchange="filterKubkiPicker(${id})" style="flex:1;min-width:80px;">
+          <option value="">— ścianka —</option>
+          <option value="jednościankowy">Jedno</option>
+          <option value="dwuściankowy">Dwu</option>
         </select>
       </div>
       <input type="hidden" id="poz_kub_${
+
+
 
 
             id}" data-field="kubek_id">
@@ -3263,17 +3272,37 @@
 
 
             ;
+        } else if (typ === 'wysylka') {
+            selectHTML = `
+      <div style="display:flex;gap:6px;margin-bottom:6px;">
+        <select class="f-select" id="poz_wtyp_${
+            id}" data-field="wysylka_typ" onchange="updateWysylkaNazwa(${id})" style="flex:1;">
+          <option value="DPD">DPD</option>
+          <option value="InPost">InPost</option>
+          <option value="Orlen">Orlen</option>
+          <option value="inny">Inny</option>
+        </select>
+        <input class="f-input" id="poz_wnazwa_${
+
+
+
+
+            id}" data-field="wysylka_nazwa" value="Wysyłka DPD" style="flex:1;">
+      </div>`
+            ;
         }
+
+        const isWysylka = typ === 'wysylka';
+        const labelTyp = typ === 'kubek' ? 'Kubek papierowy' : typ === 'przykrywka' ? 'Wieczko' : '📦 Wysyłka';
 
         div.innerHTML = `
     <button onclick="document.getElementById('poz_${id}').remove()" style="position:absolute;top:8px;right:8px;background:none;border:none;font-size:16px;cursor:pointer;color:var(--ink3);">✕</button>
-    <div style="font-size:10px;text-transform:uppercase;color:var(--ink3);margin-bottom:8px;">${typ === 'kubek' ? 'Kubek papierowy' : 'Przykrywka'}</div>
+    <div style="font-size:10px;text-transform:uppercase;color:var(--ink3);margin-bottom:8px;">${labelTyp}</div>
     ${selectHTML}
     <div style="display:flex;gap:8px;">
-      <div class="f-group" style="flex:1;margin-bottom:0;"><label class="f-label">Ilość</label><input class="f-input" data-field="ilosc" type="number" min="1" value="1"></div>
-      <div class="f-group" style="flex:1;margin-bottom:0;"><label class="f-label">Cena netto (zł)</label><input class="f-input" id="poz_cena_${
-
-        id}" data-field="cena" type="number" step="0.01" min="0" placeholder="auto"></div>
+      ${
+        isWysylka ? '' : `<div class="f-group" style="flex:1;margin-bottom:0;"><label class="f-label">Ilość</label><input class="f-input" data-field="ilosc" type="number" min="1" value="1"></div>`}
+      <div class="f-group" style="flex:1;margin-bottom:0;"><label class="f-label">Cena netto (zł)</label><input class="f-input" id="poz_cena_${id}" data-field="cena" type="number" step="0.01" min="0" placeholder="${isWysylka ? 'np. 12.00' : 'auto'}"></div>
     </div>
   `
 
@@ -5437,7 +5466,6 @@
 
     function filterKubkiPicker(id) {
         const mat = document.getElementById(`poz_mat_${id}`)?.value || '';
-        // update pojemnosci
         const pojSel = document.getElementById(`poz_poj_${id}`);
         if (pojSel) {
             const kubki = window['kubkiPicker_' + id] || allKubki.filter(k => !k.isPrzykrywka && k.ilosc_lacznie > 0);
@@ -5451,11 +5479,12 @@
     function renderKubkiPicker(id) {
         const mat = document.getElementById(`poz_mat_${id}`)?.value || '';
         const poj = document.getElementById(`poz_poj_${id}`)?.value || '';
+        const sci = document.getElementById(`poz_sci_${id}`)?.value || '';
         const wrap = document.getElementById(`poz_picker_${id}`);
         if (!wrap)
             return;
         const kubki = (window['kubkiPicker_' + id] || allKubki.filter(k => !k.isPrzykrywka && k.ilosc_lacznie > 0))
-        .filter(k => (!mat || k.typ_materialu === mat) && (!poj || String(k.pojemnosc_ml) === poj));
+        .filter(k => (!mat || k.typ_materialu === mat) && (!poj || String(k.pojemnosc_ml) === poj) && (!sci || (k.typ_scianki || '') === sci));
         if (!kubki.length) {
             wrap.innerHTML = '<div style="color:var(--ink3);font-size:12px;padding:8px;">Brak kubków spełniających kryteria.</div>';
             return;
