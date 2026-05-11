@@ -1154,6 +1154,7 @@
         </div>
         <div class="nav-tabs">
             <button class="nav-tab active" onclick="showPage('kubki',this)">☕ Kubki</button>
+            <button class="nav-tab" onclick="showPage('przykrywki',this)">🫗 Wieczka</button>
             <button class="nav-tab" onclick="showPage('termiczne',this)">🌡 Termiczne</button>
             <button class="nav-tab" onclick="showPage('zamowienia',this)">📦 Zamówienia</button>
             <button class="nav-tab" onclick="showPage('cennik',this)">💰 Cennik</button>
@@ -1202,6 +1203,14 @@
                         <option value="">Wszyscy</option>
                     </select>
                 </div>
+                <div class="filter-group">
+                    <span class="filter-label">Logo</span>
+                    <select class="dark-select" id="fLogo" onchange="applyFilters('kubki')">
+                        <option value="artsider" selected>Artsider</option>
+                        <option value="klienta">Klienta</option>
+                        <option value="">Wszystkie</option>
+                    </select>
+                </div>
             </div>
             <div class="mag-tabs" id="magTabsKubki">
                 <button class="mag-tab active" data-mag="" onclick="selectMag(this,'kubki')">Wszystkie</button>
@@ -1225,6 +1234,54 @@
             <div class="state-msg">
                 <span class="big">☕</span>
                 Łączenie z bazą…
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ PRZYKRYWKI ══ -->
+    <div class="page" id="page-przykrywki">
+        <div class="dark-header">
+            <div class="filters">
+                <div class="filter-group">
+                    <span class="filter-label">Pojemność</span>
+                    <select class="dark-select" id="pfPoj" onchange="applyFilters('przykrywki')">
+                        <option value="">Wszystkie</option>
+                        <option value="72">72 mm</option>
+                        <option value="80">80 mm</option>
+                        <option value="90">90 mm</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <span class="filter-label">Materiał</span>
+                    <select class="dark-select" id="pfMat" onchange="applyFilters('przykrywki')">
+                        <option value="">Wszystkie</option>
+                        <option value="BIO">BIO (papierowe)</option>
+                        <option value="PE">PE (plastikowe)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mag-tabs" id="magTabsPrzykrywki">
+                <button class="mag-tab active" data-mag="" onclick="selectMag(this,'przykrywki')">Wszystkie</button>
+            </div>
+        </div>
+        <div class="stats-bar">
+            <div class="stat">
+                <span class="stat-val" id="spModeli">—</span>
+                <span class="stat-lbl">modeli</span>
+            </div>
+            <div class="stat">
+                <span class="stat-val" id="spSztuk">—</span>
+                <span class="stat-lbl">sztuk</span>
+            </div>
+            <div class="stat">
+                <span class="stat-val" id="spDrodze">—</span>
+                <span class="stat-lbl">w drodze</span>
+            </div>
+        </div>
+        <div class="list" id="listPrzykrywki">
+            <div class="state-msg">
+                <span class="big">🫗</span>
+                Ładowanie…
             </div>
         </div>
     </div>
@@ -1358,7 +1415,7 @@
                 <div id="cennikTermForm" style="display:none;margin-top:12px;"></div>
             </div>
             <div class="form-card">
-                <div class="form-card-title">Cennik przykrywek</div>
+                <div class="form-card-title">Cennik wieczek</div>
                 <div id="cennikPrzTable"></div>
                 <button class="btn-primary" style="margin-top:12px;" onclick="dodajCennikPrz()">+ Dodaj pozycję</button>
                 <div id="cennikPrzForm" style="display:none;margin-top:12px;"></div>
@@ -1551,9 +1608,12 @@
         allKomis = [],
         allArtysci = [],
         allMagazyny = [],
-        allKlienci = [];
+        allKlienci = [],
+        allPrzykrywki = [],
+        allArchiwumPrz = [];
     let activeMagKubki = '',
-        activeMagTermiczne = '';
+        activeMagTermiczne = '',
+        activeMagPrzykrywki = '';
 
     // ── CONFIG ──
     function saveConfig() {
@@ -1624,6 +1684,10 @@
             loadArchiwum();
         if (name === 'zamowienia')
             loadZamowienia();
+        if (name === 'przykrywki') {
+            buildMagTabs(allMagazyny, 'magTabsPrzykrywki', 'przykrywki');
+            applyFilters('przykrywki');
+        }
         if (name === 'cennik')
             loadCennik();
         if (name === 'dodaj')
@@ -1646,29 +1710,27 @@
             allKlienci = klienci;
             buildMagTabs(magazyny, 'magTabsKubki', 'kubki');
             buildMagTabs(magazyny, 'magTabsTermiczne', 'termiczne');
+            buildMagTabs(magazyny, 'magTabsPrzykrywki', 'przykrywki');
             buildArtystFilters(artysci);
             buildKlientFilter(klienci);
 
             // grupuj kubki papierowe (w_magazynie)
             allKubki = grupuj(stanKubki);
-            // Dodaj przykrywki do kubki (zmapowane jako BIO/PE)
+            // Buduj allPrzykrywki osobno
             if (stanPrzykrywki && stanPrzykrywki.length) {
                 const prMap = {};
                 for (const r of stanPrzykrywki) {
-                    // klucz: przykrywka_id + pojemność (ta sama przykrywka może być na kilku pojemnościach)
-                    const kid = r.przykrywka_id + '_' + r.pojemnosc_przefiltrowana;
+                    const kid = r.przykrywka_id;
                     if (!prMap[kid]) {
                         prMap[kid] = {
                             kubek_id: 'pr_' + kid,
-                            pojemnosc_ml: r.pojemnosc_przefiltrowana,
+                            przykrywka_id: kid,
+                            rozmiar_mm: r.rozmiar_mm || parseInt(r.opis?.match(/(\d+)mm/)?.[1]) || 0,
                             typ_materialu: r.typ_materialu_przefiltrowany,
-                            typ_scianki: null,
                             cena_netto: r.cena_netto,
                             grafika: r.opis,
-                            artysta: null,
                             miniaturka: r.miniaturka_url || null,
                             isPrzykrywka: true,
-                            przykrywka_id: kid,
                             stany: [],
                             ilosc_lacznie: 0,
                             ilosc_w_drodze: 0,
@@ -1683,7 +1745,7 @@
                     prMap[kid].ilosc_lacznie += (r.ilosc_dostepna || 0);
                     prMap[kid].ilosc_w_drodze += (r.ilosc_w_drodze || 0);
                 }
-                allKubki = [...allKubki, ...Object.values(prMap)];
+                allPrzykrywki = Object.values(prMap);
             }
 
             allTermiczne = grupuj(stanTerm);
@@ -1692,6 +1754,7 @@
 
             applyFilters('kubki');
             applyFilters('termiczne');
+            applyFilters('przykrywki');
         } catch (e) {
             document.getElementById('listKubki').innerHTML = `<div class="state-msg"><span class="big">⚠️</span>Błąd połączenia.<br><small>${e.message}</small></div>`;
         }
@@ -1716,6 +1779,7 @@
                     miniaturka: r.miniaturka_url,
                     ilosc_zlecona: r.ilosc_zlecona || 0,
                     data_zlecenia: r.data_zlecenia,
+                    logo: r.logo,
                     stany: [],
                     ilosc_lacznie: 0,
                     ilosc_w_drodze: 0
@@ -1745,6 +1809,7 @@
                 cena_netto: k.cena_netto,
                 ilosc_zlecona: k.ilosc_zlecona || 0,
                 data_zlecenia: k.data_zlecenia,
+                logo: k.logo,
                 grafika: k.grafika?.nazwa,
                 artysta: k.grafika?.artysta?.imie_nazwisko,
                 miniaturka: k.grafika?.miniaturka_url,
@@ -1810,6 +1875,52 @@
             btnW.textContent = 'Wszystkie';
             btnW.onclick = function() {
                 selectMag(this, scope);
+            };
+            wrap.appendChild(btnW);
+        } else if (scope === 'przykrywki') {
+            wrap.innerHTML = '';
+            const kolejnoscP = ['Kraków', 'Sącz', 'Biecz'];
+            const posortowaneP = [
+            ...kolejnoscP.map(n => magazyny.find(m => m.nazwa === n)).filter(Boolean),
+            ...magazyny.filter(m => !kolejnoscP.includes(m.nazwa))
+            ];
+            posortowaneP.forEach(m => {
+                const btn = document.createElement('button');
+                btn.className = 'mag-tab';
+                btn.dataset.mag = m.id;
+                btn.dataset.typ = 'magazyn';
+                btn.textContent = m.nazwa;
+                btn.onclick = function() {
+                    selectMag(this, 'przykrywki');
+                };
+                if (m.nazwa === 'Kraków') {
+                    btn.classList.add('active');
+                    activeMagPrzykrywki = m.id;
+                }
+                wrap.appendChild(btn);
+            });
+            const btnZ = document.createElement('button');
+            btnZ.className = 'mag-tab';
+            btnZ.dataset.mag = 'zlecone';
+            btnZ.textContent = '🏭 Zlecone';
+            btnZ.onclick = function() {
+                selectMag(this, 'przykrywki');
+            };
+            wrap.appendChild(btnZ);
+            const btnA = document.createElement('button');
+            btnA.className = 'mag-tab';
+            btnA.dataset.mag = 'archiwum';
+            btnA.textContent = '🗄 Archiwum';
+            btnA.onclick = function() {
+                selectMag(this, 'przykrywki');
+            };
+            wrap.appendChild(btnA);
+            const btnW = document.createElement('button');
+            btnW.className = 'mag-tab';
+            btnW.dataset.mag = '';
+            btnW.textContent = 'Wszystkie';
+            btnW.onclick = function() {
+                selectMag(this, 'przykrywki');
             };
             wrap.appendChild(btnW);
         } else if (scope === 'termiczne') {
@@ -1893,6 +2004,17 @@
         btn.classList.add('active');
         const mag = btn.dataset.mag;
         const typ = btn.dataset.typ || 'magazyn';
+        if (scope === 'przykrywki') {
+            activeMagPrzykrywki = mag;
+            if (mag === 'zlecone' || mag === 'archiwum') {
+                // show 0-stock przykrywki
+                const f = allPrzykrywki.filter(k => k.ilosc_lacznie === 0);
+                renderKubki(f, 'listPrzykrywki', '', false);
+                return;
+            }
+            applyFilters('przykrywki');
+            return;
+        }
         if (scope === 'kubki') {
             activeMagKubki = mag;
             if (mag === 'zlecone') {
@@ -1964,6 +2086,7 @@
             const mat = document.getElementById('fMat').value;
             const sci = document.getElementById('fSci').value;
             const art = document.getElementById('fArt').value;
+            const logo = document.getElementById('fLogo')?.value || '';
             const q = document.getElementById('searchKubki')?.value?.toLowerCase() || '';
             const f = allKubki.filter(k => {
                 if (poj && String(k.pojemnosc_ml) !== poj)
@@ -1975,6 +2098,8 @@
                 if (art && k.artysta !== art)
                     return false;
                 if (q && !k.grafika?.toLowerCase().includes(q) && !k.artysta?.toLowerCase().includes(q))
+                    return false;
+                if (logo && !k.isPrzykrywka && k.logo !== logo)
                     return false;
                 // w konkretnym magazynie: tylko kubki w_magazynie z >0 sztuk
                 if (activeMagKubki && activeMagKubki !== 'zlecone' && activeMagKubki !== 'archiwum') {
@@ -2006,10 +2131,30 @@
                     td += k.ilosc_w_drodze;
                 }
             });
-            document.getElementById('skModeli').textContent = fKubki.length;
-            document.getElementById('skSztuk').textContent = ts;
-            document.getElementById('skDrodze').textContent = td;
-            renderKubki(f, 'listKubki', activeMagKubki, false);
+            // Zlecone stats
+            if (activeMagKubki === 'zlecone') {
+                const totalZlecone = allZlecone.reduce((s, k) => s + (k.ilosc_zlecona || 0), 0);
+                document.getElementById('skModeli').textContent = allZlecone.length;
+                document.getElementById('skSztuk').textContent = totalZlecone;
+                document.getElementById('skDrodze').textContent = '—';
+            } else {
+                document.getElementById('skModeli').textContent = fKubki.length;
+                document.getElementById('skSztuk').textContent = ts;
+                document.getElementById('skDrodze').textContent = td;
+            }
+            // Sortuj: przykrywki na końcu, kubki wg pojemności rosnąco, potem dostępność malejąco
+            const fSorted = [...f].sort((a, b) => {
+                if (a.isPrzykrywka && !b.isPrzykrywka)
+                    return 1;
+                if (!a.isPrzykrywka && b.isPrzykrywka)
+                    return -1;
+                if (a.pojemnosc_ml !== b.pojemnosc_ml)
+                    return a.pojemnosc_ml - b.pojemnosc_ml;
+                const stanA = activeMagKubki && activeMagKubki !== 'zlecone' && activeMagKubki !== 'archiwum' ? (a.stany.find(s => s.magazyn_id === activeMagKubki)?.ilosc_dostepna || 0) : a.ilosc_lacznie;
+                const stanB = activeMagKubki && activeMagKubki !== 'zlecone' && activeMagKubki !== 'archiwum' ? (b.stany.find(s => s.magazyn_id === activeMagKubki)?.ilosc_dostepna || 0) : b.ilosc_lacznie;
+                return stanB - stanA;
+            });
+            renderKubki(fSorted, 'listKubki', activeMagKubki, false);
         }
         else if (scope === 'zlecone') {
             const poj = document.getElementById('zfPoj').value;
@@ -2025,9 +2170,55 @@
                     return false;
                 if (q && !k.grafika?.toLowerCase().includes(q) && !k.artysta?.toLowerCase().includes(q))
                     return false;
+                if (logo && !k.isPrzykrywka && k.logo !== logo)
+                    return false;
                 return true;
             });
             renderKubki(f, 'listZlecone', '', true);
+        }
+        else if (scope === 'przykrywki') {
+            const poj = document.getElementById('pfPoj').value;
+            const mat = document.getElementById('pfMat').value;
+            const f = allPrzykrywki.filter(k => {
+                if (poj && String(k.rozmiar_mm) !== poj)
+                    return false;
+                if (mat && k.typ_materialu !== mat)
+                    return false;
+                if (activeMagPrzykrywki && activeMagPrzykrywki !== 'zlecone' && activeMagPrzykrywki !== 'archiwum') {
+                    const s = k.stany.find(x => x.magazyn_id === activeMagPrzykrywki);
+                    if (!s || s.ilosc_dostepna <= 0)
+                        return false;
+                }
+                if (!activeMagPrzykrywki) {
+                    if (k.ilosc_lacznie <= 0)
+                        return false;
+                }
+                return true;
+            });
+            let ts = 0,
+                td = 0;
+            f.forEach(k => {
+                if (activeMagPrzykrywki && activeMagPrzykrywki !== 'zlecone' && activeMagPrzykrywki !== 'archiwum') {
+                    const s = k.stany.find(x => x.magazyn_id === activeMagPrzykrywki);
+                    ts += s?.ilosc_dostepna || 0;
+                    td += s?.ilosc_w_drodze || 0;
+                } else {
+                    ts += k.ilosc_lacznie;
+                    td += k.ilosc_w_drodze;
+                }
+            });
+            document.getElementById('spModeli').textContent = f.length;
+            document.getElementById('spSztuk').textContent = ts;
+            document.getElementById('spDrodze').textContent = td;
+            // sort by rozmiar then ilosc
+            const fS = [...f].sort((a, b) => {
+                if (a.rozmiar_mm !== b.rozmiar_mm)
+                    return a.rozmiar_mm - b.rozmiar_mm;
+                const sA = activeMagPrzykrywki ? (a.stany.find(s => s.magazyn_id === activeMagPrzykrywki)?.ilosc_dostepna || 0) : a.ilosc_lacznie;
+                const sB = activeMagPrzykrywki ? (b.stany.find(s => s.magazyn_id === activeMagPrzykrywki)?.ilosc_dostepna || 0) : b.ilosc_lacznie;
+                return sB - sA;
+            });
+            renderKubki(fS, 'listPrzykrywki', activeMagPrzykrywki, false);
         }
         else if (scope === 'termiczne') {
             const poj = document.getElementById('tfPoj').value;
@@ -2039,6 +2230,8 @@
                 if (art && k.artysta !== art)
                     return false;
                 if (q && !k.grafika?.toLowerCase().includes(q) && !k.artysta?.toLowerCase().includes(q))
+                    return false;
+                if (logo && !k.isPrzykrywka && k.logo !== logo)
                     return false;
                 return true;
             });
@@ -2092,7 +2285,11 @@
             const totalLacznie = k.ilosc_lacznie || 0;
             const zleconoTag = k.ilosc_zlecona > 0 ? `<span style="font-size:10px;color:var(--ink3);margin-left:4px;">zlecono ${k.ilosc_zlecona} szt.</span>` : '';
             const totalTag = activeMagKubki && activeMagKubki !== 'zlecone' && activeMagKubki !== 'archiwum' && stan !== totalLacznie ? `<span style="font-size:10px;color:var(--ink3);margin-left:4px;">z ${totalLacznie} szt.</span>` : '';
-            const dateHtml = showDate && k.data_zlecenia && k.data_zlecenia !== '1970-01-01' ? `<div class="card-date">${k.data_zlecenia}${k.ilosc_zlecona ? ` · ${k.ilosc_zlecona} szt.` : ''}</div>` : '';
+            const dateHtml = showDate ? `
+      ${k.data_zlecenia && k.data_zlecenia !== '1970-01-01' ? `<div class="card-date" style="top:8px;right:10px;font-size:10px;">${k.data_zlecenia}</div>` : ''}
+      ${k.ilosc_zlecona > 0 ? `<div style="position:absolute;bottom:8px;right:10px;font-family:var(--fh);font-size:18px;font-weight:700;color:var(--accent);">${k.ilosc_zlecona} szt.</div>` : ''}
+    `
+            : ''
             const stockHtml = showDate ? '' : `<div class="card-stock"><span class="stock-dot-big ${dotCls}"></span><span style="font-size:15px;font-weight:600;">${stan === 0 ? 'brak' : stan + ' szt.'}</span>${totalTag}${zleconoTag}</div>`;
             return `<div class="card" onclick="openDrawer('${k.kubek_id}','${showDate ? 'zlecony' : isTermiczny ? 'termiczny' : 'kubek'}')">
       <div class="card-thumb">${thumb}</div>
@@ -4656,7 +4853,7 @@
         if (!wrap)
             return;
         if (!cennikPrz.length) {
-            wrap.innerHTML = '<div style="color:var(--ink3);font-size:12px;padding:8px 0;">Brak przykrywek w cenniku.</div>';
+            wrap.innerHTML = '<div style="color:var(--ink3);font-size:12px;padding:8px 0;">Brak wieczek w cenniku.</div>';
             return;
         }
         wrap.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px;">
@@ -4869,7 +5066,7 @@
     }
 
     async function usunCennikPrz(id) {
-        if (!confirm('Usunąć tę przykrywkę z cennika i bazy?'))
+        if (!confirm('Usunąć to wieczko z cennika i bazy?'))
             return;
         try {
             await sbFetch('stan_magazynowy_przykrywki', `?przykrywka_id=eq.${id}`, {
@@ -4975,6 +5172,7 @@
             document.getElementById('cfgModal').classList.remove('open');
             allZlecone = [];
             allArchiwum = [];
+            allPrzykrywki = [];
             await loadAll();
         }
     });
