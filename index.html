@@ -2588,12 +2588,12 @@
 
 
 
-        a.papierowe_w_magazynie}</div><div class="astat-lbl">Pap. w mag.</div></div>
-        <div class="astat"><div class="astat-val">${a.papierowe_zlecone}</div><div class="astat-lbl">Pap. zlecone</div></div>
-        <div class="astat"><div class="astat-val">${a.papierowe_sprzedane}</div><div class="astat-lbl">Pap. sprzedane</div></div>
-        <div class="astat highlight"><div class="astat-val">${a.termiczne_w_magazynie}</div><div class="astat-lbl">Term. w mag.</div></div>
-        <div class="astat highlight"><div class="astat-val">${a.termiczne_w_komisie}</div><div class="astat-lbl">Term. komis</div></div>
-        <div class="astat highlight"><div class="astat-val">${a.termiczne_sprzedane}</div><div class="astat-lbl">Term. sprzed.</div></div>
+        Number(a.papierowe_w_magazynie).toLocaleString('pl')}</div><div class="astat-lbl">Pap. w mag.</div></div>
+        <div class="astat"><div class="astat-val">${Number(a.papierowe_zlecone).toLocaleString('pl')}</div><div class="astat-lbl">Pap. zlecone</div></div>
+        <div class="astat"><div class="astat-val">${Number(a.papierowe_sprzedane).toLocaleString('pl')}</div><div class="astat-lbl">Pap. sprzedane</div></div>
+        <div class="astat highlight"><div class="astat-val">${Number(a.termiczne_w_magazynie).toLocaleString('pl')}</div><div class="astat-lbl">Term. w mag.</div></div>
+        <div class="astat highlight"><div class="astat-val">${Number(a.termiczne_w_komisie).toLocaleString('pl')}</div><div class="astat-lbl">Term. komis</div></div>
+        <div class="astat highlight"><div class="astat-val">${Number(a.termiczne_sprzedane).toLocaleString('pl')}</div><div class="astat-lbl">Term. sprzed.</div></div>
       </div>
     </div>`
 
@@ -4530,12 +4530,32 @@
       <div class="d-row"><span class="d-key">Wypłacono</span><span class="d-val">${Number(a.wyplacono_lacznie).toFixed(2)} zł</span></div>
       <div class="d-row" style="font-weight:600;"><span class="d-key">Należne</span><span class="d-val acc">${Number(a.nalezne_lacznie).toFixed(2)} zł</span></div>
 
+      <div class="d-section">Historia wypłat</div>
+      <div id="wyplatyList">⏳</div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+        <div class="f-group" style="flex:1;min-width:100px;margin-bottom:0;"><label class="f-label">Kwota (zł)</label><input class="f-input" id="wyplataKwota" type="number" step="0.01" min="0" placeholder="np. 150.00"></div>
+        <div class="f-group" style="flex:1;min-width:100px;margin-bottom:0;"><label class="f-label">Data</label><input class="f-input" id="wyplataData" type="date" value="${
+
+
+
+
+            new Date().toISOString().slice(0, 10)}"></div>
+        <div class="f-group" style="flex:1;min-width:120px;margin-bottom:0;"><label class="f-label">Notatka</label><input class="f-input" id="wyplataNotatka" placeholder="opcjonalnie"></div>
+      </div>
+      <button class="btn-primary" onclick="dodajWyplate('${
+
+            a.id}')" style="margin-top:8px;">+ Dodaj wypłatę</button>
+      <div class="f-msg" id="wyplataMsg"></div>
+
       <div class="d-section">Kubki (${
+
             kubki.length})</div>
       ${kubkiHTML || '<div style="color:var(--ink3);font-size:12px;padding:8px 0;">Brak kubków</div>'}
     `
             ;
             document.getElementById('overlay').classList.add('open');
+            // Załaduj historię wypłat
+            zaladujWyplaty('${a.id}');
             document.getElementById('drawer').classList.add('open');
         } catch (e) {
             alert('Błąd: ' + e.message);
@@ -4556,9 +4576,16 @@
         a.prowizja_papierowe || 0.008}"></div>
       <div class="f-group"><label class="f-label">Prowizja termiczne (zł/szt.)</label><input class="f-input" id="eaProwTerm" type="number" step="0.01" value="${a.prowizja_termiczne || 0.80}"></div>
     </div>
-    <div class="f-group"><label class="f-label">Wypłacono łącznie (zł)</label><input class="f-input" id="eaWyplacono" type="number" step="0.01" value="${
-        a.wyplacono_lacznie || 0}"></div>
-    <button class="btn-primary" onclick="zapiszEdycjeArtysty('${artId}')" style="margin-top:12px;">💾 Zapisz zmiany</button>
+    <div class="d-section">Korekty sprzedaży (dane historyczne)</div>
+    <div class="f-row">
+      <div class="f-group"><label class="f-label">Pap. sprzedane korekta (szt.)</label><input class="f-input" id="eaKorPap" type="number" step="1" min="0" value="${
+
+
+        a.papierowe_sprzedane_korekta || 0}"><span class="f-hint">Dodaje się do sprzedaży z zamówień</span></div>
+      <div class="f-group"><label class="f-label">Term. sprzedane korekta (szt.)</label><input class="f-input" id="eaKorTerm" type="number" step="1" min="0" value="${a.termiczne_sprzedane_korekta || 0}"></div>
+    </div>
+    <button class="btn-primary" onclick="zapiszEdycjeArtysty('${
+        artId}')" style="margin-top:12px;">💾 Zapisz zmiany</button>
     <div class="f-msg" id="eaMsg"></div>
   `
 
@@ -4569,7 +4596,8 @@
         const imie = document.getElementById('eaImie').value.trim();
         const prow = parseFloat(document.getElementById('eaProw').value) || 0;
         const prowTerm = parseFloat(document.getElementById('eaProwTerm').value) || 0;
-        const wypl = parseFloat(document.getElementById('eaWyplacono').value) || 0;
+        const korPap = parseInt(document.getElementById('eaKorPap')?.value) || 0;
+        const korTerm = parseInt(document.getElementById('eaKorTerm')?.value) || 0;
         const msg = document.getElementById('eaMsg');
         try {
             await sbFetch('artysta', `?id=eq.${artId}`, {
@@ -4578,7 +4606,8 @@
                     imie_nazwisko: imie,
                     prowizja_papierowe: prow,
                     prowizja_termiczne: prowTerm,
-                    wyplacono_lacznie: wypl,
+                    papierowe_sprzedane_korekta: korPap,
+                    termiczne_sprzedane_korekta: korTerm,
                 })
             });
             msg.className = 'f-msg ok';
@@ -6117,6 +6146,93 @@
         }
     }
 
+
+    async function zaladujWyplaty(artId) {
+        const wrap = document.getElementById('wyplatyList');
+        if (!wrap)
+            return;
+        try {
+            const wyplaty = await sbFetch('wyplata_artysty', `?artysta_id=eq.${artId}&order=data.desc`);
+            if (!wyplaty.length) {
+                wrap.innerHTML = '<div style="color:var(--ink3);font-size:12px;padding:6px 0;">Brak historii wypłat.</div>';
+                return;
+            }
+            wrap.innerHTML = wyplaty.map(w => `
+      <div class="d-row">
+        <span class="d-key">${
+            w.data}${w.notatka ? ' · ' + w.notatka : ''}</span>
+        <span class="d-val acc">${Number(w.kwota).toFixed(2)} zł
+          <button onclick="usunWyplate('${artId}','${w.id}')" style="background:none;border:none;cursor:pointer;color:var(--ink3);font-size:11px;margin-left:8px;">✕</button>
+        </span>
+      </div>`
+
+            ).join('');
+        } catch (e) {
+            wrap.innerHTML = '<div style="color:var(--ink3);font-size:12px;">Błąd ładowania wypłat.</div>';
+        }
+    }
+
+    async function dodajWyplate(artId) {
+        const kwota = parseFloat(document.getElementById('wyplataKwota')?.value) || 0;
+        const data = document.getElementById('wyplataData')?.value || new Date().toISOString().slice(0, 10);
+        const notatka = document.getElementById('wyplataNotatka')?.value.trim() || null;
+        const msg = document.getElementById('wyplataMsg');
+        if (kwota <= 0) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'Wpisz kwotę wypłaty.';
+            return;
+        }
+        try {
+            await sbFetch('wyplata_artysty', '', {
+                method: 'POST',
+                body: JSON.stringify({
+                    artysta_id: artId,
+                    kwota,
+                    data,
+                    notatka
+                })
+            });
+            // Aktualizuj wyplacono_lacznie w artysta
+            const [a] = await sbFetch('artysta', `?id=eq.${artId}`);
+            await sbFetch('artysta', `?id=eq.${artId}`, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    wyplacono_lacznie: (a.wyplacono_lacznie || 0) + kwota
+                })
+            });
+            msg.className = 'f-msg ok';
+            msg.textContent = `✓ Dodano wypłatę ${kwota.toFixed(2)} zł`;
+            document.getElementById('wyplataKwota').value = '';
+            document.getElementById('wyplataNotatka').value = '';
+            zaladujWyplaty(artId);
+            loadArtysci();
+        } catch (e) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'Błąd: ' + e.message;
+        }
+    }
+
+    async function usunWyplate(artId, wyplataId) {
+        if (!confirm('Usunąć tę wypłatę?'))
+            return;
+        try {
+            const [w] = await sbFetch('wyplata_artysty', `?id=eq.${wyplataId}`);
+            await sbFetch('wyplata_artysty', `?id=eq.${wyplataId}`, {
+                method: 'DELETE'
+            });
+            const [a] = await sbFetch('artysta', `?id=eq.${artId}`);
+            await sbFetch('artysta', `?id=eq.${artId}`, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    wyplacono_lacznie: Math.max(0, (a.wyplacono_lacznie || 0) - w.kwota)
+                })
+            });
+            zaladujWyplaty(artId);
+            loadArtysci();
+        } catch (e) {
+            alert('Błąd: ' + e.message);
+        }
+    }
     // ── INIT ──
     window.addEventListener('load', async () => {
         const {url, key} = getCfg();
