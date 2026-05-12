@@ -3525,8 +3525,54 @@
                     ilosc,
                     cena_jednostkowa: cena
                 });
+            } else if (typ2 === 'termiczny') {
+                const termTyp = div.querySelector('[id^="poz_term_typ_"]')?.value || 'sprzedaz';
+                const termZrodlo = div.querySelector('[id^="poz_term_zrodlo_"]')?.value || 'magazyn';
+                const termIlosc = parseInt(div.querySelector('[id^="poz_term_ilosc_"]')?.value) || 0;
+                const termCena = parseFloat(div.querySelector('[id^="poz_term_cena_"]')?.value) || 0;
+                if (termIlosc <= 0)
+                    continue;
+                if (termTyp === 'komis') {
+                    const kubId = div.querySelector('[data-field="kubek_termiczny_komis_id"]')?.value;
+                    if (!kubId)
+                        continue;
+                    const cenKom = parseFloat(div.querySelector('[id^="poz_term_cena_kom_"]')?.value) || 0;
+                    komisDoUtworzenia.push({
+                        kubek_id: kubId,
+                        ilosc: termIlosc,
+                        cena_komisowa: cenKom || null
+                    });
+                } else {
+                    // sprzedaz
+                    let kubId;
+                    if (termZrodlo === 'komis') {
+                        kubId = div.querySelector('[id^="poz_term_komis_kub_"]')?.value;
+                    } else {
+                        kubId = div.querySelector('[data-field="kubek_termiczny_id"]')?.value;
+                    }
+                    if (!kubId || termCena <= 0)
+                        continue;
+                    pozycje.push({
+                        rodzaj_produktu: 'termiczny',
+                        kubek_termiczny_id: kubId,
+                        typ_termiczny: 'sprzedaz',
+                        ilosc: termIlosc,
+                        cena_jednostkowa: termCena
+                    });
+                }
+            } else if (typ2 === 'wysylka') {
+                const wTyp = div.querySelector('[data-field="wysylka_typ"]')?.value || 'DPD';
+                const wNazwa = div.querySelector('[data-field="wysylka_nazwa"]')?.value || ('Wysyłka ' + wTyp);
+                const cenW = parseFloat(div.querySelector('[data-field="cena"]')?.value) || 0;
+                if (cenW > 0)
+                    pozycje.push({
+                        rodzaj_produktu: 'wysylka',
+                        typ_wysylki: wTyp,
+                        nazwa_wysylki: wNazwa,
+                        ilosc: 1,
+                        cena_jednostkowa: cenW
+                    });
             } else if (typ2 === 'przykrywka') {
-                // znajdź lub utwórz przykrywkę
                 const prMat = div.querySelector('[data-field="pr_mat"]')?.value;
                 const prRozm = parseInt(div.querySelector('[data-field="pr_rozm"]')?.value);
                 const prKol = div.querySelector('[data-field="pr_kol"]')?.value;
