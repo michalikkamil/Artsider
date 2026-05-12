@@ -1206,9 +1206,9 @@
                 <div class="filter-group">
                     <span class="filter-label">Logo</span>
                     <select class="dark-select" id="fLogo" onchange="applyFilters('kubki')">
-                        <option value="artsider" selected>Artsider</option>
-                        <option value="klienta">Klienta</option>
                         <option value="">Wszystkie</option>
+                        <option value="artsider">Artsider</option>
+                        <option value="klienta">Klienta</option>
                     </select>
                 </div>
             </div>
@@ -2119,7 +2119,7 @@
                     return false;
                 if (q && !k.grafika?.toLowerCase().includes(q) && !k.artysta?.toLowerCase().includes(q))
                     return false;
-                if (logo && !k.isPrzykrywka && k.logo !== logo)
+                if (logo && !k.isPrzykrywka && k.typ_materialu && k.logo !== logo)
                     return false;
                 // w konkretnym magazynie: tylko kubki w_magazynie z >0 sztuk
                 if (activeMagKubki && activeMagKubki !== 'zlecone' && activeMagKubki !== 'archiwum') {
@@ -2190,7 +2190,7 @@
                     return false;
                 if (q && !k.grafika?.toLowerCase().includes(q) && !k.artysta?.toLowerCase().includes(q))
                     return false;
-                if (logo && !k.isPrzykrywka && k.logo !== logo)
+                if (logo && !k.isPrzykrywka && k.typ_materialu && k.logo !== logo)
                     return false;
                 return true;
             });
@@ -2300,6 +2300,7 @@
             return;
         }
         list.innerHTML = kubki.map(k => {
+            const isTermiczny = typOverride === 'termiczny' || (k.pojemnosc_ml && !k.typ_materialu && !k.isPrzykrywka);
             const stan = activeMag ? (k.stany?.find(s => s.magazyn_id === activeMag)?.ilosc_dostepna || 0) : k.ilosc_lacznie || 0;
             const drodze = activeMag ? (k.stany?.find(s => s.magazyn_id === activeMag)?.ilosc_w_drodze || 0) : k.ilosc_w_drodze || 0;
             const dotCls = stan === 0 ? 'stock-empty' : stan < 500 ? 'stock-low' : 'stock-ok';
