@@ -2273,7 +2273,7 @@
             document.getElementById('stModeli').textContent = f.length;
             document.getElementById('stSztuk').textContent = ts;
             document.getElementById('stKomis').textContent = '—';
-            renderKubki(f, 'listTermiczne', activeMagTermiczne, false, true);
+            renderKubki(f, 'listTermiczne', activeMagTermiczne, false, 'termiczny');
         }
         else if (scope === 'zamowienia') {
             applyFiltersZamowienia();
@@ -2293,7 +2293,7 @@
     }
 
     // ── RENDER KUBKI ──
-    function renderKubki(kubki, listId, activeMag, showDate, isTermiczny=false) {
+    function renderKubki(kubki, listId, activeMag, showDate, typOverride='') {
         const list = document.getElementById(listId);
         if (!kubki.length) {
             list.innerHTML = `<div class="state-msg"><span class="big">🔍</span>Brak kubków.<br><small style="color:var(--ink3);font-size:11px;">Kubki w produkcji znajdziesz w zakładce 🏭 Zlecone</small></div>`;
