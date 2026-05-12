@@ -1755,6 +1755,12 @@
             allTermiczne = grupuj(stanTerm);
             allZlecone = await ladujZlecone();
             await loadArchiwum();
+            // Załaduj komis żeby statystyki były poprawne
+            try {
+                allKomis = await sbFetch('v_komis_aktywny', '?select=*');
+            } catch (e) {
+                allKomis = [];
+            }
 
             applyFilters('kubki');
             applyFilters('termiczne');
@@ -2067,8 +2073,13 @@
     function renderKomisInTermiczne() {
         const list = document.getElementById('listTermiczne');
         list.innerHTML = `<div class="state-msg"><span class="big">⏳</span>Ładowanie komisu…</div>`;
-        sbFetch('v_komis_aktywny', '?select=*&order=dni_w_komisie.desc').then(data => {
+        sbFetch('v_komis_aktywny', '?select=*&order=grafika.asc').then(data => {
             allKomis = data;
+            // Update stat
+            const totalKomis = data.reduce((s, k) => s + (k.ilosc || 0), 0);
+            const stEl = document.getElementById('stKomis');
+            if (stEl)
+                stEl.textContent = totalKomis || '—';
             if (!data.length) {
                 list.innerHTML = `<div class="state-msg"><span class="big">🤝</span>Brak aktywnych komisów.</div>`;
                 return;
@@ -3560,7 +3571,9 @@
                     }
                     if (!kubId || termCena <= 0)
                         continue;
-                    const komisKubek = termZrodlo === 'komis' ? (window['komisPicker_' + div.id.replace('poz_', '')] || []).find(k => k.id === kubId) : null;
+                    // Extract id from div.id = 'poz_N'
+                    const divNum = div.id.replace('poz_', '');
+                    const komisKubek = termZrodlo === 'komis' ? (window['komisPicker_' + divNum] || []).find(k => k.id === kubId) : null;
                     pozycje.push({
                         rodzaj_produktu: 'termiczny',
                         kubek_termiczny_id: kubId,
