@@ -1340,6 +1340,12 @@
         <div class="dark-header" style="padding-bottom:14px;">
             <div class="filters">
                 <div class="filter-group">
+                    <span class="filter-label">Klient</span>
+                    <select class="dark-select" id="wfKlient" onchange="applyFilters('zamowienia')">
+                        <option value="">Wszyscy</option>
+                    </select>
+                </div>
+                <div class="filter-group">
                     <span class="filter-label">Status</span>
                     <select class="dark-select" id="wfStatus" onchange="applyFilters('zamowienia')">
                         <option value="">Wszystkie</option>
@@ -1380,9 +1386,9 @@
         <div class="page-body" style="padding-top:12px;padding-bottom:0;">
             <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;">
                 <button class="btn-primary" style="flex:1;" onclick="openNoweZamowienie()">+ Nowe zamówienie</button>
-                <button id="btnImportKlientow" onclick="importujKlientowZFakturowni()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-family:var(--fm);font-size:10px;color:var(--ink3);cursor:pointer;flex-shrink:0;">📥</button>
+                <button id="btnImportKlientow" onclick="importujKlientowZFakturowni()" title="Importuj klientów z Fakturowni" style="background:none;border:1px solid var(--border);border-radius:8px;padding:6px 8px;font-family:var(--fm);font-size:11px;color:var(--ink3);cursor:pointer;flex-shrink:0;line-height:1;">📥</button>
             </div>
-            <div class="f-msg" id="importMsg" style="margin-bottom:8px;font-size:11px;"></div>
+            <div class="f-msg" id="importMsg" style="margin-bottom:4px;font-size:11px;"></div>
         </div>
         <div class="list" id="listZamowienia">
             <div class="state-msg">
@@ -2910,11 +2916,14 @@
     }
 
     function applyFiltersZamowienia() {
+        const klient = document.getElementById('wfKlient')?.value || '';
         const status = document.getElementById('wfStatus').value;
         const platnosc = document.getElementById('wfPlatnosc').value;
         const faktura = document.getElementById('wfFaktura').value;
         const zrodlo = document.getElementById('wfZrodlo').value;
         const f = allZamowienia.filter(z => {
+            if (klient && z.klient_id !== klient)
+                return false;
             if (status && z.status_realizacji !== status)
                 return false;
             if (platnosc && z.status_platnosci !== platnosc)
