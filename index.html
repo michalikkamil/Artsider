@@ -509,16 +509,16 @@
 
     .mag-grid {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 8px;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 6px;
         margin-top: 4px;
     }
 
     .mag-card {
         background: var(--bg);
         border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 10px 12px;
+        border-radius: 8px;
+        padding: 8px;
     }
 
     .mag-card-name {
@@ -529,7 +529,7 @@
 
     .mag-card-num {
         font-family: var(--fh);
-        font-size: 22px;
+        font-size: 18px;
         font-weight: 600;
         line-height: 1;
     }
@@ -1308,9 +1308,7 @@
                     </select>
                 </div>
             </div>
-            <div class="search-wrap">
-                <input type="search" id="searchTermiczne" placeholder="Szukaj grafiki lub artysty…" oninput="applyFilters('termiczne')">
-            </div>
+
             <div class="mag-tabs" id="magTabsTermiczne">
                 <button class="mag-tab active" data-mag="" onclick="selectMag(this,'termiczne')">Wszystkie</button>
             </div>
@@ -2240,7 +2238,7 @@
                 const sB = activeMagPrzykrywki ? (b.stany.find(s => s.magazyn_id === activeMagPrzykrywki)?.ilosc_dostepna || 0) : b.ilosc_lacznie;
                 return sB - sA;
             });
-            renderKubki(fS, 'listPrzykrywki', activeMagPrzykrywki, false);
+            renderKubki(fS, 'listPrzykrywki', activeMagPrzykrywki, false, 'przykrywka');
         }
         else if (scope === 'termiczne') {
             const poj = document.getElementById('tfPoj').value;
@@ -2251,8 +2249,15 @@
                     return false;
                 if (art && k.artysta !== art)
                     return false;
-                if (q && !k.grafika?.toLowerCase().includes(q) && !k.artysta?.toLowerCase().includes(q))
+                // W trybie Wszystkie: pokaż tylko z >0 sztuk
+                if (!activeMagTermiczne && k.ilosc_lacznie <= 0)
                     return false;
+                // W konkretnym magazynie: tylko >0
+                if (activeMagTermiczne && activeMagTermiczne !== 'archiwum' && activeMagTermiczne !== 'komis') {
+                    const s = k.stany.find(x => x.magazyn_id === activeMagTermiczne);
+                    if (!s || s.ilosc_dostepna <= 0)
+                        return false;
+                }
                 return true;
             });
             let ts = 0,
@@ -2320,7 +2325,7 @@
             const cardSub = k.isPrzykrywka
             ? (k.grafika || '').replace(/Przykrywka (papierowa|plastikowa) \d+mm\s*/, '').trim() || '—'
             : `${k.grafika || '—'}${k.artysta ? ' · ' + k.artysta : ''}`;
-            return `<div class="card" onclick="openDrawer('${k.kubek_id}','${showDate ? 'zlecony' : isTermiczny ? 'termiczny' : 'kubek'}')">
+            return `<div class="card" onclick="openDrawer('${k.kubek_id}','${typKarty}')">
       <div class="card-thumb">${thumb}</div>
       <div class="card-body">
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
@@ -2350,9 +2355,10 @@
             k = allZlecone.find(x => x.kubek_id === kubek_id);
         else if (typ === 'termiczny')
             k = allTermiczne.find(x => x.kubek_id === kubek_id);
-        // też szukaj w allKubki dla przykrywek
+        else if (typ === 'przykrywka')
+            k = allPrzykrywki.find(x => x.kubek_id === kubek_id);
         if (!k)
-            k = allKubki.find(x => x.kubek_id === kubek_id);
+            k = allKubki.find(x => x.kubek_id === kubek_id) || allPrzykrywki.find(x => x.kubek_id === kubek_id);
         if (!k)
             return;
 
@@ -2392,30 +2398,29 @@
         k.pojemnosc_ml} ml</span></div>
     ${k.typ_materialu ? `<div class="d-row"><span class="d-key">Materiał</span><span class="d-val">${k.typ_materialu}</span></div>` : ''}
     ${k.typ_scianki ? `<div class="d-row"><span class="d-key">Ścianka</span><span class="d-val">${k.typ_scianki}</span></div>` : ''}
-    <div class="d-row">
+    ${typ !== 'termiczny' ? `<div class="d-row">
       <span class="d-key">Szt. w opakowaniu</span>
       <span class="d-val" style="display:flex;align-items:center;gap:8px;">
         <input type="number" min="1" value="${
-
 
         k.sztuk_w_opakowaniu || ''}" id="editPak_${k.kubek_id}"
           style="width:70px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;padding:4px 8px;font-family:var(--fm);font-size:13px;text-align:center;">
         <button onclick="zapiszPak('${
         k.kubek_id}')" style="background:var(--accent);color:white;border:none;border-radius:6px;padding:4px 10px;font-family:var(--fm);font-size:11px;cursor:pointer;">✓</button>
       </span>
-    </div>
-    ${
-
-        k.kolor ? `<div class="d-row"><span class="d-key">Kolor</span><span class="d-val">${k.kolor}</span></div>` : ''}
+    </div>`
+        : ''}
+    ${k.kolor ? `<div class="d-row"><span class="d-key">Kolor</span><span class="d-val">${k.kolor}</span></div>` : ''}
     <div class="d-row"><span class="d-key">Cena netto</span><span class="d-val acc">${k.cena_netto != null ? Number(k.cena_netto).toFixed(2) + ' zł' : '—'}</span></div>
     <div class="d-row"><span class="d-key">Cena brutto</span><span class="d-val">${k.cena_netto != null ? (Number(k.cena_netto) * 1.23).toFixed(2) + ' zł' : '—'}</span></div>
-    ${stanyHtml ? `<div class="d-section">Stan wg magazynu</div><div class="mag-grid">${stanyHtml}<div class="mag-card" id="termKomisBox_${k.kubek_id}" style="background:#FBF3EA;border-color:#F0C8A8;"><div class="mag-card-name">🤝 Komis</div><div class="mag-card-num" id="termKomisNum_${k.kubek_id}">—</div><div class="mag-card-sub">szt.</div></div></div>` : ''};
-    if(typ==='termiczny'&&k.kubek_id){sbFetch('komis',\`?kubek_id=eq.\${k.kubek_id}&status=eq.aktywny&select=ilosc\`).then(rows=>{const total=rows.reduce((s,r)=>s+(r.ilosc||0),0);const el=document.getElementById('termKomisNum_'+k.kubek_id);if(el)el.textContent=total;}).catch(()=>{});}
-    ${
-        acceptHtml}
+    ${stanyHtml ? `<div class="d-section">Stan wg magazynu</div><div class="mag-grid">${stanyHtml}<div class="mag-card" id="termKomisBox_${k.kubek_id}" style="background:#FBF3EA;border-color:#F0C8A8;"><div class="mag-card-name">🤝 Komis</div><div class="mag-card-num" id="termKomisNum_${k.kubek_id}">—</div><div class="mag-card-sub">szt.</div></div></div>` : ''}\n    ${acceptHtml}
     ${typ === 'kubek' && activeMagKubki && activeMagKubki !== 'zlecone' && activeMagKubki !== 'archiwum' ? renderPrzeniesForm(k) + renderZmienIlosc(k) : ''}
     ${typ === 'kubek' && (!activeMagKubki || activeMagKubki === 'archiwum' || k.ilosc_lacznie === 0) ? renderZmienIloscGlobal(k) : ''}
     ${typ === 'kubek' ? renderZamowDoProdukcji(k) : ''}
+    ${typ === 'termiczny' && activeMagTermiczne && activeMagTermiczne !== 'archiwum' && activeMagTermiczne !== 'komis' ? renderPrzeniesTermiczne(k) + renderZmienIloscTermiczne(k) : ''}
+    ${typ === 'termiczny' && (!activeMagTermiczne || activeMagTermiczne === 'archiwum' || k.ilosc_lacznie === 0) ? renderZmienIloscGlobalTermiczne(k) : ''}
+    ${typ === 'przykrywka' && activeMagPrzykrywki && activeMagPrzykrywki !== 'archiwum' ? renderPrzeniesiePrzykrywki(k) + renderZmienIloscPrzykrywki(k) : ''}
+    ${typ === 'przykrywka' && (!activeMagPrzykrywki || activeMagPrzykrywki === 'archiwum' || k.ilosc_lacznie === 0) ? renderZmienIloscGlobalPrzykrywki(k) : ''}
     ${typ === 'kubek' && (activeMagKubki === 'archiwum' || k.ilosc_lacznie === 0) ? `
     <div class="d-section">Usuń z archiwum</div>
     <button class="btn-secondary" style="background:#FBE9E9;border-color:#F4B5B5;color:#A32D2D;width:100%;margin-top:4px;" onclick="usunKubek('${
@@ -2425,6 +2430,15 @@
         ;
         document.getElementById('overlay').classList.add('open');
         document.getElementById('drawer').classList.add('open');
+        // Load komis count for termiczne
+        if (typ === 'termiczny' && k.kubek_id) {
+            sbFetch('komis', `?kubek_id=eq.${k.kubek_id}&status=eq.aktywny&select=ilosc`).then(rows => {
+                const total = rows.reduce((s, r) => s + (r.ilosc || 0), 0);
+                const el = document.getElementById('termKomisNum_' + k.kubek_id);
+                if (el)
+                    el.textContent = total;
+            }).catch(() => {});
+        }
     }
 
     function closeDrawer() {
@@ -5775,6 +5789,330 @@
         const ceEl = document.getElementById(`poz_term_cena_${id}`);
         if (ceEl && cena)
             ceEl.value = Number(cena).toFixed(2);
+    }
+
+    // ── TERMICZNE: PRZENIEŚ I ZMIEŃ ILOŚĆ ──
+    function renderPrzeniesTermiczne(k) {
+        const stanW = k.stany.find(s => s.magazyn_id === activeMagTermiczne)?.ilosc_dostepna || 0;
+        const nazwaZ = allMagazyny.find(m => m.id === activeMagTermiczne)?.nazwa || '';
+        const opcje = allMagazyny.filter(m => m.id !== activeMagTermiczne).map(m => `<option value="${m.id}">${m.nazwa}</option>`).join('');
+        return `<div class="d-section">Przenieś termiczne</div>
+    <div class="accept-form">
+      <div class="accept-title">Z: <strong>${
+        nazwaZ}</strong> → do:</div>
+      <select class="f-select" id="tprzeniesDoMag" style="background:var(--surface);margin-bottom:8px;"><option value="">— wybierz magazyn —</option>${opcje}</select>
+      <div class="accept-row"><span class="accept-label">Ile szt.?</span><input class="accept-input" type="number" min="1" max="${stanW}" value="1" id="tprzeniesIlosc"></div>
+      <div style="font-size:11px;color:var(--ink3);margin:4px 0 10px;">Dostępne: ${stanW} szt.</div>
+      <button class="btn-primary" onclick="przeniesTermiczne('${k.kubek_id}','${activeMagTermiczne}',${stanW})">→ Przenieś</button>
+      <div class="f-msg" id="tprzeniesMsg"></div>
+    </div>`
+
+        ;
+    }
+
+    function renderZmienIloscTermiczne(k) {
+        const stanW = k.stany.find(s => s.magazyn_id === activeMagTermiczne)?.ilosc_dostepna || 0;
+        const nazwaM = allMagazyny.find(m => m.id === activeMagTermiczne)?.nazwa || '';
+        return `<div class="d-section">Zmień ilość (${nazwaM})</div>
+    <div class="accept-form">
+      <div class="accept-row"><span class="accept-label">Nowa ilość</span><input class="accept-input" type="number" min="0" value="${
+        stanW}" id="tnowaIlosc"></div>
+      <button class="btn-primary" style="margin-top:8px;" onclick="zmienIloscTermiczne('${k.kubek_id}','${activeMagTermiczne}')">✓ Zapisz</button>
+      <div class="f-msg" id="tzmienMsg"></div>
+    </div>`
+
+        ;
+    }
+
+    function renderZmienIloscGlobalTermiczne(k) {
+        return `<div class="d-section">Zmień ilości</div>
+    <div class="accept-form">
+      ${
+        k.stany.map(s => `<div class="accept-row" style="margin-bottom:6px;"><span class="accept-label">${s.magazyn}</span><input class="accept-input" type="number" min="0" value="${s.ilosc_dostepna}" data-mag="${s.magazyn_id}" id="tgi_${s.magazyn_id}"></div>`).join('')}
+      <button class="btn-primary" onclick="zmienIloscGlobalTermiczne('${k.kubek_id}')">✓ Zapisz ilości</button>
+      <div class="f-msg" id="tzmienGlobalMsg"></div>
+    </div>`
+
+        ;
+    }
+
+    async function przeniesTermiczne(kubek_id, magZ, maxSztuk) {
+        const doMagId = document.getElementById('tprzeniesDoMag').value;
+        const ilosc = parseInt(document.getElementById('tprzeniesIlosc').value) || 0;
+        const msg = document.getElementById('tprzeniesMsg');
+        if (!doMagId) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'Wybierz magazyn.';
+            return;
+        }
+        if (ilosc <= 0 || ilosc > maxSztuk) {
+            msg.className = 'f-msg err';
+            msg.textContent = `Max ${maxSztuk} szt.`;
+            return;
+        }
+        try {
+            const [sZ] = await sbFetch('stan_magazynowy_termiczne', `?kubek_id=eq.${kubek_id}&magazyn_id=eq.${magZ}`);
+            const sDo = await sbFetch('stan_magazynowy_termiczne', `?kubek_id=eq.${kubek_id}&magazyn_id=eq.${doMagId}`);
+            await sbFetch('stan_magazynowy_termiczne', `?kubek_id=eq.${kubek_id}&magazyn_id=eq.${magZ}`, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    ilosc_dostepna: sZ.ilosc_dostepna - ilosc
+                })
+            });
+            if (sDo[0])
+                await sbFetch('stan_magazynowy_termiczne', `?kubek_id=eq.${kubek_id}&magazyn_id=eq.${doMagId}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({
+                        ilosc_dostepna: sDo[0].ilosc_dostepna + ilosc
+                    })
+                });
+            else
+                await sbFetch('stan_magazynowy_termiczne', '', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        kubek_id,
+                        magazyn_id: doMagId,
+                        ilosc_dostepna: ilosc,
+                        ilosc_w_drodze: 0
+                    })
+                });
+            msg.className = 'f-msg ok';
+            msg.textContent = `✓ Przeniesiono ${ilosc} szt.`;
+            setTimeout(() => {
+                closeDrawer();
+                loadAll();
+            }, 1000);
+        } catch (e) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'Błąd: ' + e.message;
+        }
+    }
+
+    async function zmienIloscTermiczne(kubek_id, magazyn_id) {
+        const ilosc = parseInt(document.getElementById('tnowaIlosc').value);
+        const msg = document.getElementById('tzmienMsg');
+        if (isNaN(ilosc) || ilosc < 0) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'Wpisz poprawną ilość.';
+            return;
+        }
+        try {
+            await sbFetch('stan_magazynowy_termiczne', `?kubek_id=eq.${kubek_id}&magazyn_id=eq.${magazyn_id}`, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    ilosc_dostepna: ilosc
+                })
+            });
+            msg.className = 'f-msg ok';
+            msg.textContent = `✓ Zaktualizowano: ${ilosc} szt.`;
+            setTimeout(() => {
+                closeDrawer();
+                loadAll();
+            }, 1000);
+        } catch (e) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'Błąd: ' + e.message;
+        }
+    }
+
+    async function zmienIloscGlobalTermiczne(kubek_id) {
+        const inputs = document.querySelectorAll('[id^="tgi_"]');
+        const msg = document.getElementById('tzmienGlobalMsg');
+        try {
+            for (const inp of inputs) {
+                const magId = inp.dataset.mag;
+                const ilosc = parseInt(inp.value) || 0;
+                const ex = await sbFetch('stan_magazynowy_termiczne', `?kubek_id=eq.${kubek_id}&magazyn_id=eq.${magId}`);
+                if (ex[0])
+                    await sbFetch('stan_magazynowy_termiczne', `?kubek_id=eq.${kubek_id}&magazyn_id=eq.${magId}`, {
+                        method: 'PATCH',
+                        body: JSON.stringify({
+                            ilosc_dostepna: ilosc
+                        })
+                    });
+                else
+                    await sbFetch('stan_magazynowy_termiczne', '', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            kubek_id,
+                            magazyn_id: magId,
+                            ilosc_dostepna: ilosc,
+                            ilosc_w_drodze: 0
+                        })
+                    });
+            }
+            msg.className = 'f-msg ok';
+            msg.textContent = '✓ Zaktualizowano.';
+            setTimeout(() => {
+                closeDrawer();
+                loadAll();
+            }, 1000);
+        } catch (e) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'Błąd: ' + e.message;
+        }
+    }
+
+    // ── WIECZKA: PRZENIEŚ I ZMIEŃ ILOŚĆ ──
+    function renderPrzeniesiePrzykrywki(k) {
+        const stanW = k.stany.find(s => s.magazyn_id === activeMagPrzykrywki)?.ilosc_dostepna || 0;
+        const nazwaZ = allMagazyny.find(m => m.id === activeMagPrzykrywki)?.nazwa || '';
+        const opcje = allMagazyny.filter(m => m.id !== activeMagPrzykrywki).map(m => `<option value="${m.id}">${m.nazwa}</option>`).join('');
+        return `<div class="d-section">Przenieś wieczka</div>
+    <div class="accept-form">
+      <div class="accept-title">Z: <strong>${
+        nazwaZ}</strong> → do:</div>
+      <select class="f-select" id="pprzeniesDoMag" style="background:var(--surface);margin-bottom:8px;"><option value="">— wybierz magazyn —</option>${opcje}</select>
+      <div class="accept-row"><span class="accept-label">Ile szt.?</span><input class="accept-input" type="number" min="1" max="${stanW}" value="1" id="pprzeniesIlosc"></div>
+      <div style="font-size:11px;color:var(--ink3);margin:4px 0 10px;">Dostępne: ${stanW} szt.</div>
+      <button class="btn-primary" onclick="przeniesiePrzykrywki('${k.przykrywka_id}','${activeMagPrzykrywki}',${stanW})">→ Przenieś</button>
+      <div class="f-msg" id="pprzeniesMsg"></div>
+    </div>`
+
+        ;
+    }
+
+    function renderZmienIloscPrzykrywki(k) {
+        const stanW = k.stany.find(s => s.magazyn_id === activeMagPrzykrywki)?.ilosc_dostepna || 0;
+        const nazwaM = allMagazyny.find(m => m.id === activeMagPrzykrywki)?.nazwa || '';
+        return `<div class="d-section">Zmień ilość (${nazwaM})</div>
+    <div class="accept-form">
+      <div class="accept-row"><span class="accept-label">Nowa ilość</span><input class="accept-input" type="number" min="0" value="${
+        stanW}" id="pnowaIlosc"></div>
+      <button class="btn-primary" style="margin-top:8px;" onclick="zmienIloscPrzykrywki('${k.przykrywka_id}','${activeMagPrzykrywki}')">✓ Zapisz</button>
+      <div class="f-msg" id="pzmienMsg"></div>
+    </div>`
+
+        ;
+    }
+
+    function renderZmienIloscGlobalPrzykrywki(k) {
+        return `<div class="d-section">Zmień ilości</div>
+    <div class="accept-form">
+      ${
+        k.stany.map(s => `<div class="accept-row" style="margin-bottom:6px;"><span class="accept-label">${s.magazyn}</span><input class="accept-input" type="number" min="0" value="${s.ilosc_dostepna}" data-mag="${s.magazyn_id}" id="pgi_${s.magazyn_id}"></div>`).join('')}
+      <button class="btn-primary" onclick="zmienIloscGlobalPrzykrywki('${k.przykrywka_id}')">✓ Zapisz ilości</button>
+      <div class="f-msg" id="pzmienGlobalMsg"></div>
+    </div>`
+
+        ;
+    }
+
+    async function przeniesiePrzykrywki(prz_id, magZ, maxSztuk) {
+        const doMagId = document.getElementById('pprzeniesDoMag').value;
+        const ilosc = parseInt(document.getElementById('pprzeniesIlosc').value) || 0;
+        const msg = document.getElementById('pprzeniesMsg');
+        if (!doMagId) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'Wybierz magazyn.';
+            return;
+        }
+        if (ilosc <= 0 || ilosc > maxSztuk) {
+            msg.className = 'f-msg err';
+            msg.textContent = `Max ${maxSztuk} szt.`;
+            return;
+        }
+        try {
+            const [sZ] = await sbFetch('stan_magazynowy_przykrywki', `?przykrywka_id=eq.${prz_id}&magazyn_id=eq.${magZ}`);
+            const sDo = await sbFetch('stan_magazynowy_przykrywki', `?przykrywka_id=eq.${prz_id}&magazyn_id=eq.${doMagId}`);
+            await sbFetch('stan_magazynowy_przykrywki', `?przykrywka_id=eq.${prz_id}&magazyn_id=eq.${magZ}`, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    ilosc_dostepna: sZ.ilosc_dostepna - ilosc
+                })
+            });
+            if (sDo[0])
+                await sbFetch('stan_magazynowy_przykrywki', `?przykrywka_id=eq.${prz_id}&magazyn_id=eq.${doMagId}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({
+                        ilosc_dostepna: sDo[0].ilosc_dostepna + ilosc
+                    })
+                });
+            else
+                await sbFetch('stan_magazynowy_przykrywki', '', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        przykrywka_id: prz_id,
+                        magazyn_id: doMagId,
+                        ilosc_dostepna: ilosc,
+                        ilosc_w_drodze: 0
+                    })
+                });
+            msg.className = 'f-msg ok';
+            msg.textContent = `✓ Przeniesiono ${ilosc} szt.`;
+            setTimeout(() => {
+                closeDrawer();
+                loadAll();
+            }, 1000);
+        } catch (e) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'Błąd: ' + e.message;
+        }
+    }
+
+    async function zmienIloscPrzykrywki(prz_id, magazyn_id) {
+        const ilosc = parseInt(document.getElementById('pnowaIlosc').value);
+        const msg = document.getElementById('pzmienMsg');
+        if (isNaN(ilosc) || ilosc < 0) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'Wpisz ilość.';
+            return;
+        }
+        try {
+            await sbFetch('stan_magazynowy_przykrywki', `?przykrywka_id=eq.${prz_id}&magazyn_id=eq.${magazyn_id}`, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    ilosc_dostepna: ilosc
+                })
+            });
+            msg.className = 'f-msg ok';
+            msg.textContent = `✓ Zaktualizowano: ${ilosc} szt.`;
+            setTimeout(() => {
+                closeDrawer();
+                loadAll();
+            }, 1000);
+        } catch (e) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'Błąd: ' + e.message;
+        }
+    }
+
+    async function zmienIloscGlobalPrzykrywki(prz_id) {
+        const inputs = document.querySelectorAll('[id^="pgi_"]');
+        const msg = document.getElementById('pzmienGlobalMsg');
+        try {
+            for (const inp of inputs) {
+                const magId = inp.dataset.mag;
+                const ilosc = parseInt(inp.value) || 0;
+                const ex = await sbFetch('stan_magazynowy_przykrywki', `?przykrywka_id=eq.${prz_id}&magazyn_id=eq.${magId}`);
+                if (ex[0])
+                    await sbFetch('stan_magazynowy_przykrywki', `?przykrywka_id=eq.${prz_id}&magazyn_id=eq.${magId}`, {
+                        method: 'PATCH',
+                        body: JSON.stringify({
+                            ilosc_dostepna: ilosc
+                        })
+                    });
+                else
+                    await sbFetch('stan_magazynowy_przykrywki', '', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            przykrywka_id: prz_id,
+                            magazyn_id: magId,
+                            ilosc_dostepna: ilosc,
+                            ilosc_w_drodze: 0
+                        })
+                    });
+            }
+            msg.className = 'f-msg ok';
+            msg.textContent = '✓ Zaktualizowano.';
+            setTimeout(() => {
+                closeDrawer();
+                loadAll();
+            }, 1000);
+        } catch (e) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'Błąd: ' + e.message;
+        }
     }
 
     // ── INIT ──
