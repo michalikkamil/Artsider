@@ -2393,7 +2393,9 @@
         : '';
 
         document.getElementById('drawerContent').innerHTML = `
-    <div class="drawer-title">${k.grafika || '—'}</div>
+    <button class="drawer-back" onclick="closeDrawer()">← Wróć</button>
+    <div class="drawer-title">${
+        k.grafika || '—'}</div>
     <div class="drawer-sub">${k.artysta || 'brak artysty'}${k.data_zlecenia ? ` &nbsp;·&nbsp; zlecono: ${k.data_zlecenia}` : ''}</div>
     <div class="d-section">Szczegóły</div>
     ${
@@ -3561,21 +3563,35 @@
         try {
             msg.className = 'f-msg';
             msg.textContent = 'Zapisuję…';
-            const [zam] = await sbFetch('zamowienie', '', {
-                method: 'POST',
-                body: JSON.stringify({
-                    klient_id: klientId,
-                    typ_zamowienia: typ,
-                    zrodlo,
-                    tresc_zamowienia: tresc || null,
-                    status_realizacji: 'w_produkcji',
-                    status_faktury: 'nie_wyslana',
-                    status_platnosci: 'nieoplacona',
-                })
-            });
+            // Utwórz komisaty (niezależnie od zamówienia)
+            for (const k of komisDoUtworzenia) {
+                await sbFetch('komis', '', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        kubek_id: k.kubek_id,
+                        klient_id: klientId,
+                        ilosc: k.ilosc,
+                        cena_komisowa: k.cena_komisowa || null,
+                        status: 'aktywny',
+                        data_przekazania: new Date().toISOString().slice(0, 10),
+                    })
+                });
+            }
 
-            // zapisz pozycje
-            if (pozycje.length > 0) {
+            // Zapisz zamówienie tylko jeśli są pozycje sprzedażowe
+            if (pozycje.length) {
+                const [zam] = await sbFetch('zamowienie', '', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        klient_id: klientId,
+                        typ_zamowienia: typ,
+                        zrodlo,
+                        tresc_zamowienia: tresc || null,
+                        status_realizacji: 'w_produkcji',
+                        status_faktury: 'nie_wyslana',
+                        status_platnosci: 'nieoplacona',
+                    })
+                });
                 const pozDoZapisu = pozycje.map(p => ({
                     ...p,
                     zamowienie_id: zam.id
@@ -3585,24 +3601,13 @@
                     body: JSON.stringify(pozDoZapisu)
                 });
             }
-
-            // Utwórz komisaty dla termicznych
-            for (const k of komisDoUtworzenia) {
-                await sbFetch('komis', '', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        kubek_id: k.kubek_id,
-                        klient_id: klientId,
-                        ilosc: k.ilosc,
-                        cena_komisowa: k.cena_komisowa,
-                        status: 'aktywny',
-                        data_przekazania: new Date().toISOString().slice(0, 10),
-                    })
-                });
-            }
-
             msg.className = 'f-msg ok';
-            msg.textContent = '✓ Zamówienie zapisane!';
+            if (pozycje.length && komisDoUtworzenia.length)
+                msg.textContent = `✓ Zamówienie zapisane + ${komisDoUtworzenia.length} pozycji do komisu!`;
+            else if (komisDoUtworzenia.length)
+                msg.textContent = `✓ ${komisDoUtworzenia.length} pozycji przekazanych do komisu!`;
+            else
+                msg.textContent = '✓ Zamówienie zapisane!';
             setTimeout(() => {
                 closeZamDrawer();
                 loadZamowienia();
