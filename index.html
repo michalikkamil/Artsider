@@ -2087,10 +2087,16 @@
         <div class="komis-klient">${
             klient}</div>
         ${pozycje.map(p => `
-          <div class="komis-row">
-            <span class="komis-key">${
-            p.grafika} · ${p.pojemnosc_ml}ml</span>
-            <span class="komis-val">${p.ilosc} szt. · ${p.dni_w_komisie} dni</span>
+          <div class="komis-row" style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--bg2);">
+            ${
+            p.miniaturka_url ? `<img src="${p.miniaturka_url}" style="width:40px;height:40px;border-radius:6px;object-fit:cover;flex-shrink:0;">` : `<div style="width:40px;height:40px;border-radius:6px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🌡</div>`}
+            <div style="flex:1;">
+              <div style="font-size:13px;font-weight:500;">${
+            p.grafika || '—'} · ${p.pojemnosc_ml}ml</div>
+              <div style="font-size:11px;color:var(--ink3);">${p.dni_w_komisie} dni w komisie</div>
+            </div>
+            <div style="font-family:var(--fh);font-size:18px;font-weight:700;">${
+            p.ilosc} szt.</div>
           </div>`).join('')}
       </div>`
             ).join('');
@@ -2273,7 +2279,9 @@
             });
             document.getElementById('stModeli').textContent = f.length;
             document.getElementById('stSztuk').textContent = ts;
-            document.getElementById('stKomis').textContent = '—';
+            // Pokaż łączną liczbę w komisie
+            const totalKomis = allKomis.reduce((s, k) => s + (k.ilosc || 0), 0);
+            document.getElementById('stKomis').textContent = totalKomis || '—';
             renderKubki(f, 'listTermiczne', activeMagTermiczne, false, 'termiczny');
         }
         else if (scope === 'zamowienia') {
@@ -3552,6 +3560,7 @@
                     }
                     if (!kubId || termCena <= 0)
                         continue;
+                    const komisKubek = termZrodlo === 'komis' ? (window['komisPicker_' + div.id.replace('poz_', '')] || []).find(k => k.id === kubId) : null;
                     pozycje.push({
                         rodzaj_produktu: 'termiczny',
                         kubek_termiczny_id: kubId,
@@ -3559,6 +3568,26 @@
                         ilosc: termIlosc,
                         cena_jednostkowa: termCena
                     });
+                    // Jeśli sprzedaż z komisu - zmniejsz ilosc w komis
+                    if (termZrodlo === 'komis' && komisKubek?.komis_id) {
+                        const nowaIlosc = (komisKubek.ilosc || 0) - termIlosc;
+                        if (nowaIlosc <= 0) {
+                            await sbFetch('komis', `?id=eq.${komisKubek.komis_id}`, {
+                                method: 'PATCH',
+                                body: JSON.stringify({
+                                    status: 'sprzedany',
+                                    ilosc: 0
+                                })
+                            });
+                        } else {
+                            await sbFetch('komis', `?id=eq.${komisKubek.komis_id}`, {
+                                method: 'PATCH',
+                                body: JSON.stringify({
+                                    ilosc: nowaIlosc
+                                })
+                            });
+                        }
+                    }
                 }
             } else if (typ2 === 'wysylka') {
                 const wTyp = div.querySelector('[data-field="wysylka_typ"]')?.value || 'DPD';
@@ -5553,11 +5582,21 @@
             const ktList = Object.values(map).filter(k => k.ilosc > 0).sort((a, b) => a.pojemnosc - b.pojemnosc);
             window['termPicker_' + id] = ktList;
 
-            // Komis dla danego klienta
+            // Komis dla danego klienta - tylko kubki które są w komisie u tego klienta
             let komisList = [];
             if (klientId) {
-                const komis = await sbFetch('v_komis_aktywny', `?klient_id=eq.${klientId}&select=*`);
-                komisList = komis;
+                const komis = await sbFetch('v_komis_aktywny', `?klient_id=eq.${klientId}&select=*&order=grafika.asc`);
+                komisList = komis.map(k => ({
+                    id: k.kubek_id,
+                    komis_id: k.id,
+                    grafika: k.grafika,
+                    pojemnosc: k.pojemnosc_ml,
+                    pojemnosc_ml: k.pojemnosc_ml,
+                    kolor: k.kolor,
+                    ilosc: k.ilosc,
+                    cena: k.cena_netto || 0,
+                    miniaturka: k.miniaturka_url,
+                }));
             }
             window['komisPicker_' + id] = komisList;
         } catch (e) {
@@ -5631,6 +5670,7 @@
         document.getElementById(`poz_term_zrodlo_${id}`).value = zrodlo;
         document.getElementById(`poz_term_kub_${id}`).style.display = zrodlo === 'magazyn' ? 'block' : 'none';
         document.getElementById(`poz_term_komis_sel_${id}`).style.display = zrodlo === 'komis' ? 'block' : 'none';
+        renderTermPicker(id, 'sprzedaz');
     }
 
     function onTermKubekChange(id) {
