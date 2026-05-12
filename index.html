@@ -1688,7 +1688,10 @@
             loadZamowienia();
         if (name === 'przykrywki') {
             buildMagTabs(allMagazyny, 'magTabsPrzykrywki', 'przykrywki');
-            applyFilters('przykrywki');
+            if (allPrzykrywki.length)
+                applyFilters('przykrywki');
+            else
+                document.getElementById('listPrzykrywki').innerHTML = '<div class="state-msg"><span class="big">🫗</span>Brak wieczek w bazie.</div>';
         }
         if (name === 'cennik')
             loadCennik();
@@ -1712,7 +1715,8 @@
             allKlienci = klienci;
             buildMagTabs(magazyny, 'magTabsKubki', 'kubki');
             buildMagTabs(magazyny, 'magTabsTermiczne', 'termiczne');
-            buildMagTabs(magazyny, 'magTabsPrzykrywki', 'przykrywki');
+            if (document.getElementById('magTabsPrzykrywki'))
+                buildMagTabs(magazyny, 'magTabsPrzykrywki', 'przykrywki');
             buildArtystFilters(artysci);
             buildKlientFilter(klienci);
 
@@ -1756,8 +1760,9 @@
 
             applyFilters('kubki');
             applyFilters('termiczne');
-            applyFilters('przykrywki');
-        } catch (e) {
+
+        }// przykrywki loaded on demand when tab is opened
+        catch (e) {
             document.getElementById('listKubki').innerHTML = `<div class="state-msg"><span class="big">⚠️</span>Błąd połączenia.<br><small>${e.message}</small></div>`;
         }
     }
@@ -2232,8 +2237,6 @@
                 if (art && k.artysta !== art)
                     return false;
                 if (q && !k.grafika?.toLowerCase().includes(q) && !k.artysta?.toLowerCase().includes(q))
-                    return false;
-                if (logo && !k.isPrzykrywka && k.logo !== logo)
                     return false;
                 return true;
             });
