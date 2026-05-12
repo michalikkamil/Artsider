@@ -18,7 +18,7 @@
         --accent2: #E8855F;
         --border: #D8D4CC;
         --green: #639922;
-        --blue: #185FA5;xa
+        --blue: #185FA5;
         --radius: 14px;
         --fh: 'Fraunces', Georgia, serif;
         --fm: 'DM Mono', monospace;
@@ -1227,7 +1227,7 @@
             </div>
             <div class="stat">
                 <span class="stat-val" id="skDrodze">—</span>
-                <span class="stat-lbl">w drodze</span>
+                <span class="stat-lbl">zlecone szt.</span>
             </div>
         </div>
         <div class="list" id="listKubki">
@@ -1378,11 +1378,11 @@
             </div>
         </div>
         <div class="page-body" style="padding-top:12px;padding-bottom:0;">
-            <div style="display:flex;gap:8px;margin-bottom:12px;">
+            <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;">
                 <button class="btn-primary" style="flex:1;" onclick="openNoweZamowienie()">+ Nowe zamówienie</button>
-                <button class="btn-primary" style="flex:1;background:#185FA5;" id="btnImportKlientow" onclick="importujKlientowZFakturowni()">📥 Importuj klientów</button>
+                <button id="btnImportKlientow" onclick="importujKlientowZFakturowni()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-family:var(--fm);font-size:10px;color:var(--ink3);cursor:pointer;flex-shrink:0;">📥</button>
             </div>
-            <div class="f-msg" id="importMsg" style="margin-bottom:8px;"></div>
+            <div class="f-msg" id="importMsg" style="margin-bottom:8px;font-size:11px;"></div>
         </div>
         <div class="list" id="listZamowienia">
             <div class="state-msg">
@@ -2158,9 +2158,10 @@
                 document.getElementById('skSztuk').textContent = totalZlecone;
                 document.getElementById('skDrodze').textContent = '—';
             } else {
+                const totalZlecone = allZlecone.reduce((s, k) => s + (k.ilosc_zlecona || 0), 0);
                 document.getElementById('skModeli').textContent = fKubki.length;
                 document.getElementById('skSztuk').textContent = ts;
-                document.getElementById('skDrodze').textContent = td;
+                document.getElementById('skDrodze').textContent = totalZlecone || '—';
             }
             // Sortuj: przykrywki na końcu, kubki wg pojemności rosnąco, potem dostępność malejąco
             const fSorted = [...f].sort((a, b) => {
@@ -4540,7 +4541,7 @@
 
 
             new Date().toISOString().slice(0, 10)}"></div>
-        <div class="f-group" style="flex:1;min-width:120px;margin-bottom:0;"><label class="f-label">Notatka</label><input class="f-input" id="wyplataNotatka" placeholder="opcjonalnie"></div>
+
       </div>
       <button class="btn-primary" onclick="dodajWyplate('${
 
@@ -6168,14 +6169,14 @@
 
             ).join('');
         } catch (e) {
-            wrap.innerHTML = '<div style="color:var(--ink3);font-size:12px;">Błąd ładowania wypłat.</div>';
+            wrap.innerHTML = '<div style="color:var(--ink3);font-size:12px;padding:6px 0;">Brak historii wypłat.</div>';
         }
     }
 
     async function dodajWyplate(artId) {
         const kwota = parseFloat(document.getElementById('wyplataKwota')?.value) || 0;
         const data = document.getElementById('wyplataData')?.value || new Date().toISOString().slice(0, 10);
-        const notatka = document.getElementById('wyplataNotatka')?.value.trim() || null;
+        const notatka = null;
         const msg = document.getElementById('wyplataMsg');
         if (kwota <= 0) {
             msg.className = 'f-msg err';
