@@ -2301,6 +2301,7 @@
         }
         list.innerHTML = kubki.map(k => {
             const isTermiczny = typOverride === 'termiczny' || (k.pojemnosc_ml && !k.typ_materialu && !k.isPrzykrywka);
+            const typKarty = typOverride || (showDate ? 'zlecony' : isTermiczny ? 'termiczny' : k.isPrzykrywka ? 'przykrywka' : 'kubek');
             const stan = activeMag ? (k.stany?.find(s => s.magazyn_id === activeMag)?.ilosc_dostepna || 0) : k.ilosc_lacznie || 0;
             const drodze = activeMag ? (k.stany?.find(s => s.magazyn_id === activeMag)?.ilosc_w_drodze || 0) : k.ilosc_w_drodze || 0;
             const dotCls = stan === 0 ? 'stock-empty' : stan < 500 ? 'stock-low' : 'stock-ok';
