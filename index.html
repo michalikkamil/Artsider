@@ -2396,8 +2396,8 @@
     <div class="drawer-title">${k.grafika || '—'}</div>
     <div class="drawer-sub">${k.artysta || 'brak artysty'}${k.data_zlecenia ? ` &nbsp;·&nbsp; zlecono: ${k.data_zlecenia}` : ''}</div>
     <div class="d-section">Szczegóły</div>
-    <div class="d-row"><span class="d-key">Pojemność</span><span class="d-val">${
-        k.pojemnosc_ml} ml</span></div>
+    ${
+        !k.isPrzykrywka ? `<div class="d-row"><span class="d-key">Pojemność</span><span class="d-val">${k.pojemnosc_ml} ml</span></div>` : ''}
     ${k.typ_materialu ? `<div class="d-row"><span class="d-key">Materiał</span><span class="d-val">${k.typ_materialu}</span></div>` : ''}
     ${k.typ_scianki ? `<div class="d-row"><span class="d-key">Ścianka</span><span class="d-val">${k.typ_scianki}</span></div>` : ''}
     ${typ !== 'termiczny' ? `<div class="d-row">
@@ -2415,7 +2415,7 @@
     ${k.kolor ? `<div class="d-row"><span class="d-key">Kolor</span><span class="d-val">${k.kolor}</span></div>` : ''}
     <div class="d-row"><span class="d-key">Cena netto</span><span class="d-val acc">${k.cena_netto != null ? Number(k.cena_netto).toFixed(2) + ' zł' : '—'}</span></div>
     <div class="d-row"><span class="d-key">Cena brutto</span><span class="d-val">${k.cena_netto != null ? (Number(k.cena_netto) * 1.23).toFixed(2) + ' zł' : '—'}</span></div>
-    ${stanyHtml ? `<div class="d-section">Stan wg magazynu</div><div class="mag-grid">${stanyHtml}<div class="mag-card" id="termKomisBox_${k.kubek_id}" style="background:#FBF3EA;border-color:#F0C8A8;"><div class="mag-card-name">🤝 Komis</div><div class="mag-card-num" id="termKomisNum_${k.kubek_id}">—</div><div class="mag-card-sub">szt.</div></div></div>` : ''}\n    ${acceptHtml}
+    ${stanyHtml ? `<div class="d-section">Stan wg magazynu</div><div class="mag-grid">${stanyHtml}${typ === 'termiczny' ? `<div class="mag-card" id="termKomisBox_${k.kubek_id}" style="background:#FBF3EA;border-color:#F0C8A8;"><div class="mag-card-name">🤝 Komis</div><div class="mag-card-num" id="termKomisNum_${k.kubek_id}">—</div><div class="mag-card-sub">szt.</div></div>` : ''}</div>` : ''}\n    ${acceptHtml}
     ${typ === 'kubek' && activeMagKubki && activeMagKubki !== 'zlecone' && activeMagKubki !== 'archiwum' ? renderPrzeniesForm(k) + renderZmienIlosc(k) : ''}
     ${typ === 'kubek' && (!activeMagKubki || activeMagKubki === 'archiwum' || k.ilosc_lacznie === 0) ? renderZmienIloscGlobal(k) : ''}
     ${typ === 'kubek' ? renderZamowDoProdukcji(k) : ''}
@@ -3522,11 +3522,6 @@
                     ilosc,
                     cena_jednostkowa: cena
                 });
-            } else if (typ2 === 'termiczny') {
-                // termiczne nie wchodzą do pozycji_zamowienia — pomijamy (sprzedaż przez komis)
-                msg.className = 'f-msg err';
-                msg.textContent = 'Kubki termiczne sprzedaje się przez moduł Komis.';
-                return;
             } else if (typ2 === 'przykrywka') {
                 // znajdź lub utwórz przykrywkę
                 const prMat = div.querySelector('[data-field="pr_mat"]')?.value;
