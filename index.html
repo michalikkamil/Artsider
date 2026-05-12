@@ -5681,7 +5681,7 @@
         btns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         document.getElementById(`poz_term_zrodlo_${id}`).value = zrodlo;
-        document.getElementById(`poz_term_kub_${id}`).style.display = zrodlo === 'magazyn' ? 'block' : 'none';
+        document.getElementById(`poz_term_picker_${id}`).style.display = zrodlo === 'magazyn' ? 'flex' : 'none';
         document.getElementById(`poz_term_komis_sel_${id}`).style.display = zrodlo === 'komis' ? 'block' : 'none';
         renderTermPicker(id, 'sprzedaz');
     }
@@ -5881,16 +5881,8 @@
                 const wrap = document.getElementById(`poz_term_komis_picker_${id}`);
                 if (!wrap)
                     return;
-                const list = (window['komisPicker_' + id] || []).map(k => ({
-                    id: k.kubek_id,
-                    grafika: k.grafika,
-                    pojemnosc_ml: k.pojemnosc_ml,
-                    pojemnosc: k.pojemnosc_ml,
-                    kolor: k.kolor,
-                    ilosc: k.ilosc,
-                    cena: k.cena_netto,
-                    miniaturka: k.miniaturka_url
-                }));
+                // komisPicker items already have correct fields
+                const list = (window['komisPicker_' + id] || []);
                 wrap.innerHTML = list.length
                 ? list.map(k => renderTermPickerCard(k, id, 'poz_term_komis_kub_' + id, 'poz_term_komis_picker_' + id, 'poz_term_komis_kub_' + id)).join('')
                 : '<div style="color:var(--ink3);font-size:12px;padding:8px;">Brak kubków w komisie u tego klienta.</div>';
