@@ -1952,6 +1952,16 @@
                 };
                 wrap.appendChild(btn);
             });
+            // Archiwum
+            const btnAT = document.createElement('button');
+            btnAT.className = 'mag-tab';
+            btnAT.dataset.mag = 'archiwum';
+            btnAT.dataset.typ = 'archiwum';
+            btnAT.textContent = '🗄 Archiwum';
+            btnAT.onclick = function() {
+                selectMag(this, scope);
+            };
+            wrap.appendChild(btnAT);
             // Komis
             const btnK = document.createElement('button');
             btnK.className = 'mag-tab';
@@ -2039,6 +2049,11 @@
             if (mag === 'komis') {
                 loadKomis();
                 renderKomisInTermiczne();
+                return;
+            }
+            if (mag === 'archiwum') {
+                const arch = allTermiczne.filter(k => k.ilosc_lacznie === 0);
+                renderKubki(arch, 'listTermiczne', '', false);
                 return;
             }
         }
@@ -2230,7 +2245,7 @@
         else if (scope === 'termiczne') {
             const poj = document.getElementById('tfPoj').value;
             const art = document.getElementById('tfArt').value;
-            const q = document.getElementById('searchTermiczne').value.toLowerCase();
+            const q = '';
             const f = allTermiczne.filter(k => {
                 if (poj && String(k.pojemnosc_ml) !== poj)
                     return false;
@@ -2285,7 +2300,7 @@
             const dotCls = stan === 0 ? 'stock-empty' : stan < 500 ? 'stock-low' : 'stock-ok';
             const sciTag = k.typ_scianki ? `<span class="tag tag-sci">${k.typ_scianki === 'dwuściankowy' ? '2×' : '1×'}</span>` : '';
             const pakTag = k.sztuk_w_opakowaniu ? `<span class="tag tag-pak">${k.sztuk_w_opakowaniu}/op.</span>` : '';
-            const termTag = isTermiczny ? `<span class="tag tag-term">🌡</span>` : '';
+            const termTag = '';
             const thumb = k.miniaturka ? `<img src="${k.miniaturka}" alt="">` : k.isPrzykrywka ? '🫗' : '☕';
             const totalLacznie = k.ilosc_lacznie || 0;
             const zleconoTag = k.ilosc_zlecona > 0 ? `<span style="font-size:10px;color:var(--ink3);margin-left:4px;">zlecono ${k.ilosc_zlecona} szt.</span>` : '';
@@ -2296,19 +2311,28 @@
     `
             : ''
             const stockHtml = showDate ? '' : `<div class="card-stock"><span class="stock-dot-big ${dotCls}"></span><span style="font-size:15px;font-weight:600;">${stan === 0 ? 'brak' : stan + ' szt.'}</span>${totalTag}${zleconoTag}</div>`;
+            // Tytuł karty: dla przykrywek rozmiar+kolor, dla termicznych pojemność+kolor, dla papierowych pojemność+materiał
+            const cardTitle = k.isPrzykrywka
+            ? `${k.rozmiar_mm || ''}mm ${k.kolor || ''}`.trim()
+            : isTermiczny
+            ? `${k.pojemnosc_ml} ml ${k.kolor || ''}`.trim()
+            : `${k.pojemnosc_ml} ml`;
+            const cardSub = k.isPrzykrywka
+            ? (k.grafika || '').replace(/Przykrywka (papierowa|plastikowa) \d+mm\s*/, '').trim() || '—'
+            : `${k.grafika || '—'}${k.artysta ? ' · ' + k.artysta : ''}`;
             return `<div class="card" onclick="openDrawer('${k.kubek_id}','${showDate ? 'zlecony' : isTermiczny ? 'termiczny' : 'kubek'}')">
       <div class="card-thumb">${thumb}</div>
       <div class="card-body">
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
           <span style="font-family:var(--fh);font-size:18px;font-weight:700;color:var(--ink);">${
 
-            k.pojemnosc_ml} ml</span>
-          ${k.typ_materialu ? `<span class="tag tag-mat" style="font-size:11px;padding:2px 8px;">${k.typ_materialu}</span>` : ''}
-          ${pakTag}${termTag}
+            cardTitle}</span>
+          ${!isTermiczny && !k.isPrzykrywka && k.typ_materialu ? `<span class="tag tag-mat" style="font-size:11px;padding:2px 8px;">${k.typ_materialu}</span>` : ''}
+          ${pakTag}
           <span style="margin-left:auto;font-size:12px;font-weight:500;color:var(--accent);">${k.cena_netto != null ? Number(k.cena_netto).toFixed(2) + ' zł' : '—'}</span>
         </div>
         <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${
-            k.grafika || '—'}${k.artysta ? ' · ' + k.artysta : ''}</div>
+            cardSub}</div>
         ${stockHtml}${dateHtml}
       </div>
     </div>`
@@ -2384,8 +2408,11 @@
 
         k.kolor ? `<div class="d-row"><span class="d-key">Kolor</span><span class="d-val">${k.kolor}</span></div>` : ''}
     <div class="d-row"><span class="d-key">Cena netto</span><span class="d-val acc">${k.cena_netto != null ? Number(k.cena_netto).toFixed(2) + ' zł' : '—'}</span></div>
-    ${stanyHtml ? `<div class="d-section">Stan wg magazynu</div><div class="mag-grid">${stanyHtml}</div>` : ''}
-    ${acceptHtml}
+    <div class="d-row"><span class="d-key">Cena brutto</span><span class="d-val">${k.cena_netto != null ? (Number(k.cena_netto) * 1.23).toFixed(2) + ' zł' : '—'}</span></div>
+    ${stanyHtml ? `<div class="d-section">Stan wg magazynu</div><div class="mag-grid">${stanyHtml}<div class="mag-card" id="termKomisBox_${k.kubek_id}" style="background:#FBF3EA;border-color:#F0C8A8;"><div class="mag-card-name">🤝 Komis</div><div class="mag-card-num" id="termKomisNum_${k.kubek_id}">—</div><div class="mag-card-sub">szt.</div></div></div>` : ''};
+    if(typ==='termiczny'&&k.kubek_id){sbFetch('komis',\`?kubek_id=eq.\${k.kubek_id}&status=eq.aktywny&select=ilosc\`).then(rows=>{const total=rows.reduce((s,r)=>s+(r.ilosc||0),0);const el=document.getElementById('termKomisNum_'+k.kubek_id);if(el)el.textContent=total;}).catch(()=>{});}
+    ${
+        acceptHtml}
     ${typ === 'kubek' && activeMagKubki && activeMagKubki !== 'zlecone' && activeMagKubki !== 'archiwum' ? renderPrzeniesForm(k) + renderZmienIlosc(k) : ''}
     ${typ === 'kubek' && (!activeMagKubki || activeMagKubki === 'archiwum' || k.ilosc_lacznie === 0) ? renderZmienIloscGlobal(k) : ''}
     ${typ === 'kubek' ? renderZamowDoProdukcji(k) : ''}
@@ -2898,14 +2925,9 @@
         <span class="tag" style="background:${z.status_platnosci === 'oplacona' ? '#EAF3DE' : '#FBE9E9'};border-color:${z.status_platnosci === 'oplacona' ? '#C0DD97' : '#F4B5B5'};color:${z.status_platnosci === 'oplacona' ? '#3B6D11' : '#A32D2D'};">${PLATNOSC_LABELS[z.status_platnosci] || z.status_platnosci}</span>
         <span class="tag" style="background:#FBF3EA;border-color:#F0C8A8;color:#7A3D0F;">${FAKTURA_LABELS[z.status_faktury] || z.status_faktury}</span>
       </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;">
-        <button onclick="zmienStatus('${
-
-        z.id}','status_realizacji','wyslane')" style="font-size:10px;padding:4px 10px;border-radius:20px;border:1px solid #C0DD97;background:#EAF3DE;color:#3B6D11;cursor:pointer;font-family:var(--fm);">🚚 Wyślij</button>
-        <button onclick="zmienStatus('${z.id}','status_platnosci','oplacona')" style="font-size:10px;padding:4px 10px;border-radius:20px;border:1px solid #B5D4F4;background:#EDF4FB;color:#185FA5;cursor:pointer;font-family:var(--fm);">💚 Opłacone</button>
-        <button onclick="zmienStatus('${z.id}','status_faktury','wyslana')" style="font-size:10px;padding:4px 10px;border-radius:20px;border:1px solid #F0C8A8;background:#FBF3EA;color:#7A3D0F;cursor:pointer;font-family:var(--fm);">📄 Faktura wys.</button>
-      </div>
+      
     </div>`
+
 
         ).join('');
     }
@@ -2943,7 +2965,7 @@
       ${
 
             pozHTML || '<div style="color:var(--ink3);font-size:12px;padding:8px 0;">Brak pozycji</div>'}
-      <div class="d-row" style="font-weight:600;"><span class="d-key">Łącznie</span><span class="d-val acc">${Number(zam.wartosc_lacznie).toFixed(2)} zł</span></div>
+      <div class="d-row" style="font-weight:600;"><span class="d-key">Łącznie netto</span><span class="d-val acc">${Number(zam.wartosc_lacznie).toFixed(2)} zł <span style="font-size:11px;color:var(--ink2);font-weight:400;">(${(Number(zam.wartosc_lacznie) * 1.23).toFixed(2)} zł brutto)</span></span></div>
 
       <div class="d-section">Podsumowanie ilościowe</div>
       ${
