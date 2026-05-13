@@ -3536,2378 +3536,270 @@
         div.dataset.typ = typ;
         div.style.cssText = 'background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;position:relative;';
 
-        let selectHTML = '';
         if (typ === 'kubek') {
-            const kubkiDostepne = allKubki
-            .filter(k => !k.isPrzykrywka && k.ilosc_lacznie > 0)
-            .sort((a, b) => a.pojemnosc_ml !== b.pojemnosc_ml ? a.pojemnosc_ml - b.pojemnosc_ml : b.ilosc_lacznie - a.ilosc_lacznie);
-            const maty = [...new Set(kubkiDostepne.map(k => k.typ_materialu).filter(Boolean))].sort();
-            window['kubkiPicker_' + id] = kubkiDostepne;
-            selectHTML = `
+            const maty = [...new Set(allKubki.filter(k => !k.isPrzykrywka && k.ilosc_lacznie > 0).map(k => k.typ_materialu).filter(Boolean))].sort();
+            div.innerHTML = `
+      <button onclick="document.getElementById('poz_${id}').remove()" style="position:absolute;top:8px;right:8px;background:none;border:none;font-size:16px;cursor:pointer;color:var(--ink3);">✕</button>
+      <div style="font-size:10px;text-transform:uppercase;color:var(--ink3);letter-spacing:.08em;margin-bottom:10px;font-weight:600;">☕ Kubki Artsider</div>
       <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
-        <select class="f-select" id="poz_mag_${
-            id}" onchange="filterKubkiPicker(${id})" style="flex:1;min-width:80px;">
+        <select class="f-select" id="kf_mag_${
+
+            id}" onchange="renderKubkiInline(${id})" style="flex:1;min-width:80px;">
           <option value="">— magazyn —</option>
           ${
             allMagazyny.map(m => `<option value="${m.id}">${m.nazwa}</option>`).join('')}
         </select>
-        <select class="f-select" id="poz_mat_${
-            id}" onchange="filterKubkiPicker(${id})" style="flex:1;min-width:80px;">
-          <option value="">— materiał —</option>
+        <select class="f-select" id="kf_mat_${
+            id}" onchange="renderKubkiInline(${id})" style="flex:1;min-width:60px;">
+          <option value="">Wszystkie</option>
           ${
-            maty.map(m => `<option value="${m}">${m}</option>`).join('')}
+            maty.map(m => `<option value="${m}" ${m === 'PE' ? 'selected' : ''}>${m}</option>`).join('')}
         </select>
-        <select class="f-select" id="poz_poj_${
-            id}" onchange="filterKubkiPicker(${id})" style="flex:1;min-width:80px;">
-          <option value="">— pojemność —</option>
-        </select>
-        <select class="f-select" id="poz_sci_${
-
-            id}" onchange="filterKubkiPicker(${id})" style="flex:1;min-width:80px;">
-          <option value="">— ścianka —</option>
+        <select class="f-select" id="kf_sci_${
+            id}" onchange="renderKubkiInline(${id})" style="flex:1;min-width:60px;">
+          <option value="">Wszystkie</option>
+          <option value="dwuściankowy" selected>Dwu</option>
           <option value="jednościankowy">Jedno</option>
-          <option value="dwuściankowy">Dwu</option>
         </select>
       </div>
-      <input type="hidden" id="poz_mag_val_${
+      <div id="klist_${
 
 
 
 
-            id}">
-      <input type="hidden" id="poz_kub_${id}" data-field="kubek_id">
-      <div id="poz_picker_${id}" style="display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto;"></div>
+            id}"><div style="color:var(--ink3);font-size:12px;padding:8px;">Wybierz magazyn.</div></div>
     `
             ;
+            wrap.appendChild(div);
+            if (allMagazyny.length) {
+                document.getElementById(`kf_mag_${id}`).value = allMagazyny[0].id;
+                renderKubkiInline(id);
+            }
+
         } else if (typ === 'przykrywka') {
-            selectHTML = `<div style="display:flex;gap:6px;margin-bottom:6px;">
-      <select class="f-select" data-field="pr_mat" style="flex:1;">
-        <option value="papierowa">Papierowa</option><option value="plastikowa">Plastikowa</option>
-      </select>
-      <select class="f-select" data-field="pr_rozm" style="flex:1;">
-        <option value="80">80mm</option><option value="90">90mm</option><option value="72">72mm</option>
-      </select>
-      <select class="f-select" data-field="pr_kol" style="flex:1;">
-        <option value="biały">Biały</option><option value="czarny">Czarny</option>
-      </select>
-    </div>`
-
-
-
-
-
-
-
-
-
+            div.innerHTML = `
+      <button onclick="document.getElementById('poz_${id}').remove()" style="position:absolute;top:8px;right:8px;background:none;border:none;font-size:16px;cursor:pointer;color:var(--ink3);">✕</button>
+      <div style="font-size:10px;text-transform:uppercase;color:var(--ink3);letter-spacing:.08em;margin-bottom:10px;font-weight:600;">🫗 Wieczka</div>
+      <div id="plist_${
+            id}"></div>
+    `
             ;
+            wrap.appendChild(div);
+            renderWieczkaInline(id);
+
         } else if (typ === 'wysylka') {
-            selectHTML = `
-      <div style="display:flex;gap:6px;margin-bottom:6px;">
+            div.innerHTML = `
+      <button onclick="document.getElementById('poz_${id}').remove()" style="position:absolute;top:8px;right:8px;background:none;border:none;font-size:16px;cursor:pointer;color:var(--ink3);">✕</button>
+      <div style="font-size:10px;text-transform:uppercase;color:var(--ink3);letter-spacing:.08em;margin-bottom:8px;font-weight:600;">📦 Wysyłka</div>
+      <div style="display:flex;gap:6px;margin-bottom:8px;">
         <select class="f-select" id="poz_wtyp_${
+
             id}" data-field="wysylka_typ" onchange="updateWysylkaNazwa(${id})" style="flex:1;">
-          <option value="DPD">DPD</option>
-          <option value="InPost">InPost</option>
-          <option value="Orlen">Orlen</option>
-          <option value="inny">Inny</option>
+          <option value="DPD">DPD</option><option value="InPost">InPost</option>
+          <option value="Orlen">Orlen</option><option value="inny">Inny</option>
         </select>
         <input class="f-input" id="poz_wnazwa_${
 
 
-
-
             id}" data-field="wysylka_nazwa" value="Wysyłka DPD" style="flex:1;">
-      </div>`
-            ;
-        }
-
-        const isWysylka = typ === 'wysylka';
-        const labelTyp = typ === 'kubek' ? 'Kubek papierowy' : typ === 'przykrywka' ? 'Wieczko' : '📦 Wysyłka';
-
-        div.innerHTML = `
-    <button onclick="document.getElementById('poz_${id}').remove()" style="position:absolute;top:8px;right:8px;background:none;border:none;font-size:16px;cursor:pointer;color:var(--ink3);">✕</button>
-    <div style="font-size:10px;text-transform:uppercase;color:var(--ink3);margin-bottom:8px;">${labelTyp}</div>
-    ${selectHTML}
-    <div style="display:flex;gap:8px;">
-      ${
-        isWysylka ? '' : `<div class="f-group" style="flex:1;margin-bottom:0;"><label class="f-label">Ilość</label><input class="f-input" data-field="ilosc" type="number" min="1" value="1"></div>`}
-      <div class="f-group" style="flex:1;margin-bottom:0;">
-        <label class="f-label">Cena netto / brutto</label>
-        <div style="display:flex;gap:4px;align-items:center;">
-          <input class="f-input" id="poz_cena_${
-
-
-        id}" data-field="cena" type="number" step="0.01" min="0" placeholder="netto" style="flex:1;" oninput="syncBrutto(${id})">
-          <span style="font-size:10px;color:var(--ink3);flex-shrink:0;">/</span>
-          <input class="f-input" id="poz_brutto_${
-        id}" type="number" step="0.01" min="0" placeholder="brutto" style="flex:1;" oninput="syncNetto(${id})">
-        </div>
       </div>
-    </div>
-  `
+      <div style="display:flex;gap:4px;">
+        <input class="f-input" id="poz_cena_${
 
-
-
-        ;
-        wrap.appendChild(div);
-    }
-
-    function openNowyKlientInline() {
-        document.getElementById('nowyKlientForm').style.display = 'block';
-    }
-
-    async function zapiszNowegoKlienta() {
-        const nazwa = document.getElementById('nkNazwa').value.trim();
-        const nazwaFormalna = document.getElementById('nkNazwaFormalna')?.value.trim() || null;
-        const email = document.getElementById('nkEmail').value.trim();
-        const tel = document.getElementById('nkTelefon').value.trim();
-        const nip = document.getElementById('nkNip').value.trim();
-        const adresFaktury = document.getElementById('nkAdresFaktury')?.value.trim() || null;
-        const adresDostawy = document.getElementById('nkAdresDostawy')?.value.trim() || null;
-        const msg = document.getElementById('nkMsg');
-        if (!nazwa) {
-            msg.className = 'f-msg err';
-            msg.textContent = 'Wpisz nazwę klienta.';
-            return;
-        }
-        try {
-            const [klient] = await sbFetch('klient', '', {
-                method: 'POST',
-                body: JSON.stringify({
-                    nazwa_wlasna: nazwa,
-                    nazwa_formalna: nazwaFormalna,
-                    email: email || null,
-                    telefon: tel || null,
-                    nip: nip || null,
-                    adres_faktury: adresFaktury,
-                    adres_dostawy: adresDostawy
-                })
-            });
-            // dodaj do selecta i wybierz
-            const sel = document.getElementById('zamKlient');
-            const opt = document.createElement('option');
-            opt.value = klient.id;
-            opt.textContent = klient.nazwa_wlasna;
-            sel.appendChild(opt);
-            sel.value = klient.id;
-            // odśwież globalną listę
-            allKlienci.push({
-                id: klient.id,
-                nazwa_wlasna: klient.nazwa_wlasna
-            });
-            document.getElementById('nowyKlientForm').style.display = 'none';
-            msg.className = 'f-msg ok';
-            msg.textContent = '✓ Klient dodany i wybrany!';
-        } catch (e) {
-            msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
-        }
-    }
-
-    async function zapiszZamowienie() {
-        const klientId = document.getElementById('zamKlient')?.value || document.getElementById('zamKlientInput')?.dataset?.id || '';
-        const zrodlo = document.getElementById('zamZrodlo').value;
-        const typ = document.getElementById('zamTyp').value;
-        const tresc = document.getElementById('zamTresc').value.trim();
-        const msg = document.getElementById('zamMsg');
-
-        if (!klientId) {
-            msg.className = 'f-msg err';
-            msg.textContent = 'Wybierz klienta.';
-            return;
-        }
-
-        // zbierz pozycje
-        const pozycjeDivs = document.querySelectorAll('#pozycjeZam > div[data-typ]');
-        const pozycje = [];
-        const komisDoUtworzenia = [];
-        for (const div of pozycjeDivs) {
-            const typ2 = div.dataset.typ;
-            // For termiczne, ilosc and cena use different IDs
-            const ilosc = typ2 === 'termiczny'
-            ? parseInt(div.querySelector('[id^="poz_term_ilosc_"]')?.value) || 0
-            : parseInt(div.querySelector('[data-field="ilosc"]')?.value) || 0;
-            const cena = typ2 === 'termiczny'
-            ? parseFloat(div.querySelector('[id^="poz_term_cena_"]')?.value) || 0
-            : parseFloat(div.querySelector('[data-field="cena"]')?.value) || 0;
-            // Skip items with no ilosc
-            if (typ2 !== 'termiczny' && typ2 !== 'wysylka' && typ2 !== 'wlasne_logo' && ilosc <= 0)
-                continue;
-
-            if (typ2 === 'wlasne_logo') {
-                // Utwórz nowy kubek jako zlecony i dodaj do pozycji zamówienia
-                const wlMat = div.querySelector(`[id^="wl_mat_"]`)?.value;
-                const wlPoj = parseInt(div.querySelector(`[id^="wl_poj_"]`)?.value) || 0;
-                const wlSci = div.querySelector(`[id^="wl_sci_"]`)?.value;
-                const wlPak = parseInt(div.querySelector(`[id^="wl_pak_"]`)?.value) || null;
-                const wlGrafika = div.querySelector(`[id^="wl_grafika_"]`)?.value?.trim() || 'Logo klienta';
-                const wlIlosc = parseInt(div.querySelector(`[id^="wl_ilosc_"]`)?.value) || 0;
-                const wlData = div.querySelector(`[id^="wl_data_"]`)?.value || new Date().toISOString().slice(0, 10);
-                const wlCenaNet = parseFloat(div.querySelector(`[id^="wl_cena_"]`)?.value) || 0;
-                const wlCenaBrut = parseFloat(div.querySelector(`[id^="wl_brutto_"]`)?.value) || 0;
-                const wlCena = wlCenaNet || (wlCenaBrut / 1.23) || 0;
-                if (!wlMat || !wlPoj || !wlSci) {
-                    msg.className = 'f-msg err';
-                    msg.textContent = 'Uzupełnij dane kubka z własnym logo.';
-                    return;
-                }
-                try {
-                    // Szukaj artysty "własne logo" lub utwórz
-                    // Utwórz grafikę bez artysty
-                    const wlArtId = div.querySelector(`[id^="wl_artysta_"]`)?.value || null;
-                    const wlFileInput = div.querySelector(`[id^="wl_file_"]`);
-                    let wlMiniaturka = null;
-                    if (wlFileInput?.files?.[0]) {
-                        try {
-                            wlMiniaturka = await sbUpload(wlFileInput.files[0]);
-                        } catch (e) {}
-                    }
-                    const [graf] = await sbFetch('grafika', '', {
-                        method: 'POST',
-                        body: JSON.stringify({
-                            nazwa: wlGrafika,
-                            miniaturka_url: wlMiniaturka,
-                            artysta_id: wlArtId || undefined
-                        })
-                    });
-                    // Utwórz kubek zlecony
-                    const [nowyKubek] = await sbFetch('kubek', '', {
-                        method: 'POST',
-                        body: JSON.stringify({
-                            grafika_id: graf.id,
-                            pojemnosc_ml: wlPoj,
-                            typ_materialu: wlMat,
-                            typ_scianki: wlSci,
-                            sztuk_w_opakowaniu: wlPak,
-                            cena_netto: wlCena || null,
-                            status: 'zlecony',
-                            logo: 'klienta',
-                            ilosc_zlecona: wlIlosc,
-                            data_zlecenia: wlData,
-                        })
-                    });
-                    // Utwórz stany magazynowe (0 szt.)
-                    const stanyWl = allMagazyny.map(m => ({
-                        kubek_id: nowyKubek.id,
-                        magazyn_id: m.id,
-                        ilosc_dostepna: 0,
-                        ilosc_w_drodze: 0
-                    }));
-                    await sbFetch('stan_magazynowy', '', {
-                        method: 'POST',
-                        body: JSON.stringify(stanyWl)
-                    });
-                    // Dodaj do pozycji zamówienia
-                    pozycje.push({
-                        rodzaj_produktu: 'kubek',
-                        kubek_id: nowyKubek.id,
-                        ilosc: wlIlosc,
-                        cena_jednostkowa: wlCena
-                    });
-                } catch (wlErr) {
-                    msg.className = 'f-msg err';
-                    msg.textContent = 'Błąd tworzenia kubka: ' + wlErr.message;
-                    return;
-                }
-            } else if (typ2 === 'kubek') {
-                const kubId = div.querySelector('[data-field="kubek_id"]')?.value;
-                if (!kubId) {
-                    msg.className = 'f-msg err';
-                    msg.textContent = 'Wybierz kubek dla każdej pozycji.';
-                    return;
-                }
-                const magId = div.querySelector('[id^="poz_mag_val_"]')?.value || null;
-                if (!magId) {
-                    msg.className = 'f-msg err';
-                    msg.textContent = 'Wybierz magazyn dla każdego kubka — jest wymagany do realizacji zamówienia.';
-                    return;
-                }
-                pozycje.push({
-                    rodzaj_produktu: 'kubek',
-                    kubek_id: kubId,
-                    magazyn_id: magId,
-                    ilosc,
-                    cena_jednostkowa: cena
-                });
-            } else if (typ2 === 'termiczny') {
-                const termTyp = div.querySelector('[id^="poz_term_typ_"]')?.value || 'sprzedaz';
-                const termZrodlo = div.querySelector('[id^="poz_term_zrodlo_"]')?.value || 'magazyn';
-                const termIlosc = parseInt(div.querySelector('[id^="poz_term_ilosc_"]')?.value) || 0;
-                const termCenaNet = parseFloat(div.querySelector('[id^="poz_term_cena_"]')?.value) || 0;
-                const termCenaBrut = parseFloat(div.querySelector('[id^="poz_term_brutto_"]')?.value) || 0;
-                const termCena = termCenaNet || (termCenaBrut / 1.23) || 0;
-                if (termIlosc <= 0)
-                    continue;
-                if (termTyp === 'komis') {
-                    const kubId = div.querySelector('[data-field="kubek_termiczny_komis_id"]')?.value;
-                    if (!kubId)
-                        continue;
-                    const cenKom = parseFloat(div.querySelector('[id^="poz_term_cena_kom_"]')?.value) || 0;
-                    komisDoUtworzenia.push({
-                        kubek_id: kubId,
-                        ilosc: termIlosc,
-                        cena_komisowa: cenKom || null
-                    });
-                } else {
-                    // sprzedaz
-                    let kubId;
-                    if (termZrodlo === 'komis') {
-                        kubId = div.querySelector('[id^="poz_term_komis_kub_"]')?.value;
-                    } else {
-                        kubId = div.querySelector('[data-field="kubek_termiczny_id"]')?.value;
-                    }
-                    if (!kubId)
-                        continue;
-                    // Extract id from div.id = 'poz_N'
-                    const divNum = div.id.replace('poz_', '');
-                    const komisKubek = termZrodlo === 'komis' ? (window['komisPicker_' + divNum] || []).find(k => k.id === kubId) : null;
-                    pozycje.push({
-                        rodzaj_produktu: 'termiczny',
-                        kubek_termiczny_id: kubId,
-                        typ_termiczny: 'sprzedaz',
-                        ilosc: termIlosc,
-                        cena_jednostkowa: termCena
-                    });
-                    // Jeśli sprzedaż z komisu - zmniejsz ilosc w komis
-                    if (termZrodlo === 'komis' && komisKubek?.komis_id) {
-                        const nowaIlosc = (komisKubek.ilosc || 0) - termIlosc;
-                        if (nowaIlosc <= 0) {
-                            await sbFetch('komis', `?id=eq.${komisKubek.komis_id}`, {
-                                method: 'PATCH',
-                                body: JSON.stringify({
-                                    status: 'sprzedany',
-                                    ilosc: 0
-                                })
-                            });
-                        } else {
-                            await sbFetch('komis', `?id=eq.${komisKubek.komis_id}`, {
-                                method: 'PATCH',
-                                body: JSON.stringify({
-                                    ilosc: nowaIlosc
-                                })
-                            });
-                        }
-                    }
-                }
-            } else if (typ2 === 'wysylka') {
-                const wTyp = div.querySelector('[data-field="wysylka_typ"]')?.value || 'DPD';
-                const wNazwa = div.querySelector('[data-field="wysylka_nazwa"]')?.value || ('Wysyłka ' + wTyp);
-                const cenWNetto = parseFloat(div.querySelector('[data-field="cena"]')?.value) || 0;
-                const cenWBrutto = parseFloat(div.querySelector('[id^="poz_brutto_"]')?.value) || 0;
-                const cenW = cenWNetto || (cenWBrutto / 1.23) || 0;
-                if (cenW > 0)
-                    pozycje.push({
-                        rodzaj_produktu: 'wysylka',
-                        typ_wysylki: wTyp,
-                        nazwa_wysylki: wNazwa,
-                        ilosc: 1,
-                        cena_jednostkowa: cenW
-                    });
-            } else if (typ2 === 'przykrywka') {
-                const prMat = div.querySelector('[data-field="pr_mat"]')?.value;
-                const prRozm = parseInt(div.querySelector('[data-field="pr_rozm"]')?.value);
-                const prKol = div.querySelector('[data-field="pr_kol"]')?.value;
-                try {
-                    let prs = await sbFetch('przykrywka', `?typ_materialu=eq.${prMat}&rozmiar_mm=eq.${prRozm}&kolor=eq.${prKol}`);
-                    let pr;
-                    if (prs.length > 0)
-                        pr = prs[0];
-                    else {
-                        const [nowy] = await sbFetch('przykrywka', '', {
-                            method: 'POST',
-                            body: JSON.stringify({
-                                typ_materialu: prMat,
-                                rozmiar_mm: prRozm,
-                                kolor: prKol,
-                                cena_netto: cena
-                            })
-                        });
-                        pr = nowy;
-                    }
-                    pozycje.push({
-                        rodzaj_produktu: 'przykrywka',
-                        przykrywka_id: pr.id,
-                        ilosc,
-                        cena_jednostkowa: cena
-                    });
-                } catch (e) {
-                    msg.className = 'f-msg err';
-                    msg.textContent = 'Błąd przykrywki: ' + e.message;
-                    return;
-                }
-            }
-        }
-
-        try {
-            msg.className = 'f-msg';
-            msg.textContent = 'Zapisuję…';
-            // Utwórz komisaty (niezależnie od zamówienia)
-            for (const k of komisDoUtworzenia) {
-                await sbFetch('komis', '', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        kubek_id: k.kubek_id,
-                        klient_id: klientId,
-                        ilosc: k.ilosc,
-                        cena_komisowa: k.cena_komisowa || null,
-                        status: 'aktywny',
-                        data_przekazania: new Date().toISOString().slice(0, 10),
-                    })
-                });
-            }
-
-            // Zapisz zamówienie tylko jeśli są pozycje sprzedażowe
-            if (pozycje.length) {
-                const [zam] = await sbFetch('zamowienie', '', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        klient_id: klientId,
-                        typ_zamowienia: typ,
-                        zrodlo,
-                        tresc_zamowienia: tresc || null,
-                        status_realizacji: 'w_produkcji',
-                        status_faktury: 'nie_wyslana',
-                        status_platnosci: 'nieoplacona',
-                    })
-                });
-                for (const p of pozycje) {
-                    await sbFetch('pozycja_zamowienia', '', {
-                        method: 'POST',
-                        body: JSON.stringify({
-                            ...p,
-                            zamowienie_id: zam.id
-                        })
-                    });
-                }
-            }
-            msg.className = 'f-msg ok';
-            if (pozycje.length && komisDoUtworzenia.length)
-                msg.textContent = `✓ Zamówienie zapisane + ${komisDoUtworzenia.length} pozycji do komisu!`;
-            else if (komisDoUtworzenia.length)
-                msg.textContent = `✓ ${komisDoUtworzenia.length} pozycji przekazanych do komisu!`;
-            else
-                msg.textContent = '✓ Zamówienie zapisane!';
-            setTimeout(() => {
-                closeZamDrawer();
-                loadZamowienia();
-            }, 1000);
-        } catch (e) {
-            msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
-        }
-    }
-
-    // ── FAKTUROWNIA ──
-    const FAKTUROWNIA_TOKEN = localStorage.getItem('fakturownia_token') || '';
-    const FAKTUROWNIA_DOMAIN = localStorage.getItem('fakturownia_domain') || '';
-
-    async function przygotujFakture(zamId) {
-        const {url, key} = getCfg();
-        const edgeFnUrl = `${url}/functions/v1/fakturownia-invoice`;
-        const msg = document.getElementById('zamStatusMsg');
-        if (msg) {
-            msg.className = 'f-msg';
-            msg.textContent = '⏳ Generuję fakturę…';
-        }
-        try {
-            const res = await fetch(edgeFnUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${key}`,
-                },
-                body: JSON.stringify({
-                    zamowienie_id: zamId
-                }),
-            });
-            const data = await res.json();
-            if (data.success) {
-                if (msg) {
-                    msg.className = 'f-msg ok';
-                    msg.textContent = `✓ Faktura nr ${data.faktura_numer} utworzona!`;
-                }
-                setTimeout(() => {
-                    closeZamDrawer();
-                    loadZamowienia();
-                }, 1500);
-            } else {
-                if (msg) {
-                    msg.className = 'f-msg err';
-                    msg.textContent = 'Błąd: ' + (data.error || JSON.stringify(data));
-                }
-                else
-                    alert('Błąd Fakturowni: ' + (data.error || JSON.stringify(data)));
-            }
-        } catch (e) {
-            if (msg) {
-                msg.className = 'f-msg err';
-                msg.textContent = 'Błąd: ' + e.message;
-            }
-            else
-                alert('Błąd: ' + e.message);
-        }
-    }
-
-    async function wylijWysylke(zamId) {
-        try {
-            await sbFetch('zamowienie', `?id=eq.${zamId}`, {
-                method: 'PATCH',
-                body: JSON.stringify({
-                    status_realizacji: 'wyslane'
-                })
-            });
-            alert('✓ Status zmieniony na: Wysłane');
-            loadZamowienia();
-            closeZamDrawer();
-        } catch (e) {
-            alert('Błąd: ' + e.message);
-        }
-    }
-
-    // ── EDYTUJ ZAMÓWIENIE ──
-    async function openEdytujZamowienie(zamId) {
-        try {
-            const [zam] = await sbFetch('zamowienie', `?id=eq.${zamId}`);
-            const pozycje = await sbFetch('v_pozycje_zamowienia', `?zamowienie_id=eq.${zamId}`);
-            const klientOptions = allKlienci.map(k => `<option value="${k.id}" ${k.id === zam.klient_id ? 'selected' : ''}>${k.nazwa_wlasna}</option>`).join('');
-
-            // pozycje HTML do edycji
-            let pozIdx = pozycjeCounter;
-            const pozHTML = pozycje.map(p => {
-                pozIdx++;
-                const opis = p.rodzaj_produktu === 'kubek'
-                ? `${p.grafika || '—'} · ${p.pojemnosc_ml}ml ${p.typ_materialu || ''}`
-                : `Przykrywka ${p.pr_typ || ''} ${p.pr_rozmiar || ''}mm`;
-                return `<div id="epoz_${p.id}" style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
-        <div style="flex:1;font-size:12px;">${opis}</div>
-        <div style="font-size:12px;color:var(--ink2);">${p.ilosc} szt. · ${Number(p.cena_jednostkowa).toFixed(2)} zł</div>
-        <button onclick="usunPozycje('${p.id}','epoz_${p.id}')" style="background:none;border:none;color:var(--accent);font-size:16px;cursor:pointer;padding:0 4px;">✕</button>
-      </div>`
-                ;
-            }).join('');
-
-            document.getElementById('drawerZamContent').innerHTML = `
-      <button class="drawer-back" onclick="openZamowienieDrawer('${zamId}')">← Wróć</button>
-      <div class="drawer-title">Edytuj zamówienie</div>
-
-      <div class="d-section">Klient</div>
-      <select class="f-select" id="eZamKlient">${
-
-
-            klientOptions}</select>
-
-      <div class="d-section">Szczegóły</div>
-      <div style="display:flex;gap:8px;margin-bottom:12px;">
-        <div class="f-group" style="flex:1;margin-bottom:0;"><label class="f-label">Źródło</label>
-          <select class="f-select" id="eZamZrodlo">
-            <option value="email" ${
-
-
-
-
-            zam.zrodlo === 'email' ? 'selected' : ''}>Email</option>
-            <option value="telefon" ${zam.zrodlo === 'telefon' ? 'selected' : ''}>Telefon</option>
-            <option value="sms" ${zam.zrodlo === 'sms' ? 'selected' : ''}>SMS</option>
-          </select>
-        </div>
-        <div class="f-group" style="flex:1;margin-bottom:0;"><label class="f-label">Typ</label>
-          <select class="f-select" id="eZamTyp">
-            <option value="artsider" ${
-
-
-
-            zam.typ_zamowienia === 'artsider' ? 'selected' : ''}>Artsider</option>
-            <option value="wlasne_logo" ${zam.typ_zamowienia === 'wlasne_logo' ? 'selected' : ''}>Własne logo</option>
-          </select>
-        </div>
+            id}" data-field="cena" type="number" step="0.01" placeholder="netto" style="flex:1;" oninput="syncBrutto(${id})">
+        <span style="font-size:10px;color:var(--ink3);align-self:center;">/</span>
+        <input class="f-input" id="poz_brutto_${
+            id}" type="number" step="0.01" placeholder="brutto" style="flex:1;" oninput="syncNetto(${id})">
       </div>
-      <div class="f-group"><label class="f-label">Treść zamówienia</label>
-        <textarea class="f-input" id="eZamTresc" rows="4" style="resize:vertical;">${
-
-
-
-            zam.tresc_zamowienia || ''}</textarea>
-      </div>
-      <div class="f-group"><label class="f-label">Numer faktury</label>
-        <input class="f-input" id="eZamFaktura" value="${
-
-            zam.numer_faktury || ''}">
-      </div>
-
-      <div class="d-section">Pozycje zamówienia</div>
-      <div id="ePozycjeList">${
-
-
-            pozHTML}</div>
-      <button class="btn-secondary" onclick="dodajPozycjeEdit('kubek')" style="margin-bottom:6px;">+ Kubek papierowy</button>
-      <button class="btn-secondary" onclick="dodajPozycjeEdit('przykrywka')" style="margin-bottom:6px;">+ Wieczko</button>
-      <button class="btn-secondary" onclick="dodajPozycjeTermiczneEdit()" style="margin-bottom:6px;">+ Termiczne</button>
-      <button class="btn-secondary" onclick="dodajPozycjeEdit('wysylka')" style="margin-bottom:6px;">+ Wysyłka</button>
-      <div id="ePozycjeNowe"></div>
-
-      <button class="btn-primary" onclick="zapiszEdycjeZamowienia('${
-
-
-
-
-
-            zamId}')" style="margin-top:12px;">💾 Zapisz zmiany</button>
-      <div class="f-msg" id="eZamMsg"></div>
     `
 
             ;
-        } catch (e) {
-            alert('Błąd: ' + e.message);
+            wrap.appendChild(div);
         }
     }
 
-    async function usunPozycje(pozId, divId) {
-        try {
-            await sbFetch('pozycja_zamowienia', `?id=eq.${pozId}`, {
-                method: 'DELETE'
-            });
-            document.getElementById(divId)?.remove();
-        } catch (e) {
-            alert('Błąd usuwania: ' + e.message);
-        }
-    }
-
-    function dodajPozycjeEdit(typ) {
-        const wrap = document.getElementById('ePozycjeNowe');
-        const id = ++pozycjeCounter;
-        const div = document.createElement('div');
-        div.id = `epoz_new_${id}`;
-        div.dataset.typ = typ;
-        div.style.cssText = 'background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:6px;position:relative;';
-
-        let selectHTML = '';
-        if (typ === 'kubek') {
-            const maty = [...new Set(allKubki.map(k => k.typ_materialu).filter(Boolean))].sort();
-            selectHTML = `
-      <select class="f-select" id="epoz_mat_${id}" onchange="onPozMaterialChange(${id})" style="margin-bottom:6px;">
-        <option value="">— materiał —</option>
-        ${
-            maty.map(m => `<option value="${m}">${m}</option>`).join('')}
-      </select>
-      <select class="f-select" id="poz_poj_${
-            id}" onchange="onPozPojChange(${id})" style="margin-bottom:6px;">
-        <option value="">— pojemność —</option>
-      </select>
-      <select class="f-select" id="poz_kub_${
-
-            id}" data-field="kubek_id" onchange="onPozKubekChange(${id})" style="margin-bottom:6px;">
-        <option value="">— wybierz kubek —</option>
-      </select>`
-
-            ;
-        } else {
-            selectHTML = `<div style="display:flex;gap:6px;margin-bottom:6px;">
-      <select class="f-select" data-field="pr_mat" style="flex:1;"><option value="papierowa">Papierowa</option><option value="plastikowa">Plastikowa</option></select>
-      <select class="f-select" data-field="pr_rozm" style="flex:1;"><option value="80">80mm</option><option value="90">90mm</option><option value="72">72mm</option></select>
-      <select class="f-select" data-field="pr_kol" style="flex:1;"><option value="biały">Biały</option><option value="czarny">Czarny</option></select>
-    </div>`
-
-
-
-            ;
-        }
-
-        div.innerHTML = `
-    <button onclick="document.getElementById('epoz_new_${id}').remove()" style="position:absolute;top:8px;right:8px;background:none;border:none;font-size:16px;cursor:pointer;color:var(--ink3);">✕</button>
-    <div style="font-size:10px;text-transform:uppercase;color:var(--ink3);margin-bottom:8px;">${typ === 'kubek' ? 'Kubek papierowy' : 'Przykrywka'}</div>
-    ${selectHTML}
-    <div style="display:flex;gap:8px;">
-      <div class="f-group" style="flex:1;margin-bottom:0;"><label class="f-label">Ilość</label><input class="f-input" data-field="ilosc" type="number" min="1" value="1"></div>
-      <div class="f-group" style="flex:1;margin-bottom:0;"><label class="f-label">Cena netto</label><input class="f-input" id="poz_cena_${
-
-        id}" data-field="cena" type="number" step="0.01" min="0" placeholder="auto"></div>
-    </div>`
-        ;
-        // fix material select id
-        const matSel = div.querySelector(`#epoz_mat_${id}`);
-        if (matSel)
-            matSel.id = `poz_mat_${id}`;
-        wrap.appendChild(div);
-    }
-
-    async function zapiszEdycjeZamowienia(zamId) {
-        const klientId = document.getElementById('eZamKlient').value;
-        const zrodlo = document.getElementById('eZamZrodlo').value;
-        const typ = document.getElementById('eZamTyp').value;
-        const tresc = document.getElementById('eZamTresc').value.trim();
-        const faktura = document.getElementById('eZamFaktura').value.trim();
-        const msg = document.getElementById('eZamMsg');
-
-        msg.className = 'f-msg';
-        msg.textContent = 'Zapisuję…';
-
-        try {
-            // zaktualizuj zamówienie
-            await sbFetch('zamowienie', `?id=eq.${zamId}`, {
-                method: 'PATCH',
-                body: JSON.stringify({
-                    klient_id: klientId,
-                    zrodlo,
-                    typ_zamowienia: typ,
-                    tresc_zamowienia: tresc || null,
-                    numer_faktury: faktura || null,
-                })
-            });
-
-            // zapisz nowe pozycje
-            const nowe = document.querySelectorAll('#ePozycjeNowe > div[data-typ]');
-            for (const div of nowe) {
-                const typ2 = div.dataset.typ;
-                const ilosc = parseInt(div.querySelector('[data-field="ilosc"]')?.value) || 0;
-                const cena = parseFloat(div.querySelector('[data-field="cena"]')?.value) || 0;
-                if (ilosc <= 0 || cena <= 0)
-                    continue;
-                if (typ2 === 'kubek') {
-                    const kubId = div.querySelector('[data-field="kubek_id"]')?.value;
-                    if (!kubId)
-                        continue;
-                    const magIdE = div.querySelector('[id^="poz_mag_val_"]')?.value || null;
-                    await sbFetch('pozycja_zamowienia', '', {
-                        method: 'POST',
-                        body: JSON.stringify({
-                            zamowienie_id: zamId,
-                            rodzaj_produktu: 'kubek',
-                            kubek_id: kubId,
-                            magazyn_id: magIdE || undefined,
-                            ilosc,
-                            cena_jednostkowa: cena
-                        })
-                    });
-                } else if (typ2 === 'przykrywka') {
-                    const prMat = div.querySelector('[data-field="pr_mat"]')?.value;
-                    const prRozm = parseInt(div.querySelector('[data-field="pr_rozm"]')?.value);
-                    const prKol = div.querySelector('[data-field="pr_kol"]')?.value;
-                    let prs = await sbFetch('przykrywka', `?typ_materialu=eq.${prMat}&rozmiar_mm=eq.${prRozm}&kolor=eq.${prKol}`);
-                    let pr;
-                    if (prs.length > 0)
-                        pr = prs[0];
-                    else {
-                        const [n] = await sbFetch('przykrywka', '', {
-                            method: 'POST',
-                            body: JSON.stringify({
-                                typ_materialu: prMat,
-                                rozmiar_mm: prRozm,
-                                kolor: prKol,
-                                cena_netto: cena
-                            })
-                        });
-                        pr = n;
-                    }
-                    await sbFetch('pozycja_zamowienia', '', {
-                        method: 'POST',
-                        body: JSON.stringify({
-                            zamowienie_id: zamId,
-                            rodzaj_produktu: 'przykrywka',
-                            przykrywka_id: pr.id,
-                            ilosc,
-                            cena_jednostkowa: cena
-                        })
-                    });
-                } else if (typ2 === 'termiczny') {
-                    const termTyp = div.querySelector('[id^="poz_term_typ_"]')?.value || 'sprzedaz';
-                    const termIlosc = parseInt(div.querySelector('[id^="poz_term_ilosc_"]')?.value) || 0;
-                    const termCenaNet = parseFloat(div.querySelector('[id^="poz_term_cena_"]')?.value) || 0;
-                    const termCenaBrut = parseFloat(div.querySelector('[id^="poz_term_brutto_"]')?.value) || 0;
-                    const termCena = termCenaNet || (termCenaBrut / 1.23) || 0;
-                    if (termIlosc <= 0)
-                        continue;
-                    if (termTyp === 'komis') {
-                        const kubId = div.querySelector('[data-field="kubek_termiczny_komis_id"]')?.value;
-                        if (!kubId)
-                            continue;
-                        const cenKom = parseFloat(div.querySelector('[id^="poz_term_cena_kom_"]')?.value) || 0;
-                        await sbFetch('komis', '', {
-                            method: 'POST',
-                            body: JSON.stringify({
-                                kubek_id: kubId,
-                                klient_id: klientId,
-                                ilosc: termIlosc,
-                                cena_komisowa: cenKom || null,
-                                status: 'aktywny',
-                                data_przekazania: new Date().toISOString().slice(0, 10)
-                            })
-                        });
-                    } else {
-                        const termZrodlo = div.querySelector('[id^="poz_term_zrodlo_"]')?.value || 'magazyn';
-                        const kubId = termZrodlo === 'komis' ? div.querySelector('[id^="poz_term_komis_kub_"]')?.value : div.querySelector('[data-field="kubek_termiczny_id"]')?.value;
-                        if (!kubId)
-                            continue;
-                        await sbFetch('pozycja_zamowienia', '', {
-                            method: 'POST',
-                            body: JSON.stringify({
-                                zamowienie_id: zamId,
-                                rodzaj_produktu: 'termiczny',
-                                kubek_termiczny_id: kubId,
-                                typ_termiczny: 'sprzedaz',
-                                ilosc: termIlosc,
-                                cena_jednostkowa: termCena
-                            })
-                        });
-                    }
-                } else if (typ2 === 'wysylka') {
-                    const wTyp = div.querySelector('[data-field="wysylka_typ"]')?.value || 'DPD';
-                    const wNazwa = div.querySelector('[data-field="wysylka_nazwa"]')?.value || ('Wysyłka ' + wTyp);
-                    const cenWn = parseFloat(div.querySelector('[data-field="cena"]')?.value) || 0;
-                    const cenWb = parseFloat(div.querySelector('[id^="poz_brutto_"]')?.value) || 0;
-                    const cenW = cenWn || (cenWb / 1.23) || 0;
-                    if (cenW > 0)
-                        await sbFetch('pozycja_zamowienia', '', {
-                            method: 'POST',
-                            body: JSON.stringify({
-                                zamowienie_id: zamId,
-                                rodzaj_produktu: 'wysylka',
-                                typ_wysylki: wTyp,
-                                nazwa_wysylki: wNazwa,
-                                ilosc: 1,
-                                cena_jednostkowa: cenW
-                            })
-                        });
-                }
-            }
-
-            msg.className = 'f-msg ok';
-            msg.textContent = '✓ Zapisano zmiany!';
-            setTimeout(() => openZamowienieDrawer(zamId), 1000);
-        } catch (e) {
-            msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
-        }
-    }
-
-    // ── AUTOCOMPLETE KLIENT ──
-    function autocompleteKlient(q) {
-        const list = document.getElementById('zamKlientList');
-        const hidden = document.getElementById('zamKlient');
-        if (!q || q.length < 1) {
-            list.classList.remove('open');
+    function renderKubkiInline(id) {
+        const magId = document.getElementById(`kf_mag_${id}`)?.value || '';
+        const mat = document.getElementById(`kf_mat_${id}`)?.value || '';
+        const sci = document.getElementById(`kf_sci_${id}`)?.value || '';
+        const wrap = document.getElementById(`klist_${id}`);
+        if (!wrap)
+            return;
+        if (!magId) {
+            wrap.innerHTML = '<div style="color:var(--ink3);font-size:12px;padding:8px;">Wybierz magazyn.</div>';
             return;
         }
-        const filtered = allKlienci.filter(k => k.nazwa_wlasna.toLowerCase().includes(q.toLowerCase()));
-        if (!filtered.length) {
-            list.classList.remove('open');
-            return;
-        }
-        list.innerHTML = filtered.slice(0, 8).map(k => {
-            const hl = k.nazwa_wlasna.replace(new RegExp(`(${q})`, 'gi'), '<strong>$1</strong>');
-            return `<div class="autocomplete-item" onclick="selectKlient('${k.id}','${k.nazwa_wlasna.replace(/'/g, "\\'")}')"><span>${hl}</span></div>`;
-        }).join('');
-        list.classList.add('open');
-    }
-
-    function selectKlient(id, nazwa) {
-        document.getElementById('zamKlient').value = id;
-        document.getElementById('zamKlientInput').value = nazwa;
-        document.getElementById('zamKlientList').classList.remove('open');
-    }
-
-    // ── STICKY TRESC ──
-    function makeTrescSticky() {
-        const tresc = document.getElementById('zamTresc')?.value?.trim();
-        if (!tresc)
-            return;
-        const placeholder = document.getElementById('tresc-sticky-placeholder');
-        if (!placeholder || document.getElementById('tresc-sticky-box'))
-            return;
-        const box = document.createElement('div');
-        box.className = 'drawer-tresc-sticky';
-        box.id = 'tresc-sticky-box';
-        box.innerHTML = `
-    <div style="font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);margin-bottom:4px;">Treść zamówienia</div>
-    <div class="tresc-box">${
-        tresc}</div>
-  `
-        ;
-        placeholder.parentNode.insertBefore(box, placeholder);
-    }
-
-    // ── EDYTUJ KUBEK ZLECONY ──
-    async function openEdytujKubek(kubek_id) {
-        const k = allZlecone.find(x => x.kubek_id === kubek_id);
-        if (!k)
-            return;
-        document.getElementById('drawerContent').innerHTML = `
-    <div class="drawer-handle"></div>
-    <button class="drawer-back" onclick="openDrawer('${
-        kubek_id}','zlecony')">← Wróć</button>
-    <div class="drawer-title">Edytuj kubek</div>
-    <div class="f-group"><label class="f-label">Nazwa grafiki</label><input class="f-input" id="ekGrafika" value="${
-        k.grafika || ''}"></div>
-    <div class="f-group"><label class="f-label">Artysta</label>
-      <select class="f-select" id="ekArtysta">
-        ${
-
-        allArtysci.map(a => `<option value="${a.id}">${a.imie_nazwisko}</option>`).join('')}
-      </select>
-    </div>
-    <div class="f-row">
-      <div class="f-group"><label class="f-label">Materiał</label>
-        <select class="f-select" id="ekMat" onchange="updatePojemnosci()">
-          <option value="PE" ${
-
-
-
-
-        k.typ_materialu === 'PE' ? 'selected' : ''}>PE</option>
-          <option value="BIO" ${k.typ_materialu === 'BIO' ? 'selected' : ''}>BIO</option>
-          <option value="rPET" ${k.typ_materialu === 'rPET' ? 'selected' : ''}>rPET</option>
-        </select>
-      </div>
-      <div class="f-group"><label class="f-label">Pojemność</label>
-        <select class="f-select" id="nPoj">
-          ${
-
-
-
-        (POJEMNOSCI[k.typ_materialu] || []).map(p => `<option value="${p}" ${p === k.pojemnosc_ml ? 'selected' : ''}>${p} ml</option>`).join('')}
-        </select>
-      </div>
-    </div>
-    <div class="f-row">
-      <div class="f-group"><label class="f-label">Ścianka</label>
-        <select class="f-select" id="ekSci">
-          <option value="jednościankowy" ${
-
-
-
-
-
-        k.typ_scianki === 'jednościankowy' ? 'selected' : ''}>Jednościankowy</option>
-          <option value="dwuściankowy" ${k.typ_scianki === 'dwuściankowy' ? 'selected' : ''}>Dwuściankowy</option>
-          <option value="inny" ${k.typ_scianki === 'inny' ? 'selected' : ''}>Inny</option>
-        </select>
-      </div>
-      <div class="f-group"><label class="f-label">Szt. w opak.</label>
-        <input class="f-input" id="ekPak" type="number" min="1" value="${
-
-
-        k.sztuk_w_opakowaniu || ''}">
-      </div>
-    </div>
-    <div class="f-group"><label class="f-label">Cena netto (zł)</label>
-      <input class="f-input" id="ekCena" type="number" step="0.01" value="${
-
-
-        k.cena_netto || ''}">
-    </div>
-    <button class="btn-primary" onclick="zapiszEdycjeKubka('${
-        kubek_id}')" style="margin-top:12px;">💾 Zapisz zmiany</button>
-    <div class="f-msg" id="ekMsg"></div>
-  `
-
-        ;
-    }
-
-    async function zapiszEdycjeKubka(kubek_id) {
-        const grafNazwa = document.getElementById('ekGrafika').value.trim();
-        const artId = document.getElementById('ekArtysta').value;
-        const mat = document.getElementById('ekMat').value;
-        const poj = parseInt(document.getElementById('ekPoj')?.value || document.getElementById('nPoj')?.value);
-        const sci = document.getElementById('ekSci').value;
-        const pak = parseInt(document.getElementById('ekPak').value) || null;
-        const cena = parseFloat(document.getElementById('ekCena').value);
-        const msg = document.getElementById('ekMsg');
-        try {
-            // pobierz grafika_id dla tego kubka
-            const [kubek] = await sbFetch('kubek', `?id=eq.${kubek_id}`);
-            // zaktualizuj grafikę
-            await sbFetch('grafika', `?id=eq.${kubek.grafika_id}`, {
-                method: 'PATCH',
-                body: JSON.stringify({
-                    nazwa: grafNazwa,
-                    artysta_id: artId
-                })
-            });
-            // zaktualizuj kubek
-            await sbFetch('kubek', `?id=eq.${kubek_id}`, {
-                method: 'PATCH',
-                body: JSON.stringify({
-                    pojemnosc_ml: poj,
-                    typ_materialu: mat,
-                    typ_scianki: sci,
-                    sztuk_w_opakowaniu: pak,
-                    cena_netto: cena
-                })
-            });
-            msg.className = 'f-msg ok';
-            msg.textContent = '✓ Zapisano!';
-            setTimeout(() => {
-                closeDrawer();
-                loadAll();
-            }, 1000);
-        } catch (e) {
-            msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
-        }
-    }
-
-    async function usunKubek(kubek_id) {
-        const choice = confirm('Czy na pewno usunąć ten kubek?\n\nJeśli kubek był w zamówieniach, nie można go usunąć — zostanie wtedy zarchiwizowany (stan = 0).');
-        if (!choice)
-            return;
-        try {
-            const [kubek] = await sbFetch('kubek', `?id=eq.${kubek_id}`);
-            try {
-                // Spróbuj usunąć
-                await sbFetch('stan_magazynowy', `?kubek_id=eq.${kubek_id}`, {
-                    method: 'DELETE'
-                });
-                await sbFetch('kubek', `?id=eq.${kubek_id}`, {
-                    method: 'DELETE'
-                });
-                try {
-                    await sbFetch('grafika', `?id=eq.${kubek.grafika_id}`, {
-                        method: 'DELETE'
-                    });
-                } catch (e) {}
-                closeDrawer();
-                loadAll();
-            } catch (e) {
-                if (e.message.includes('23503') || e.message.includes('foreign key')) {
-                    // Ma powiązane zamówienia — zarchiwizuj zamiast usuwać
-                    const mag = await sbFetch('stan_magazynowy', `?kubek_id=eq.${kubek_id}`);
-                    for (const s of mag) {
-                        await sbFetch('stan_magazynowy', `?id=eq.${s.id}`, {
-                            method: 'PATCH',
-                            body: JSON.stringify({
-                                ilosc_dostepna: 0,
-                                ilosc_w_drodze: 0
-                            })
-                        });
-                    }
-                    await sbFetch('kubek', `?id=eq.${kubek_id}`, {
-                        method: 'PATCH',
-                        body: JSON.stringify({
-                            status: 'w_magazynie'
-                        })
-                    });
-                    alert('✓ Kubek zarchiwizowany (był w zamówieniach — stan ustawiony na 0, znajdziesz go w Archiwum).');
-                    closeDrawer();
-                    loadAll();
-                } else {
-                    alert('Błąd: ' + e.message);
-                }
-            }
-        } catch (e) {
-            alert('Błąd: ' + e.message);
-        }
-    }
-
-    // ── PRZENIEŚ KUBKI ──
-    function renderPrzeniesForm(k) {
-        const stanW = k.stany.find(s => s.magazyn_id === activeMagKubki)?.ilosc_dostepna || 0;
-        const nazwaZ = allMagazyny.find(m => m.id === activeMagKubki)?.nazwa || '';
-        const opcje = allMagazyny.filter(m => m.id !== activeMagKubki).map(m => `<option value="${m.id}">${m.nazwa}</option>`).join('');
-        return `
-    <div class="d-section">Przenieś kubki</div>
-    <div class="accept-form">
-      <div class="accept-title">Z: <strong>${
-
-        nazwaZ}</strong> → do:</div>
-      <div class="f-group" style="margin-bottom:10px;">
-        <select class="f-select" id="przeniesDoMag" style="background:var(--surface);"">
-          <option value="">— wybierz magazyn —</option>
-          ${
-
-
-        opcje}
-        </select>
-      </div>
-      <div class="accept-row">
-        <span class="accept-label">Ile sztuk przenieść?</span>
-        <input class="accept-input" type="number" min="1" max="${
-
-
-
-        stanW}" value="1" id="przeniesIlosc">
-      </div>
-      <div style="font-size:11px;color:var(--ink3);margin:4px 0 10px;">Dostępne: ${
-        stanW} szt.</div>
-      <button class="btn-primary" onclick="przeniesKubki('${k.kubek_id}','${activeMagKubki}',${stanW})">→ Przenieś</button>
-      <div class="f-msg" id="przeniesMsg"></div>
-    </div>`
-
-        ;
-    }
-
-    async function przeniesKubki(kubek_id, magazynZId, maxSztuk) {
-        const doMagId = document.getElementById('przeniesDoMag').value;
-        const ilosc = parseInt(document.getElementById('przeniesIlosc').value) || 0;
-        const msg = document.getElementById('przeniesMsg');
-
-        if (!doMagId) {
-            msg.className = 'f-msg err';
-            msg.textContent = 'Wybierz magazyn docelowy.';
-            return;
-        }
-        if (ilosc <= 0) {
-            msg.className = 'f-msg err';
-            msg.textContent = 'Wpisz liczbę sztuk.';
-            return;
-        }
-        if (ilosc > maxSztuk) {
-            msg.className = 'f-msg err';
-            msg.textContent = `Maksymalnie ${maxSztuk} szt.`;
-            return;
-        }
-
-        try {
-            // pobierz stany
-            const [stanZ] = await sbFetch('stan_magazynowy', `?kubek_id=eq.${kubek_id}&magazyn_id=eq.${magazynZId}`);
-            const stanDoArr = await sbFetch('stan_magazynowy', `?kubek_id=eq.${kubek_id}&magazyn_id=eq.${doMagId}`);
-            const stanDo = stanDoArr[0];
-
-            // odejmij z źródłowego
-            await sbFetch('stan_magazynowy', `?kubek_id=eq.${kubek_id}&magazyn_id=eq.${magazynZId}`, {
-                method: 'PATCH',
-                body: JSON.stringify({
-                    ilosc_dostepna: stanZ.ilosc_dostepna - ilosc
-                })
-            });
-
-            // dodaj do docelowego
-            if (stanDo) {
-                await sbFetch('stan_magazynowy', `?kubek_id=eq.${kubek_id}&magazyn_id=eq.${doMagId}`, {
-                    method: 'PATCH',
-                    body: JSON.stringify({
-                        ilosc_dostepna: stanDo.ilosc_dostepna + ilosc
-                    })
-                });
-            } else {
-                await sbFetch('stan_magazynowy', '', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        kubek_id,
-                        magazyn_id: doMagId,
-                        ilosc_dostepna: ilosc,
-                        ilosc_w_drodze: 0
-                    })
-                });
-            }
-
-            msg.className = 'f-msg ok';
-            msg.textContent = `✓ Przeniesiono ${ilosc} szt. do ${allMagazyny.find(m => m.id === doMagId)?.nazwa || ''}`;
-            setTimeout(() => {
-                closeDrawer();
-                loadAll();
-            }, 1200);
-        } catch (e) {
-            msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
-        }
-    }
-
-    // ── ZMIEŃ ILOŚĆ ──
-    function renderZmienIlosc(k) {
-        const stanW = k.stany.find(s => s.magazyn_id === activeMagKubki)?.ilosc_dostepna || 0;
-        const nazwaM = allMagazyny.find(m => m.id === activeMagKubki)?.nazwa || '';
-        return `
-    <div class="d-section">Zmień ilość w magazynie ${nazwaM}</div>
-    <div class="accept-form">
-      <div class="accept-row">
-        <span class="accept-label">Nowa ilość dostępna</span>
-        <input class="accept-input" type="number" min="0" value="${
-
-
-        stanW}" id="nowaIlosc">
-      </div>
-      <div style="font-size:11px;color:var(--ink3);margin:4px 0 10px;">Obecna: ${
-        stanW} szt. (wpisz nową wartość)</div>
-      <button class="btn-primary" onclick="zmienIlosc('${k.kubek_id}','${activeMagKubki}')">✓ Zapisz ilość</button>
-      <div class="f-msg" id="zmienIloscMsg"></div>
-    </div>`
-
-        ;
-    }
-
-    function renderZmienIloscGlobal(k) {
-        return `
-    <div class="d-section">Zmień ilość w magazynie</div>
-    <div class="accept-form">
-      <div class="accept-title">Wybierz magazyn i wpisz nową ilość:</div>
-      ${
-
-
-        k.stany.map(s => `
-        <div class="accept-row" style="margin-bottom:6px;">
-          <span class="accept-label">${
-        s.magazyn}</span>
-          <input class="accept-input" type="number" min="0" value="${s.ilosc_dostepna}" data-mag="${s.magazyn_id}" id="gi_${s.magazyn_id}">
-        </div>`).join('')}
-      <button class="btn-primary" onclick="zmienIloscGlobal('${k.kubek_id}')">✓ Zapisz ilości</button>
-      <div class="f-msg" id="zmienIloscGlobalMsg"></div>
-    </div>`
-
-        ;
-    }
-
-    async function zmienIlosc(kubek_id, magazyn_id) {
-        const nowaIlosc = parseInt(document.getElementById('nowaIlosc').value);
-        const msg = document.getElementById('zmienIloscMsg');
-        if (isNaN(nowaIlosc) || nowaIlosc < 0) {
-            msg.className = 'f-msg err';
-            msg.textContent = 'Wpisz poprawną ilość.';
-            return;
-        }
-        const k = allKubki.find(x => x.kubek_id === kubek_id);
-        const isPrz = k?.isPrzykrywka;
-        const realId = isPrz ? k.przykrywka_id : kubek_id;
-        const table = isPrz ? 'stan_magazynowy_przykrywki' : 'stan_magazynowy';
-        const idField = isPrz ? 'przykrywka_id' : 'kubek_id';
-        try {
-            await sbFetch(table, `?${idField}=eq.${realId}&magazyn_id=eq.${magazyn_id}`, {
-                method: 'PATCH',
-                body: JSON.stringify({
-                    ilosc_dostepna: nowaIlosc
-                })
-            });
-            msg.className = 'f-msg ok';
-            msg.textContent = `✓ Zaktualizowano: ${nowaIlosc} szt.`;
-            setTimeout(() => {
-                closeDrawer();
-                loadAll();
-            }, 1000);
-        } catch (e) {
-            msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
-        }
-    }
-
-    async function zmienIloscGlobal(kubek_id) {
-        const inputs = document.querySelectorAll('[id^="gi_"]');
-        const msg = document.getElementById('zmienIloscGlobalMsg');
-        const k = allKubki.find(x => x.kubek_id === kubek_id);
-        const isPrz = k?.isPrzykrywka;
-        const realId = isPrz ? k.przykrywka_id : kubek_id;
-        const table = isPrz ? 'stan_magazynowy_przykrywki' : 'stan_magazynowy';
-        const idField = isPrz ? 'przykrywka_id' : 'kubek_id';
-        try {
-            for (const inp of inputs) {
-                const magId = inp.dataset.mag;
-                const ilosc = parseInt(inp.value) || 0;
-                const existing = await sbFetch(table, `?${idField}=eq.${realId}&magazyn_id=eq.${magId}`);
-                if (existing.length > 0) {
-                    await sbFetch(table, `?${idField}=eq.${realId}&magazyn_id=eq.${magId}`, {
-                        method: 'PATCH',
-                        body: JSON.stringify({
-                            ilosc_dostepna: ilosc
-                        })
-                    });
-                } else {
-                    await sbFetch(table, '', {
-                        method: 'POST',
-                        body: JSON.stringify({
-                            [idField]: realId,
-                            magazyn_id: magId,
-                            ilosc_dostepna: ilosc,
-                            ilosc_w_drodze: 0
-                        })
-                    });
-                }
-            }
-            msg.className = 'f-msg ok';
-            msg.textContent = '✓ Zaktualizowano! Kubek pojawi się w odpowiednim magazynie.';
-            setTimeout(() => {
-                closeDrawer();
-                loadAll();
-            }, 1000);
-        } catch (e) {
-            msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
-        }
-    }
-
-    // ── POBIERZ DANE Z MF (białej listy VAT) ──
-    async function pobierzDaneZMF() {
-        const nip = document.getElementById('nkNip').value.replace(/[^0-9]/g, '');
-        const msg = document.getElementById('gusMsg');
-        const btn = document.getElementById('btnGUS');
-        if (nip.length !== 10) {
-            msg.className = 'f-msg err';
-            msg.textContent = 'NIP musi mieć 10 cyfr.';
-            return;
-        }
-        btn.textContent = '⏳';
-        btn.disabled = true;
-        msg.className = 'f-msg';
-        msg.textContent = 'Szukam…';
-        try {
-            const today = new Date().toISOString().slice(0, 10);
-            const res = await fetch(`https://wl-api.mf.gov.pl/api/search/nip/${nip}?date=${today}`);
-            const data = await res.json();
-            const podmiot = data?.result?.subject;
-            if (!podmiot) {
-                msg.className = 'f-msg err';
-                msg.textContent = 'Nie znaleziono firmy w rejestrze MF.';
-                return;
-            }
-            // Wypełnij pola
-            const nazwaEl = document.getElementById('nkNazwaFormalna');
-            const adresEl = document.getElementById('nkAdresFaktury');
-            const adresDoEl = document.getElementById('nkAdresDostawy');
-            const nazwaWlEl = document.getElementById('nkNazwa');
-            if (nazwaEl)
-                nazwaEl.value = podmiot.name || '';
-            if (nazwaWlEl && !nazwaWlEl.value)
-                nazwaWlEl.value = podmiot.name || '';
-            // adres z pierwszego wpisu
-            const adr = podmiot.residenceAddress || podmiot.workingAddress || '';
-            if (adresEl)
-                adresEl.value = adr;
-            if (adresDoEl && !adresDoEl.value)
-                adresDoEl.value = adr;
-            msg.className = 'f-msg ok';
-            msg.textContent = `✓ Znaleziono: ${podmiot.name}`;
-        } catch (e) {
-            msg.className = 'f-msg err';
-            msg.textContent = 'Błąd pobierania danych: ' + e.message;
-        } finally {
-            btn.textContent = '🔍 GUS';
-            btn.disabled = false;
-        }
-    }
-
-    // ── ARCHIWUM ──
-    let allArchiwum = [];
-
-    async function loadArchiwum() {
-        try {
-            // Archiwum = wszystkie kubki z sumą stanu = 0 (niezależnie od statusu)
-            const kubki = await sbFetch('kubek', '?select=*,grafika(nazwa,miniaturka_url,artysta(imie_nazwisko))');
-            const stany = await sbFetch('stan_magazynowy', '?select=kubek_id,ilosc_dostepna');
-            const sumy = {};
-            stany.forEach(s => {
-                sumy[s.kubek_id] = (sumy[s.kubek_id] || 0) + s.ilosc_dostepna;
-            });
-            allArchiwum = kubki
-            .filter(k => (sumy[k.id] || 0) === 0)
-            .map(k => ({
-                kubek_id: k.id,
-                pojemnosc_ml: k.pojemnosc_ml,
-                typ_materialu: k.typ_materialu,
-                typ_scianki: k.typ_scianki,
-                cena_netto: k.cena_netto,
-                status: k.status,
-                grafika: k.grafika?.nazwa,
-                artysta: k.grafika?.artysta?.imie_nazwisko,
-                miniaturka: k.grafika?.miniaturka_url,
-                stany: [],
-                ilosc_lacznie: 0,
-                ilosc_w_drodze: 0,
-            }));
-        } catch (e) {
-            console.warn('loadArchiwum error:', e);
-        }
-    }
-
-    function applyFiltersArchiwum() {
-        const poj = document.getElementById('afPoj').value;
-        const mat = document.getElementById('afMat').value;
-        const art = document.getElementById('afArt').value;
-        const q = document.getElementById('searchArchiwum').value.toLowerCase();
-        const f = allArchiwum.filter(k => {
-            if (poj && String(k.pojemnosc_ml) !== poj)
-                return false;
-            if (mat && k.typ_materialu !== mat)
-                return false;
-            if (art && k.artysta !== art)
-                return false;
-            if (q && !k.grafika?.toLowerCase().includes(q) && !k.artysta?.toLowerCase().includes(q))
-                return false;
-            return true;
+        let lista = allKubki.filter(k => !k.isPrzykrywka);
+        if (mat)
+            lista = lista.filter(k => k.typ_materialu === mat);
+        if (sci)
+            lista = lista.filter(k => (k.typ_scianki || '') === sci);
+        lista = lista.filter(k => {
+            const s = k.stany?.find(x => x.magazyn_id === magId);
+            return s && s.ilosc_dostepna > 0;
         });
-        renderKubki(f, 'listArchiwum', '', false);
-    }
-
-    // ── KARTA ARTYSTY ──
-    async function openKartaArtysty(artId) {
-        try {
-            const [a] = await sbFetch('v_artysta', `?id=eq.${artId}`);
-            const kubki = await sbFetch('v_kubki_artysty', `?artysta_id=eq.${artId}&order=status.asc`);
-
-            const kubkiHTML = kubki.map(k => {
-                const thumb = k.miniaturka_url ? `<img src="${k.miniaturka_url}" style="width:48px;height:48px;border-radius:6px;object-fit:cover;flex-shrink:0;">`
-                : `<div style="width:48px;height:48px;border-radius:6px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">☕</div>`;
-                const statusColor = k.status === 'w_magazynie' ? 'var(--green)' : k.status === 'zlecony' ? '#BA7517' : 'var(--ink3)';
-                return `<div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--bg2);">
-        ${thumb}
-        <div style="flex:1;min-width:0;">
-          <div style="font-family:var(--fh);font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${
-                k.grafika || '—'}</div>
-          <div style="font-size:11px;color:var(--ink3);">${k.pojemnosc_ml}ml · ${k.typ_materialu || ''}</div>
-        </div>
-        <div style="text-align:right;flex-shrink:0;">
-          <div style="font-size:11px;color:${
-
-                statusColor};font-weight:500;">${k.status === 'w_magazynie' ? 'w mag.' : k.status === 'zlecony' ? 'zlecony' : 'archiwum'}</div>
-          <div style="font-size:11px;color:var(--ink3);">mag: ${k.ilosc_w_magazynie} · sprzed: ${k.ilosc_sprzedana}</div>
-        </div>
-        <button onclick="usunKubekArtysty('${
-                k.kubek_id}','${artId}')" style="background:#FBE9E9;border:1px solid #F4B5B5;color:#A32D2D;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;flex-shrink:0;margin-left:6px;">✕</button>
-      </div>`
-                ;
-            }).join('');
-
-            document.getElementById('drawerContent').innerHTML = `
-      <div class="drawer-handle"></div>
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px;">
-        <div class="drawer-title" style="margin-bottom:0;">${
-
-            a.imie_nazwisko}</div>
-        <button onclick="openEdytujArtyste('${artId}')" style="background:var(--bg2);border:1.5px solid var(--border);border-radius:8px;padding:6px 12px;font-family:var(--fm);font-size:11px;cursor:pointer;flex-shrink:0;margin-left:8px;">✏️ Edytuj</button>
-      </div>
-
-      <div class="d-section">Rozliczenia</div>
-      <div class="d-row"><span class="d-key">Prowizja papierowe</span><span class="d-val">${
-
-
-            Number(a.prowizja_papierowe || 0).toFixed(3)} zł/szt.</span></div>
-      <div class="d-row"><span class="d-key">Prowizja termiczne</span><span class="d-val">${Number(a.prowizja_termiczne || 0).toFixed(2)} zł/szt.</span></div>
-      <div class="d-row"><span class="d-key">Prowizja pap. naliczona</span><span class="d-val">${Number(a.prowizja_papierowe_naliczona || 0).toFixed(2)} zł (${a.papierowe_sprzedane} szt.)</span></div>
-      <div class="d-row"><span class="d-key">Prowizja term. naliczona</span><span class="d-val">${Number(a.prowizja_termiczne_naliczona || 0).toFixed(2)} zł (${a.termiczne_sprzedane} szt.)</span></div>
-      <div class="d-row"><span class="d-key">Łącznie naliczone</span><span class="d-val">${Number(a.prowizje_naliczone || 0).toFixed(2)} zł</span></div>
-      <div class="d-row"><span class="d-key">Wypłacono</span><span class="d-val">${Number(a.wyplacono_lacznie).toFixed(2)} zł</span></div>
-      <div class="d-row" style="font-weight:600;"><span class="d-key">Należne</span><span class="d-val acc">${Math.max(0, Number(a.nalezne_lacznie)).toFixed(2)} zł</span></div>
-
-      <div class="d-section">Historia wypłat</div>
-      <div id="wyplatyList">⏳</div>
-      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
-        <div class="f-group" style="flex:1;min-width:100px;margin-bottom:0;"><label class="f-label">Kwota (zł)</label><input class="f-input" id="wyplataKwota" type="number" step="0.01" min="0" placeholder="np. 150.00"></div>
-        <div class="f-group" style="flex:1;min-width:100px;margin-bottom:0;"><label class="f-label">Data</label><input class="f-input" id="wyplataData" type="date" value="${
-
-
-
-
-            new Date().toISOString().slice(0, 10)}"></div>
-
-      </div>
-      <button class="btn-primary" onclick="dodajWyplate('${
-
-            a.id}')" style="margin-top:8px;">+ Dodaj wypłatę</button>
-      <div class="f-msg" id="wyplataMsg"></div>
-
-      <div class="d-section">Kubki (${
-
-            kubki.length})</div>
-      ${kubkiHTML || '<div style="color:var(--ink3);font-size:12px;padding:8px 0;">Brak kubków</div>'}
-    `
-            ;
-            document.getElementById('overlay').classList.add('open');
-            // Załaduj historię wypłat
-            zaladujWyplaty('${a.id}');
-            document.getElementById('drawer').classList.add('open');
-        } catch (e) {
-            alert('Błąd: ' + e.message);
-        }
-    }
-
-    async function openEdytujArtyste(artId) {
-        const [a] = await sbFetch('artysta', `?id=eq.${artId}`);
-        document.getElementById('drawerContent').innerHTML = `
-    <div class="drawer-handle"></div>
-    <button class="drawer-back" onclick="openKartaArtysty('${
-        artId}')">← Wróć</button>
-    <div class="drawer-title">Edytuj artystę</div>
-    <div class="f-group"><label class="f-label">Imię i nazwisko</label><input class="f-input" id="eaImie" value="${
-        a.imie_nazwisko || ''}"></div>
-    <div class="f-row">
-      <div class="f-group"><label class="f-label">Prowizja papierowe (zł/szt.)</label><input class="f-input" id="eaProw" type="number" step="0.001" value="${
-        a.prowizja_papierowe || 0.008}"></div>
-      <div class="f-group"><label class="f-label">Prowizja termiczne (zł/szt.)</label><input class="f-input" id="eaProwTerm" type="number" step="0.01" value="${a.prowizja_termiczne || 0.80}"></div>
-    </div>
-    <div class="d-section">Korekty sprzedaży (dane historyczne)</div>
-    <div class="f-row">
-      <div class="f-group"><label class="f-label">Pap. sprzedane korekta (szt.)</label><input class="f-input" id="eaKorPap" type="number" step="1" min="0" value="${
-
-
-        a.papierowe_sprzedane_korekta || 0}"><span class="f-hint">Dodaje się do sprzedaży z zamówień</span></div>
-      <div class="f-group"><label class="f-label">Term. sprzedane korekta (szt.)</label><input class="f-input" id="eaKorTerm" type="number" step="1" min="0" value="${a.termiczne_sprzedane_korekta || 0}"></div>
-    </div>
-    <button class="btn-primary" onclick="zapiszEdycjeArtysty('${
-        artId}')" style="margin-top:12px;">💾 Zapisz zmiany</button>
-    <div class="f-msg" id="eaMsg"></div>
-  `
-
-        ;
-    }
-
-    async function zapiszEdycjeArtysty(artId) {
-        const imie = document.getElementById('eaImie').value.trim();
-        const prow = parseFloat(document.getElementById('eaProw').value) || 0;
-        const prowTerm = parseFloat(document.getElementById('eaProwTerm').value) || 0;
-        const korPap = parseInt(document.getElementById('eaKorPap')?.value) || 0;
-        const korTerm = parseInt(document.getElementById('eaKorTerm')?.value) || 0;
-        const msg = document.getElementById('eaMsg');
-        try {
-            await sbFetch('artysta', `?id=eq.${artId}`, {
-                method: 'PATCH',
-                body: JSON.stringify({
-                    imie_nazwisko: imie,
-                    prowizja_papierowe: prow,
-                    prowizja_termiczne: prowTerm,
-                    papierowe_sprzedane_korekta: korPap,
-                    termiczne_sprzedane_korekta: korTerm,
-                })
-            });
-            msg.className = 'f-msg ok';
-            msg.textContent = '✓ Zapisano!';
-            setTimeout(() => {
-                openKartaArtysty(artId);
-                loadArtysci();
-            }, 800);
-        } catch (e) {
-            msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
-        }
-    }
-
-    // ── IMPORT KLIENTÓW Z FAKTUROWNI ──
-    async function importujKlientowZFakturowni() {
-        const btn = document.getElementById('btnImportKlientow');
-        const msg = document.getElementById('importMsg');
-        btn.disabled = true;
-        btn.textContent = '⏳ Importuję…';
-        msg.textContent = '';
-        try {
-            const {url, key} = getCfg();
-            const res = await fetch(`${url}/functions/v1/import-klientow`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${key}`
-                },
-                body: JSON.stringify({}),
-            });
-            const data = await res.json();
-            if (data.success) {
-                msg.className = 'f-msg ok';
-                msg.textContent = `✓ Zaimportowano ${data.dodano} nowych klientów (${data.pominięto} już było w bazie).`;
-                const artysci = await sbFetch('klient', '?select=id,nazwa_wlasna&order=nazwa_wlasna.asc');
-                allKlienci = artysci;
-            } else {
-                msg.className = 'f-msg err';
-                msg.textContent = 'Błąd: ' + (data.error || 'nieznany błąd');
-            }
-        } catch (e) {
-            msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
-        }
-        finally {
-            btn.disabled = false;
-            btn.textContent = '📥 Importuj klientów z Fakturowni';
-        }
-    }
-
-    // ── TOGGLE BEZ PRODUKCJI ──
-    function toggleBezProdukcji() {
-        const checked = document.getElementById('nBezProdukcji')?.checked;
-        const wrap = document.getElementById('nMagStany');
-        const zleconaWrap = document.getElementById('nZleconaWrap');
-        if (zleconaWrap)
-            zleconaWrap.style.display = checked ? 'none' : 'block';
-        if (!wrap)
-            return;
-        if (checked) {
-            wrap.style.display = 'block';
-            wrap.innerHTML = allMagazyny.map(m => `
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-        <span style="flex:1;font-size:12px;color:var(--ink2);">${
-            m.nazwa}</span>
-        <input class="f-input" id="nStanMag_${m.id}" type="number" min="0" value="0" style="width:80px;text-align:center;">
-        <span style="font-size:11px;color:var(--ink3);">szt.</span>
-      </div>`
-
-            ).join('');
-        } else {
-            wrap.style.display = 'none';
-            wrap.innerHTML = '';
-        }
-    }
-
-
-    function updateEkPojemnosci() {
-        const mat = document.getElementById('ekMat')?.value || '';
-        const sel = document.getElementById('ekPoj');
-        if (!sel)
-            return;
-        const pojs = POJEMNOSCI[mat] || [];
-        sel.innerHTML = pojs.map(p => `<option value="${p}">${p} ml</option>`).join('');
-    }
-
-    // ── CENNIK ──
-    let cennikPap = [],
-        cennikTerm = [];
-
-    async function loadCennik() {
-        try {
-            const [pap, term] = await Promise.all([
-            sbFetch('cennik_papierowe', '?select=*&order=pojemnosc_ml.asc,typ_materialu.asc'),
-            sbFetch('cennik_termiczne', '?select=*&order=pojemnosc_ml.asc'),
-            ]);
-            cennikPap = pap;
-            cennikTerm = term;
-            renderCennikPap();
-            renderCennikTerm();
-        } catch (e) {
-            console.warn('cennik error:', e);
-        }
-        loadCennikPrz();
-    }
-
-    function renderCennikPap() {
-        const wrap = document.getElementById('cennikPapTable');
-        if (!wrap)
-            return;
-        if (!cennikPap.length) {
-            wrap.innerHTML = '<div style="color:var(--ink3);font-size:12px;padding:8px 0;">Brak pozycji cennika.</div>';
+        lista.sort((a, b) => a.pojemnosc_ml - b.pojemnosc_ml);
+        if (!lista.length) {
+            wrap.innerHTML = '<div style="color:var(--ink3);font-size:12px;padding:8px;">Brak kubków w wybranym magazynie.</div>';
             return;
         }
-        wrap.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px;">
-    <tr style="font-size:10px;color:var(--ink3);text-transform:uppercase;border-bottom:1px solid var(--border);">
-      <th style="text-align:left;padding:6px 4px;">Pojemność</th>
-      <th style="text-align:left;padding:6px 4px;">Materiał</th>
-      <th style="text-align:left;padding:6px 4px;">Ścianka</th>
-      <th style="text-align:right;padding:6px 4px;">Cena netto</th>
-      <th style="padding:6px 4px;"></th>
-    </tr>
-    ${
-
-
-
-
-
-
-        cennikPap.map(c => `
-    <tr style="border-bottom:1px solid var(--bg2);">
-      <td style="padding:8px 4px;">${
-        c.pojemnosc_ml} ml</td>
-      <td style="padding:8px 4px;">${c.typ_materialu}</td>
-      <td style="padding:8px 4px;">${c.typ_scianki}</td>
-      <td style="padding:8px 4px;text-align:right;font-weight:500;color:var(--accent);">${Number(c.cena_netto).toFixed(4)} zł</td>
-      <td style="padding:8px 4px;text-align:right;">
-        <button onclick="edytujCennikPap('${
-        c.id}',${c.pojemnosc_ml},'${c.typ_materialu}','${c.typ_scianki}',${c.cena_netto})" style="background:none;border:none;cursor:pointer;color:var(--ink3);font-size:12px;">✏️</button>
-        <button onclick="usunCennik('cennik_papierowe','${c.id}','pap')" style="background:none;border:none;cursor:pointer;color:var(--accent);font-size:12px;">✕</button>
-      </td>
-    </tr>`
-        ).join('')}
-  </table>`
-        ;
-    }
-
-    function renderCennikTerm() {
-        const wrap = document.getElementById('cennikTermTable');
-        if (!wrap)
-            return;
-        if (!cennikTerm.length) {
-            wrap.innerHTML = '<div style="color:var(--ink3);font-size:12px;padding:8px 0;">Brak pozycji cennika.</div>';
-            return;
-        }
-        wrap.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px;">
-    <tr style="font-size:10px;color:var(--ink3);text-transform:uppercase;border-bottom:1px solid var(--border);">
-      <th style="text-align:left;padding:6px 4px;">Pojemność</th>
-      <th style="text-align:right;padding:6px 4px;">Cena netto</th>
-      <th style="padding:6px 4px;"></th>
-    </tr>
-    ${
-
-
-
-
-        cennikTerm.map(c => `
-    <tr style="border-bottom:1px solid var(--bg2);">
-      <td style="padding:8px 4px;">${
-        c.pojemnosc_ml} ml</td>
-      <td style="padding:8px 4px;text-align:right;font-weight:500;color:var(--accent);">${Number(c.cena_netto).toFixed(4)} zł</td>
-      <td style="padding:8px 4px;text-align:right;">
-        <button onclick="edytujCennikTerm('${
-        c.id}',${c.pojemnosc_ml},${c.cena_netto})" style="background:none;border:none;cursor:pointer;color:var(--ink3);font-size:12px;">✏️</button>
-        <button onclick="usunCennik('cennik_termiczne','${c.id}','term')" style="background:none;border:none;cursor:pointer;color:var(--accent);font-size:12px;">✕</button>
-      </td>
-    </tr>`
-        ).join('')}
-  </table>`
-        ;
-    }
-
-    function dodajCennikPap() {
-        const f = document.getElementById('cennikPapForm');
-        f.style.display = 'block';
-        f.innerHTML = `
-    <div class="f-row">
-      <div class="f-group"><label class="f-label">Pojemność</label>
-        <select class="f-select" id="cpPoj"><option value="100">100ml</option><option value="180">180ml</option><option value="250">250ml</option><option value="300">300ml</option><option value="400">400ml</option><option value="500">500ml</option></select>
+        wrap.innerHTML = lista.map(k => {
+            const stan = k.stany?.find(x => x.magazyn_id === magId);
+            const ilosc = stan?.ilosc_dostepna || 0;
+            const rowId = `kr_${id}_${k.kubek_id}`;
+            const dotCls = ilosc === 0 ? 'stock-empty' : ilosc < 500 ? 'stock-low' : 'stock-ok';
+            const thumb = k.miniaturka ? `<img src="${k.miniaturka}" style="width:40px;height:40px;border-radius:6px;object-fit:cover;flex-shrink:0;">` : `<div style="width:40px;height:40px;border-radius:6px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">☕</div>`;
+            return `<div id="${rowId}" style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--bg2);" data-kubek-id="${k.kubek_id}" data-mag-id="${magId}" data-cena="${k.cena_netto || 0}">
+      ${thumb}
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;">${
+            k.pojemnosc_ml}ml <span style="font-weight:400;color:var(--ink3);font-size:11px;">${k.typ_materialu || ''} ${k.typ_scianki === 'dwuściankowy' ? 'dwu' : 'jedno'}</span></div>
+        <div style="font-size:11px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${k.grafika || '—'}${k.artysta ? ' · ' + k.artysta : ''}</div>
       </div>
-      <div class="f-group"><label class="f-label">Materiał</label>
-        <select class="f-select" id="cpMat"><option value="PE">PE</option><option value="BIO">BIO</option><option value="rPET">rPET</option></select>
+      <div style="display:flex;align-items:center;gap:3px;flex-shrink:0;">
+        <span class="stock-dot ${
+
+            dotCls}"></span>
+        <span style="font-size:12px;font-weight:600;min-width:36px;text-align:right;">${ilosc.toLocaleString('pl')}</span>
       </div>
-    </div>
-    <div class="f-row">
-      <div class="f-group"><label class="f-label">Ścianka</label>
-        <select class="f-select" id="cpSci"><option value="jednościankowy">Jednościankowy</option><option value="dwuściankowy">Dwuściankowy</option><option value="inny">Inny</option></select>
+      <input type="number" min="0" value="" placeholder="0" id="kq_${
+            rowId}"
+        style="width:50px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:6px;font-size:14px;text-align:center;font-family:var(--fm);"
+        oninput="onKIloscChange(this,'${
+            rowId}','${k.cena_netto || 0}')">
+      <div id="kprice_${rowId}" style="display:none;flex-direction:column;gap:2px;">
+        <input type="number" step="0.01" placeholder="netto" id="kn_${rowId}"
+          style="width:60px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:5px;font-size:12px;text-align:center;font-family:var(--fm);"
+          oninput="const b=document.getElementById('kb_${
+            rowId}');if(b)b.value=(parseFloat(this.value||0)*1.23).toFixed(2);">
+        <input type="number" step="0.01" placeholder="brutto" id="kb_${rowId}"
+          style="width:60px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:5px;font-size:12px;text-align:center;font-family:var(--fm);"
+          oninput="const n=document.getElementById('kn_${
+            rowId}');if(n)n.value=(parseFloat(this.value||0)/1.23).toFixed(4);">
       </div>
-      <div class="f-group"><label class="f-label">Cena netto (zł)</label>
-        <input class="f-input" id="cpCena" type="number" step="0.0001" min="0" placeholder="0.0000">
-      </div>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:8px;">
-      <button class="btn-primary" onclick="zapiszCennikPap(null)">Zapisz</button>
-      <button class="btn-secondary" onclick="document.getElementById('cennikPapForm').style.display='none'">Anuluj</button>
-    </div>
-    <div class="f-msg" id="cpMsg"></div>`
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        ;
-    }
-
-    function edytujCennikPap(id, poj, mat, sci, cena) {
-        const f = document.getElementById('cennikPapForm');
-        f.style.display = 'block';
-        f.innerHTML = `
-    <div class="f-row">
-      <div class="f-group"><label class="f-label">Pojemność</label>
-        <select class="f-select" id="cpPoj"><option value="100" ${
-
-        poj == 100 ? 'selected' : ''}>100ml</option><option value="180" ${poj == 180 ? 'selected' : ''}>180ml</option><option value="250" ${poj == 250 ? 'selected' : ''}>250ml</option><option value="300" ${poj == 300 ? 'selected' : ''}>300ml</option><option value="400" ${poj == 400 ? 'selected' : ''}>400ml</option><option value="500" ${poj == 500 ? 'selected' : ''}>500ml</option></select>
-      </div>
-      <div class="f-group"><label class="f-label">Materiał</label>
-        <select class="f-select" id="cpMat"><option value="PE" ${
-
-        mat === 'PE' ? 'selected' : ''}>PE</option><option value="BIO" ${mat === 'BIO' ? 'selected' : ''}>BIO</option><option value="rPET" ${mat === 'rPET' ? 'selected' : ''}>rPET</option></select>
-      </div>
-    </div>
-    <div class="f-row">
-      <div class="f-group"><label class="f-label">Ścianka</label>
-        <select class="f-select" id="cpSci"><option value="jednościankowy" ${
-
-
-
-        sci === 'jednościankowy' ? 'selected' : ''}>Jednościankowy</option><option value="dwuściankowy" ${sci === 'dwuściankowy' ? 'selected' : ''}>Dwuściankowy</option><option value="inny" ${sci === 'inny' ? 'selected' : ''}>Inny</option></select>
-      </div>
-      <div class="f-group"><label class="f-label">Cena netto (zł)</label>
-        <input class="f-input" id="cpCena" type="number" step="0.0001" min="0" value="${
-
-        cena}">
-      </div>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:8px;">
-      <button class="btn-primary" onclick="zapiszCennikPap('${
-
-
-        id}')">Zapisz</button>
-      <button class="btn-secondary" onclick="document.getElementById('cennikPapForm').style.display='none'">Anuluj</button>
-    </div>
-    <div class="f-msg" id="cpMsg"></div>`
-
-
-        ;
-    }
-
-    async function zapiszCennikPap(id) {
-        const poj = parseInt(document.getElementById('cpPoj').value);
-        const mat = document.getElementById('cpMat').value;
-        const sci = document.getElementById('cpSci').value;
-        const cena = parseFloat(document.getElementById('cpCena').value);
-        const msg = document.getElementById('cpMsg');
-        if (!poj || !mat || !sci || isNaN(cena)) {
-            msg.className = 'f-msg err';
-            msg.textContent = 'Wypełnij wszystkie pola.';
-            return;
-        }
-        try {
-            if (id) {
-                await sbFetch('cennik_papierowe', `?id=eq.${id}`, {
-                    method: 'PATCH',
-                    body: JSON.stringify({
-                        pojemnosc_ml: poj,
-                        typ_materialu: mat,
-                        typ_scianki: sci,
-                        cena_netto: cena
-                    })
-                });
-            } else {
-                await sbFetch('cennik_papierowe', '', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        pojemnosc_ml: poj,
-                        typ_materialu: mat,
-                        typ_scianki: sci,
-                        cena_netto: cena
-                    })
-                });
-            }
-            document.getElementById('cennikPapForm').style.display = 'none';
-            loadCennik();
-        } catch (e) {
-            msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
-        }
-    }
-
-    function dodajCennikTerm() {
-        const f = document.getElementById('cennikTermForm');
-        f.style.display = 'block';
-        f.innerHTML = `
-    <div class="f-row">
-      <div class="f-group"><label class="f-label">Pojemność</label>
-        <select class="f-select" id="ctPoj"><option value="250">250ml</option><option value="330">330ml</option><option value="350">350ml</option><option value="400">400ml</option><option value="500">500ml</option></select>
-      </div>
-      <div class="f-group"><label class="f-label">Cena netto (zł)</label>
-        <input class="f-input" id="ctCena" type="number" step="0.01" min="0" placeholder="0.00">
-      </div>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:8px;">
-      <button class="btn-primary" onclick="zapiszCennikTerm(null)">Zapisz</button>
-      <button class="btn-secondary" onclick="document.getElementById('cennikTermForm').style.display='none'">Anuluj</button>
-    </div>
-    <div class="f-msg" id="ctMsg"></div>`
-
-
-
-
-
-
-
-
-
-
-
-
-        ;
-    }
-
-    function edytujCennikTerm(id, poj, cena) {
-        const f = document.getElementById('cennikTermForm');
-        f.style.display = 'block';
-        f.innerHTML = `
-    <div class="f-row">
-      <div class="f-group"><label class="f-label">Pojemność</label>
-        <select class="f-select" id="ctPoj"><option value="250" ${
-
-        poj == 250 ? 'selected' : ''}>250ml</option><option value="330" ${poj == 330 ? 'selected' : ''}>330ml</option><option value="350" ${poj == 350 ? 'selected' : ''}>350ml</option><option value="400" ${poj == 400 ? 'selected' : ''}>400ml</option><option value="500" ${poj == 500 ? 'selected' : ''}>500ml</option></select>
-      </div>
-      <div class="f-group"><label class="f-label">Cena netto (zł)</label>
-        <input class="f-input" id="ctCena" type="number" step="0.01" min="0" value="${
-
-        cena}">
-      </div>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:8px;">
-      <button class="btn-primary" onclick="zapiszCennikTerm('${
-
-
-        id}')">Zapisz</button>
-      <button class="btn-secondary" onclick="document.getElementById('cennikTermForm').style.display='none'">Anuluj</button>
-    </div>
-    <div class="f-msg" id="ctMsg"></div>`
-
-
-        ;
-    }
-
-    async function zapiszCennikTerm(id) {
-        const poj = parseInt(document.getElementById('ctPoj').value);
-        const cena = parseFloat(document.getElementById('ctCena').value);
-        const msg = document.getElementById('ctMsg');
-        if (!poj || isNaN(cena)) {
-            msg.className = 'f-msg err';
-            msg.textContent = 'Wypełnij wszystkie pola.';
-            return;
-        }
-        try {
-            if (id) {
-                await sbFetch('cennik_termiczne', `?id=eq.${id}`, {
-                    method: 'PATCH',
-                    body: JSON.stringify({
-                        pojemnosc_ml: poj,
-                        cena_netto: cena
-                    })
-                });
-            } else {
-                await sbFetch('cennik_termiczne', '', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        pojemnosc_ml: poj,
-                        cena_netto: cena
-                    })
-                });
-            }
-            document.getElementById('cennikTermForm').style.display = 'none';
-            loadCennik();
-        } catch (e) {
-            msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
-        }
-    }
-
-    async function usunCennik(table, id, typ) {
-        if (!confirm('Usunąć tę pozycję cennika?'))
-            return;
-        try {
-            await sbFetch(table, `?id=eq.${id}`, {
-                method: 'DELETE'
-            });
-            loadCennik();
-        } catch (e) {
-            alert('Błąd: ' + e.message);
-        }
-    }
-
-    // Auto-load price from cennik when selecting cup in add form
-    async function autoCenaPapierowy() {
-        const mat = document.getElementById('nMat')?.value;
-        const poj = document.getElementById('nPoj')?.value;
-        const sci = document.getElementById('nSci')?.value;
-        if (!mat || !poj || !sci)
-            return;
-        try {
-            const res = await sbFetch('cennik_papierowe', `?typ_materialu=eq.${mat}&pojemnosc_ml=eq.${poj}&typ_scianki=eq.${sci}`);
-            const c = res[0];
-            if (c) {
-                const ceEl = document.getElementById('nCena');
-                if (ceEl) {
-                    ceEl.value = Number(c.cena_netto).toFixed(4);
-                    ceEl.style.borderColor = 'var(--green)';
-                    setTimeout(() => {
-                        ceEl.style.borderColor = '';
-                    }, 1500);
-                }
-            }
-        } catch (e) {}
-    }
-
-    async function autoCenaTermiczny() {
-        const poj = document.getElementById('nTPoj')?.value;
-        if (!poj)
-            return;
-        try {
-            const res = await sbFetch('cennik_termiczne', `?pojemnosc_ml=eq.${poj}`);
-            const c = res[0];
-            if (c) {
-                const ceEl = document.getElementById('nTCena');
-                if (ceEl) {
-                    ceEl.value = Number(c.cena_netto).toFixed(2);
-                    ceEl.style.borderColor = 'var(--green)';
-                    setTimeout(() => {
-                        ceEl.style.borderColor = '';
-                    }, 1500);
-                }
-            }
-        } catch (e) {}
-    }
-
-    // ── CENNIK PRZYKRYWEK ──
-    let cennikPrz = [];
-
-    async function loadCennikPrz() {
-        try {
-            const prz = await sbFetch('przykrywka', '?select=*&order=typ_materialu.asc,rozmiar_mm.asc,kolor.asc');
-            cennikPrz = prz;
-            renderCennikPrz();
-        } catch (e) {
-            console.warn('cennik prz error:', e);
-        }
-    }
-
-    function renderCennikPrz() {
-        const wrap = document.getElementById('cennikPrzTable');
-        if (!wrap)
-            return;
-        if (!cennikPrz.length) {
-            wrap.innerHTML = '<div style="color:var(--ink3);font-size:12px;padding:8px 0;">Brak wieczek w cenniku.</div>';
-            return;
-        }
-        wrap.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px;">
-    <tr style="font-size:10px;color:var(--ink3);text-transform:uppercase;border-bottom:1px solid var(--border);">
-      <th style="text-align:left;padding:6px 4px;">Typ</th>
-      <th style="text-align:left;padding:6px 4px;">Rozmiar</th>
-      <th style="text-align:left;padding:6px 4px;">Kolor</th>
-      <th style="text-align:right;padding:6px 4px;">Cena netto</th>
-      <th style="padding:6px 4px;"></th>
-    </tr>
-    ${
-
-
-
-
-
-
-        cennikPrz.map(p => `
-    <tr style="border-bottom:1px solid var(--bg2);">
-      <td style="padding:8px 4px;">${
-        p.typ_materialu}</td>
-      <td style="padding:8px 4px;">${p.rozmiar_mm} mm</td>
-      <td style="padding:8px 4px;">${p.kolor || '—'}</td>
-      <td style="padding:8px 4px;text-align:right;font-weight:500;color:var(--accent);">${Number(p.cena_netto).toFixed(4)} zł</td>
-      <td style="padding:8px 4px;text-align:right;">
-        <button onclick="edytujCennikPrz('${
-        p.id}','${p.typ_materialu}',${p.rozmiar_mm},'${p.kolor || ''}',${p.cena_netto})" style="background:none;border:none;cursor:pointer;color:var(--ink3);font-size:12px;">✏️</button>
-        <button onclick="usunCennikPrz('${p.id}')" style="background:none;border:none;cursor:pointer;color:var(--accent);font-size:12px;">✕</button>
-      </td>
-    </tr>`
-        ).join('')}
-  </table>`
-        ;
-    }
-
-    function dodajCennikPrz() {
-        const f = document.getElementById('cennikPrzForm');
-        f.style.display = 'block';
-        f.innerHTML = `
-    <div class="f-row">
-      <div class="f-group"><label class="f-label">Typ materiału</label>
-        <select class="f-select" id="przMat" onchange="togglePrzKolor()">
-          <option value="papierowa">Papierowa</option>
-          <option value="plastikowa">Plastikowa</option>
-        </select>
-      </div>
-      <div class="f-group"><label class="f-label">Rozmiar (mm)</label>
-        <select class="f-select" id="przRozm">
-          <option value="72">72 mm</option>
-          <option value="80">80 mm</option>
-          <option value="90">90 mm</option>
-        </select>
-      </div>
-    </div>
-    <div class="f-row">
-      <div class="f-group" id="przKolorWrap"><label class="f-label">Kolor</label>
-        <select class="f-select" id="przKolor">
-          <option value="biały">Biały</option>
-          <option value="czarny">Czarny</option>
-        </select>
-      </div>
-      <div class="f-group"><label class="f-label">Cena netto (zł)</label>
-        <input class="f-input" id="przCena" type="number" step="0.0001" min="0" placeholder="0.0000">
-      </div>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:8px;">
-      <button class="btn-primary" onclick="zapiszCennikPrz(null)">Zapisz</button>
-      <button class="btn-secondary" onclick="document.getElementById('cennikPrzForm').style.display='none'">Anuluj</button>
-    </div>
-    <div class="f-msg" id="przMsg"></div>`
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        ;
-    }
-
-    function edytujCennikPrz(id, typ, rozm, kolor, cena) {
-        const f = document.getElementById('cennikPrzForm');
-        f.style.display = 'block';
-        f.innerHTML = `
-    <div class="f-row">
-      <div class="f-group"><label class="f-label">Typ materiału</label>
-        <select class="f-select" id="przMat">
-          <option value="papierowa" ${
-
-
-        typ === 'papierowa' ? 'selected' : ''}>Papierowa</option>
-          <option value="plastikowa" ${typ === 'plastikowa' ? 'selected' : ''}>Plastikowa</option>
-        </select>
-      </div>
-      <div class="f-group"><label class="f-label">Rozmiar (mm)</label>
-        <select class="f-select" id="przRozm">
-          <option value="72" ${
-
-
-
-        rozm == 72 ? 'selected' : ''}>72 mm</option>
-          <option value="80" ${rozm == 80 ? 'selected' : ''}>80 mm</option>
-          <option value="90" ${rozm == 90 ? 'selected' : ''}>90 mm</option>
-        </select>
-      </div>
-    </div>
-    <div class="f-row">
-      <div class="f-group"><label class="f-label">Kolor</label>
-        <select class="f-select" id="przKolor">
-          <option value="biały" ${
-
-
-
-
-
-        kolor === 'biały' ? 'selected' : ''}>Biały</option>
-          <option value="czarny" ${kolor === 'czarny' ? 'selected' : ''}>Czarny</option>
-        </select>
-      </div>
-      <div class="f-group"><label class="f-label">Cena netto (zł)</label>
-        <input class="f-input" id="przCena" type="number" step="0.0001" min="0" value="${
-
-
-        cena}">
-      </div>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:8px;">
-      <button class="btn-primary" onclick="zapiszCennikPrz('${
-
-
-        id}')">Zapisz</button>
-      <button class="btn-secondary" onclick="document.getElementById('cennikPrzForm').style.display='none'">Anuluj</button>
-    </div>
-    <div class="f-msg" id="przMsg"></div>`
-
-
-        ;
-    }
-
-    function togglePrzKolor() {
-        const typ = document.getElementById('przMat')?.value;
-        const wrap = document.getElementById('przKolorWrap');
-        if (wrap)
-            wrap.style.display = typ === 'plastikowa' ? 'block' : 'none';
-    }
-
-    async function zapiszCennikPrz(id) {
-        const typ = document.getElementById('przMat').value;
-        const rozm = parseInt(document.getElementById('przRozm').value);
-        const kolor = document.getElementById('przKolor')?.value || 'biały';
-        const cena = parseFloat(document.getElementById('przCena').value);
-        const msg = document.getElementById('przMsg');
-        if (!typ || !rozm || isNaN(cena)) {
-            msg.className = 'f-msg err';
-            msg.textContent = 'Wypełnij wszystkie pola.';
-            return;
-        }
-        try {
-            if (id) {
-                await sbFetch('przykrywka', `?id=eq.${id}`, {
-                    method: 'PATCH',
-                    body: JSON.stringify({
-                        typ_materialu: typ,
-                        rozmiar_mm: rozm,
-                        kolor,
-                        cena_netto: cena
-                    })
-                });
-            } else {
-                await sbFetch('przykrywka', '', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        typ_materialu: typ,
-                        rozmiar_mm: rozm,
-                        kolor,
-                        cena_netto: cena
-                    })
-                });
-            }
-            document.getElementById('cennikPrzForm').style.display = 'none';
-            loadCennikPrz();
-            loadAll(); // odśwież widok kubków
-        } catch (e) {
-            msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
-        }
-    }
-
-    async function usunCennikPrz(id) {
-        if (!confirm('Usunąć to wieczko z cennika i bazy?'))
-            return;
-        try {
-            await sbFetch('stan_magazynowy_przykrywki', `?przykrywka_id=eq.${id}`, {
-                method: 'DELETE'
-            });
-            await sbFetch('przykrywka', `?id=eq.${id}`, {
-                method: 'DELETE'
-            });
-            loadCennikPrz();
-            loadAll();
-        } catch (e) {
-            alert('Błąd: ' + e.message);
-        }
-    }
-
-    // ── ZAMÓW DO PRODUKCJI ──
-    function renderZamowDoProdukcji(k) {
-        const dataZl = k.data_zlecenia && k.data_zlecenia !== '1970-01-01' ? k.data_zlecenia : '';
-        return `
-    <div class="d-section">Zamów do produkcji</div>
-    <div class="accept-form">
-      <div class="f-row" style="margin-bottom:8px;">
-        <div class="accept-row" style="flex:1;">
-          <span class="accept-label">Ilość do zamówienia</span>
-          <input class="accept-input" type="number" min="0" value="${
-
-
-
-
-        k.ilosc_zlecona || 0}" id="zlecIlosc" style="width:90px;">
-        </div>
-      </div>
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-        <span style="font-size:12px;color:var(--ink2);flex-shrink:0;">Data zlecenia:</span>
-        <input class="f-input" type="date" id="zlecData" value="${
-
-
-
-        dataZl || new Date().toISOString().slice(0, 10)}" style="flex:1;">
-      </div>
-      <button class="btn-primary" onclick="zapiszZlecenie('${
-        k.kubek_id}')">📋 Zapisz zlecenie</button>
-      <div class="f-msg" id="zlecMsg"></div>
     </div>`
 
-        ;
-    }
-
-    async function zapiszZlecenie(kubek_id) {
-        const ilosc = parseInt(document.getElementById('zlecIlosc').value) || 0;
-        const data = document.getElementById('zlecData').value;
-        const msg = document.getElementById('zlecMsg');
-        try {
-            await sbFetch('kubek', `?id=eq.${kubek_id}`, {
-                method: 'PATCH',
-                body: JSON.stringify({
-                    ilosc_zlecona: ilosc,
-                    data_zlecenia: data || null,
-                    status: ilosc > 0 ? 'zlecony' : 'w_magazynie'
-                })
-            });
-            msg.className = 'f-msg ok';
-            msg.textContent = `✓ Zlecono ${ilosc} szt. na ${data}`;
-            setTimeout(() => {
-                closeDrawer();
-                loadAll();
-            }, 1000);
-        } catch (e) {
-            msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
-        }
-    }
-
-
-    async function zapiszPak(kubek_id) {
-        const val = parseInt(document.getElementById('editPak_' + kubek_id)?.value) || null;
-        try {
-            await sbFetch('kubek', `?id=eq.${kubek_id}`, {
-                method: 'PATCH',
-                body: JSON.stringify({
-                    sztuk_w_opakowaniu: val
-                })
-            });
-            // update local state
-            const k = allKubki.find(x => x.kubek_id === kubek_id) || allZlecone.find(x => x.kubek_id === kubek_id);
-            if (k)
-                k.sztuk_w_opakowaniu = val;
-            const btn = document.querySelector(`button[onclick="zapiszPak('${kubek_id}')"]`);
-            if (btn) {
-                btn.textContent = '✓';
-                btn.style.background = 'var(--green)';
-            }
-        } catch (e) {
-            alert('Błąd: ' + e.message);
-        }
-    }
-
-    // ── AUTOCOMPLETE KLIENT FULL (z notatką) ──
-    function autocompleteKlientFull(q) {
-        const list = document.getElementById('zamKlientList');
-        const hidden = document.getElementById('zamKlient');
-        if (!q || q.length < 1) {
-            list.classList.remove('open');
-            return;
-        }
-        const filtered = allKlienci.filter(k => k.nazwa_wlasna.toLowerCase().includes(q.toLowerCase()));
-        if (!filtered.length) {
-            list.classList.remove('open');
-            return;
-        }
-        list.innerHTML = filtered.slice(0, 8).map(k => {
-            const hl = k.nazwa_wlasna.replace(new RegExp(`(${q})`, 'gi'), '<strong>$1</strong>');
-            return `<div class="autocomplete-item" data-kid="${k.id}" data-knazwa="${k.nazwa_wlasna.replace(/"/g, '&quot;')}" onclick="selectKlientFull(this.dataset.kid,this.dataset.knazwa)"><span>${hl}</span></div>`;
+            ;
         }).join('');
-        list.classList.add('open');
     }
 
-    async function selectKlientFull(id, nazwa) {
-        document.getElementById('zamKlient').value = id;
-        document.getElementById('zamKlientInput').value = nazwa;
-        document.getElementById('zamKlientList').classList.remove('open');
-        // Załaduj dane klienta
-        try {
-            const [k] = await sbFetch('klient', `?id=eq.${id}`);
-            if (k) {
-                document.getElementById('zamKlientNazwaWlasna').value = k.nazwa_wlasna || '';
-                document.getElementById('zamKlientNotatka').value = k.notatki || '';
-                document.getElementById('zamKlientInfo').style.display = 'block';
-            }
-        } catch (e) {}
-    }
-
-    async function zapiszDaneKlienta() {
-        const id = document.getElementById('zamKlient').value;
-        const nazwa = document.getElementById('zamKlientNazwaWlasna').value.trim();
-        const notatka = document.getElementById('zamKlientNotatka').value.trim();
-        const msg = document.getElementById('klientSaveMsg');
-        if (!id)
+    function onKIloscChange(input, rowId, defaultCena) {
+        const val = parseInt(input.value) || 0;
+        const pd = document.getElementById('kprice_' + rowId);
+        if (!pd)
             return;
-        try {
-            await sbFetch('klient', `?id=eq.${id}`, {
-                method: 'PATCH',
-                body: JSON.stringify({
-                    nazwa_wlasna: nazwa || undefined,
-                    notatki: notatka || null
-                })
-            });
-            // Update local list
-            const k = allKlienci.find(x => x.id === id);
-            if (k && nazwa)
-                k.nazwa_wlasna = nazwa;
-            msg.className = 'f-msg ok';
-            msg.textContent = '✓ Zapisano';
-            setTimeout(() => msg.textContent = '', 2000);
-        } catch (e) {
-            msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
+        if (val > 0) {
+            pd.style.display = 'flex';
+            const n = document.getElementById('kn_' + rowId);
+            if (n && !n.value && defaultCena) {
+                n.value = Number(defaultCena).toFixed(4);
+                const b = document.getElementById('kb_' + rowId);
+                if (b)
+                    b.value = (Number(defaultCena) * 1.23).toFixed(2);
+            }
         }
+        else
+            pd.style.display = 'none';
+    }
+
+    function renderWieczkaInline(id) {
+        const wrap = document.getElementById(`plist_${id}`);
+        if (!wrap)
+            return;
+        const combos = [
+        {
+            mat: 'papierowa',
+            rozm: 80,
+            kol: 'biały'
+        }, {
+            mat: 'papierowa',
+            rozm: 80,
+            kol: 'czarny'
+        },
+        {
+            mat: 'papierowa',
+            rozm: 90,
+            kol: 'biały'
+        }, {
+            mat: 'papierowa',
+            rozm: 90,
+            kol: 'czarny'
+        },
+        {
+            mat: 'papierowa',
+            rozm: 72,
+            kol: 'biały'
+        },
+        {
+            mat: 'plastikowa',
+            rozm: 80,
+            kol: 'biały'
+        }, {
+            mat: 'plastikowa',
+            rozm: 80,
+            kol: 'czarny'
+        },
+        {
+            mat: 'plastikowa',
+            rozm: 90,
+            kol: 'biały'
+        },
+        ];
+        wrap.innerHTML = combos.map(c => {
+            const prz = allPrzykrywki?.find(p => p.rozmiar_mm === c.rozm && (p.grafika || '').toLowerCase().includes(c.mat) && (p.grafika || '').toLowerCase().includes(c.kol));
+            const ilosc = prz?.ilosc_lacznie || 0;
+            const cena = prz?.cena_netto || 0;
+            const rowId = `wr_${id}_${c.mat}_${c.rozm}_${c.kol}`;
+            const dotCls = ilosc === 0 ? 'stock-empty' : ilosc < 100 ? 'stock-low' : 'stock-ok';
+            return `<div id="${rowId}" style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--bg2);" data-mat="${c.mat}" data-rozm="${c.rozm}" data-kol="${c.kol}" data-cena="${cena}">
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:600;">${
+            c.rozm}mm <span style="font-weight:400;color:var(--ink3);font-size:11px;">${c.mat} ${c.kol}</span></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:3px;flex-shrink:0;">
+        <span class="stock-dot ${
+
+            dotCls}"></span>
+        <span style="font-size:12px;font-weight:600;min-width:30px;text-align:right;">${ilosc}</span>
+      </div>
+      <input type="number" min="0" value="" placeholder="0" id="wq_${
+            rowId}"
+        style="width:50px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:6px;font-size:14px;text-align:center;font-family:var(--fm);"
+        oninput="onWIloscChange(this,'${
+            rowId}','${cena}')">
+      <div id="wprice_${rowId}" style="display:none;flex-direction:column;gap:2px;">
+        <input type="number" step="0.01" placeholder="netto" id="wn_${rowId}"
+          style="width:60px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:5px;font-size:12px;text-align:center;font-family:var(--fm);"
+          oninput="const b=document.getElementById('wb_${
+            rowId}');if(b)b.value=(parseFloat(this.value||0)*1.23).toFixed(2);">
+        <input type="number" step="0.01" placeholder="brutto" id="wb_${rowId}"
+          style="width:60px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:5px;font-size:12px;text-align:center;font-family:var(--fm);"
+          oninput="const n=document.getElementById('wn_${
+            rowId}');if(n)n.value=(parseFloat(this.value||0)/1.23).toFixed(4);">
+      </div>
+    </div>`
+
+            ;
+        }).join('');
+    }
+
+    function onWIloscChange(input, rowId, defaultCena) {
+        const val = parseInt(input.value) || 0;
+        const pd = document.getElementById('wprice_' + rowId);
+        if (!pd)
+            return;
+        if (val > 0) {
+            pd.style.display = 'flex';
+            const n = document.getElementById('wn_' + rowId);
+            if (n && !n.value && defaultCena) {
+                n.value = Number(defaultCena).toFixed(4);
+                const b = document.getElementById('wb_' + rowId);
+                if (b)
+                    b.value = (Number(defaultCena) * 1.23).toFixed(2);
+            }
+        }
+        else
+            pd.style.display = 'none';
     }
 
     function updateWysylkaNazwa(id) {
@@ -5919,17 +3811,43 @@
 
     // ── DODAJ POZYCJE TERMICZNE ──
     async function dodajPozycjeTermiczne() {
-        const klientId = document.getElementById('zamKlient')?.value;
+        const klientId = document.getElementById('zamKlient')?.value || '';
         const id = ++pozycjeCounter;
         const wrap = document.getElementById('pozycjeZam');
         const div = document.createElement('div');
         div.id = `poz_${id}`;
         div.dataset.typ = 'termiczny';
         div.style.cssText = 'background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;position:relative;';
+        div.innerHTML = `
+    <button onclick="document.getElementById('poz_${id}').remove()" style="position:absolute;top:8px;right:8px;background:none;border:none;font-size:16px;cursor:pointer;color:var(--ink3);">✕</button>
+    <div style="font-size:10px;text-transform:uppercase;color:var(--ink3);letter-spacing:.08em;margin-bottom:10px;font-weight:600;">🌡 Kubki termiczne</div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <button onclick="setTermTypInline(${
 
-        // Załaduj kubki termiczne
-        let kubkiTermHTML = '<option value="">— ładowanie —</option>';
-        let komisHTML = '<option value="">— ładowanie —</option>';
+        id},'sprzedaz',this)" class="btn-status active" style="flex:1;font-size:12px;">💰 Sprzedaż</button>
+      <button onclick="setTermTypInline(${id},'komis',this)" class="btn-status" style="flex:1;font-size:12px;">🤝 Komis</button>
+    </div>
+    <div id="poz_term_typ_val_${
+        id}" data-val="sprzedaz" style="display:none;"></div>
+    <div id="poz_term_sprzedaz_${id}">
+      <div style="display:flex;gap:6px;margin-bottom:8px;">
+        <button onclick="setTermZrodloInline(${
+        id},'magazyn',this)" class="btn-status active" style="flex:1;font-size:11px;">Z magazynu</button>
+        <button onclick="setTermZrodloInline(${id},'komis',this)" class="btn-status" style="flex:1;font-size:11px;">Z komisu</button>
+      </div>
+      <div id="poz_term_zrodlo_val_${
+        id}" data-val="magazyn" style="display:none;"></div>
+      <div id="ptlm_${id}"><div style="color:var(--ink3);font-size:12px;padding:8px;">⏳ Ładowanie…</div></div>
+      <div id="ptlk_${id}" style="display:none;"><div style="color:var(--ink3);font-size:12px;padding:8px;">⏳ Ładowanie…</div></div>
+    </div>
+    <div id="poz_term_komis_${
+        id}" style="display:none;">
+      <div id="ptlw_${id}"><div style="color:var(--ink3);font-size:12px;padding:8px;">⏳ Ładowanie…</div></div>
+    </div>
+  `
+
+        ;
+        wrap.appendChild(div);
         try {
             const kt = await sbFetch('v_stan_termicznych', '?select=*');
             const map = {};
@@ -5939,212 +3857,77 @@
                         id: r.kubek_id,
                         grafika: r.grafika,
                         pojemnosc: r.pojemnosc_ml,
+                        kolor: r.kolor || '',
                         ilosc: 0,
                         cena: r.cena_netto,
-                        miniaturka: r.miniaturka_url,
-                        kolor: r.kolor
+                        miniaturka: r.miniaturka_url
                     };
                 map[r.kubek_id].ilosc += (r.ilosc_dostepna || 0);
             });
-            const ktList = Object.values(map).filter(k => k.ilosc > 0).sort((a, b) => a.pojemnosc - b.pojemnosc);
-            window['termPicker_' + id] = ktList;
-
-            // Komis dla danego klienta - tylko kubki które są w komisie u tego klienta
-            let komisList = [];
+            window['tl_mag_' + id] = Object.values(map).sort((a, b) => a.pojemnosc - b.pojemnosc);
             if (klientId) {
-                const komis = await sbFetch('v_komis_aktywny', `?klient_id=eq.${klientId}&select=*&order=grafika.asc`);
-                komisList = komis.map(k => ({
+                const komis = await sbFetch('v_komis_aktywny', `?klient_id=eq.${klientId}&select=*`);
+                window['tl_kom_' + id] = komis.map(k => ({
                     id: k.kubek_id,
                     komis_id: k.id,
                     grafika: k.grafika,
                     pojemnosc: k.pojemnosc_ml,
-                    pojemnosc_ml: k.pojemnosc_ml,
-                    kolor: k.kolor,
+                    kolor: k.kolor || '',
                     ilosc: k.ilosc,
                     cena: k.cena_netto || 0,
-                    miniaturka: k.miniaturka_url,
-                }));
-            }
-            window['komisPicker_' + id] = komisList;
+                    miniaturka: k.miniaturka_url
+                })).sort((a, b) => a.pojemnosc - b.pojemnosc);
+            } else
+                window['tl_kom_' + id] = [];
+            renderTermInline(id, 'mag');
+            renderTermInline(id, 'kom');
+            renderTermInline(id, 'wyslij');
         } catch (e) {
             console.warn(e);
         }
-
-        div.innerHTML = `
-    <button onclick="document.getElementById('poz_${id}').remove()" style="position:absolute;top:8px;right:8px;background:none;border:none;font-size:16px;cursor:pointer;color:var(--ink3);">✕</button>
-    <div style="font-size:10px;text-transform:uppercase;color:var(--ink3);margin-bottom:8px;">🌡 Kubek termiczny</div>
-    <div style="display:flex;gap:8px;margin-bottom:8px;">
-      <button onclick="setTermTyp(${
-
-        id},'sprzedaz',this)" class="btn-status active" style="flex:1;">💰 Sprzedaż</button>
-      <button onclick="setTermTyp(${id},'komis',this)" class="btn-status" style="flex:1;">🤝 Komis</button>
-    </div>
-    <div id="poz_term_sprzedaz_${
-        id}">
-      <div style="margin-bottom:6px;font-size:11px;color:var(--ink3);">Źródło:</div>
-      <div style="display:flex;gap:6px;margin-bottom:6px;">
-        <button onclick="setTermSprzedazTyp(${
-
-        id},'magazyn',this)" class="btn-status active" style="flex:1;font-size:11px;">Z magazynu</button>
-        <button onclick="setTermSprzedazTyp(${id},'komis',this)" class="btn-status" style="flex:1;font-size:11px;">Z komisu</button>
-      </div>
-      <input type="hidden" id="poz_term_kub_${
-        id}" data-field="kubek_termiczny_id">
-      <div id="poz_term_picker_${id}" style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;"></div>
-      <div id="poz_term_komis_sel_${id}" style="display:none;">
-        <input type="hidden" id="poz_term_komis_kub_${id}">
-        <div id="poz_term_komis_picker_${id}" style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;"></div>
-      </div>
-    </div>
-    <div id="poz_term_komis_${
-
-        id}" style="display:none;">
-        <input type="hidden" id="poz_term_komis_wyslij_${id}" data-field="kubek_termiczny_komis_id">
-      <div id="poz_term_komis_wyslij_picker_${id}" style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;"></div>
-      <div class="f-group" style="margin-bottom:0;"><label class="f-label">Cena komisowa (zł/szt.)</label><input class="f-input" id="poz_term_cena_kom_${id}" type="number" step="0.01" placeholder="np. 45.00"></div>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:8px;">
-      <div class="f-group" style="flex:1;margin-bottom:0;"><label class="f-label">Ilość</label><input class="f-input" id="poz_term_ilosc_${
-
-        id}" data-field="ilosc" type="number" min="1" value="1"></div>
-      <div class="f-group" style="flex:1;margin-bottom:0;">
-        <label class="f-label">Cena netto / brutto</label>
-        <div style="display:flex;gap:4px;align-items:center;">
-          <input class="f-input" id="poz_term_cena_${
-
-
-        id}" data-field="cena" type="number" step="0.01" placeholder="netto" style="flex:1;" oninput="syncBruttoTerm(${id})">
-          <span style="font-size:10px;color:var(--ink3);flex-shrink:0;">/</span>
-          <input class="f-input" id="poz_term_brutto_${
-        id}" type="number" step="0.01" placeholder="brutto" style="flex:1;" oninput="syncNettoTerm(${id})">
-        </div>
-      </div>
-    </div>
-    <input type="hidden" id="poz_term_typ_${
-
-
-        id}" value="sprzedaz">
-    <input type="hidden" id="poz_term_zrodlo_${id}" value="magazyn">
-  `
-        ;
-        div.dataset.typTermiczny = 'sprzedaz';
-        wrap.appendChild(div);
-        // Render visual pickers
-        renderTermPicker(id, 'sprzedaz');
-        renderTermPicker(id, 'komis');
     }
 
-    function setTermTyp(id, typ, btn) {
-        document.querySelectorAll(`#poz_${id} .btn-status`).forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        document.getElementById(`poz_term_typ_${id}`).value = typ;
-        document.getElementById(`poz_term_sprzedaz_${id}`).style.display = typ === 'sprzedaz' ? 'block' : 'none';
-        document.getElementById(`poz_term_komis_${id}`).style.display = typ === 'komis' ? 'block' : 'none';
-        renderTermPicker(id, typ);
-    }
-
-    function setTermSprzedazTyp(id, zrodlo, btn) {
-        const btns = document.querySelectorAll(`#poz_term_sprzedaz_${id} .btn-status`);
-        btns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        document.getElementById(`poz_term_zrodlo_${id}`).value = zrodlo;
-        document.getElementById(`poz_term_picker_${id}`).style.display = zrodlo === 'magazyn' ? 'flex' : 'none';
-        document.getElementById(`poz_term_komis_sel_${id}`).style.display = zrodlo === 'komis' ? 'block' : 'none';
-        renderTermPicker(id, 'sprzedaz');
-    }
-
-    function onTermKubekChange(id) {
-        const sel = document.getElementById(`poz_term_kub_${id}`);
-        const opt = sel?.options[sel.selectedIndex];
-        const cena = opt?.dataset?.cena;
-        if (cena)
-            document.getElementById(`poz_term_cena_${id}`).value = Number(cena).toFixed(2);
-    }
-
-    function onTermKomisChange(id) {
-        const sel = document.getElementById(`poz_term_komis_kub_${id}`);
-        const opt = sel?.options[sel.selectedIndex];
-        const cena = opt?.dataset?.cena;
-        if (cena)
-            document.getElementById(`poz_term_cena_${id}`).value = Number(cena).toFixed(2);
-    }
-
-    // ── USUŃ ZAMÓWIENIE ──
-    async function usunZamowienie(zamId) {
-        if (!confirm('Czy na pewno usunąć to zamówienie? Tej operacji nie można cofnąć.'))
-            return;
-        try {
-            await sbFetch('pozycja_zamowienia', `?zamowienie_id=eq.${zamId}`, {
-                method: 'DELETE'
-            });
-            await sbFetch('zamowienie', `?id=eq.${zamId}`, {
-                method: 'DELETE'
-            });
-            closeZamDrawer();
-            loadZamowienia();
-        } catch (e) {
-            alert('Błąd: ' + e.message);
-        }
-    }
-
-
-    function filterKubkiPicker(id) {
-        const mat = document.getElementById(`poz_mat_${id}`)?.value || '';
-        const pojSel = document.getElementById(`poz_poj_${id}`);
-        if (pojSel) {
-            const kubki = window['kubkiPicker_' + id] || allKubki.filter(k => !k.isPrzykrywka && k.ilosc_lacznie > 0);
-            const pojs = [...new Set(kubki.filter(k => !mat || k.typ_materialu === mat).map(k => k.pojemnosc_ml))].sort((a, b) => a - b);
-            const curPoj = pojSel.value;
-            pojSel.innerHTML = '<option value="">— pojemność —</option>' + pojs.map(p => `<option value="${p}" ${p == curPoj ? 'selected' : ''}>${p} ml</option>`).join('');
-        }
-        renderKubkiPicker(id);
-    }
-
-    function renderKubkiPicker(id) {
-        const mat = document.getElementById(`poz_mat_${id}`)?.value || '';
-        const poj = document.getElementById(`poz_poj_${id}`)?.value || '';
-        const sci = document.getElementById(`poz_sci_${id}`)?.value || '';
-        const mag = document.getElementById(`poz_mag_${id}`)?.value || '';
-        // Save selected mag
-        const magValEl = document.getElementById(`poz_mag_val_${id}`);
-        if (magValEl)
-            magValEl.value = mag;
-        const wrap = document.getElementById(`poz_picker_${id}`);
+    function renderTermInline(id, tryb) {
+        const lista = tryb === 'kom' ? (window['tl_kom_' + id] || []) : (window['tl_mag_' + id] || []);
+        const wrapId = tryb === 'mag' ? `ptlm_${id}` : tryb === 'kom' ? `ptlk_${id}` : `ptlw_${id}`;
+        const wrap = document.getElementById(wrapId);
         if (!wrap)
             return;
-        let kubki = (window['kubkiPicker_' + id] || allKubki.filter(k => !k.isPrzykrywka && k.ilosc_lacznie > 0))
-        .filter(k => (!mat || k.typ_materialu === mat) && (!poj || String(k.pojemnosc_ml) === poj) && (!sci || (k.typ_scianki || '') === sci));
-        // Filter by magazine if selected
-        if (mag) {
-            kubki = kubki.filter(k => {
-                const s = k.stany.find(x => x.magazyn_id === mag);
-                return s && s.ilosc_dostepna > 0;
-            });
-        }
-        if (!kubki.length) {
-            wrap.innerHTML = '<div style="color:var(--ink3);font-size:12px;padding:8px;">Brak kubków spełniających kryteria.</div>';
+        if (!lista.length) {
+            wrap.innerHTML = `<div style="color:var(--ink3);font-size:12px;padding:8px;">${tryb === 'kom' ? 'Brak kubków w komisie.' : 'Brak kubków w magazynie.'}</div>`;
             return;
         }
-        wrap.innerHTML = kubki.map(k => {
-            const thumb = k.miniaturka ? `<img src="${k.miniaturka}" style="width:44px;height:44px;border-radius:6px;object-fit:cover;">` : `<div style="width:44px;height:44px;border-radius:6px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:20px;">☕</div>`;
-            const stanWMag = mag ? (k.stany.find(s => s.magazyn_id === mag)?.ilosc_dostepna || 0) : k.ilosc_lacznie;
-            const dotCls = stanWMag === 0 ? 'stock-empty' : stanWMag < 500 ? 'stock-low' : 'stock-ok';
-            const magNazwa = mag ? (allMagazyny.find(m => m.id === mag)?.nazwa || '') : 'łącznie';
-            return `<div id="picker_item_${id}_${k.kubek_id}" onclick="selectKubkiPicker(${id},'${k.kubek_id}',${k.cena_netto || 0},'${mag}')"
-      style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;border:2px solid var(--border);cursor:pointer;background:var(--surface);">
-      ${
-            thumb}
+        wrap.innerHTML = lista.map(k => {
+            const rowId = `tr_${id}_${tryb}_${k.id}`;
+            const thumb = k.miniaturka ? `<img src="${k.miniaturka}" style="width:40px;height:40px;border-radius:6px;object-fit:cover;flex-shrink:0;">` : `<div style="width:40px;height:40px;border-radius:6px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🌡</div>`;
+            const dotCls = k.ilosc === 0 ? 'stock-empty' : k.ilosc < 5 ? 'stock-low' : 'stock-ok';
+            return `<div id="${rowId}" style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--bg2);" data-kubek-id="${k.id}" data-komis-id="${k.komis_id || ''}" data-cena="${k.cena || 0}">
+      ${thumb}
       <div style="flex:1;min-width:0;">
-        <div style="font-family:var(--fh);font-size:15px;font-weight:700;">${
-            k.pojemnosc_ml} ml <span style="font-size:11px;font-weight:400;color:var(--ink3);">${k.typ_materialu}</span></div>
-        <div style="font-size:11px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${k.grafika || '—'}</div>
+        <div style="font-size:13px;font-weight:600;">${
+            k.pojemnosc}ml <span style="font-weight:400;color:var(--ink3);font-size:11px;">${k.kolor}</span></div>
+        <div style="font-size:11px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${k.grafika || '—'}</div>
       </div>
-      <div style="text-align:right;flex-shrink:0;">
-        <div style="display:flex;align-items:center;gap:5px;"><span class="stock-dot-big ${
+      <div style="display:flex;align-items:center;gap:3px;flex-shrink:0;">
+        <span class="stock-dot ${
 
-            dotCls}"></span><span style="font-size:14px;font-weight:600;">${stanWMag}</span></div>
-        <div style="font-size:10px;color:var(--ink3);">${magNazwa}</div>
-        <div style="font-size:11px;color:var(--accent);">${k.cena_netto != null ? Number(k.cena_netto).toFixed(2) + ' zł' : '—'}</div>
+            dotCls}"></span>
+        <span style="font-size:12px;font-weight:600;min-width:20px;text-align:right;">${k.ilosc}</span>
+      </div>
+      <input type="number" min="0" value="" placeholder="0" id="tq_${
+            rowId}"
+        style="width:50px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:6px;font-size:14px;text-align:center;font-family:var(--fm);"
+        oninput="onTIloscChange(this,'${
+            rowId}','${k.cena || 0}')">
+      <div id="tprice_${rowId}" style="display:none;flex-direction:column;gap:2px;">
+        <input type="number" step="0.01" placeholder="netto" id="tn_${rowId}"
+          style="width:60px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:5px;font-size:12px;text-align:center;font-family:var(--fm);"
+          oninput="const b=document.getElementById('tb_${
+            rowId}');if(b)b.value=(parseFloat(this.value||0)*1.23).toFixed(2);">
+        <input type="number" step="0.01" placeholder="brutto" id="tb_${rowId}"
+          style="width:60px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:5px;font-size:12px;text-align:center;font-family:var(--fm);"
+          oninput="const n=document.getElementById('tn_${
+            rowId}');if(n)n.value=(parseFloat(this.value||0)/1.23).toFixed(4);">
       </div>
     </div>`
 
@@ -6152,65 +3935,39 @@
         }).join('');
     }
 
-    function selectKubkiPicker(id, kubek_id, cena, mag) {
-        document.querySelectorAll(`[id^="picker_item_${id}_"]`).forEach(el => {
-            el.style.borderColor = 'var(--border)';
-            el.style.background = 'var(--surface)';
-        });
-        const el = document.getElementById(`picker_item_${id}_${kubek_id}`);
-        if (el) {
-            el.style.borderColor = 'var(--accent)';
-            el.style.background = '#FEF0EB';
-        }
-        document.getElementById(`poz_kub_${id}`).value = kubek_id;
-        if (mag) {
-            const mv = document.getElementById(`poz_mag_val_${id}`);
-            if (mv)
-                mv.value = mag;
-        }
-        const ceEl = document.getElementById(`poz_cena_${id}`);
-        if (ceEl && cena) {
-            ceEl.value = Number(cena).toFixed(2);
-            const bEl = document.getElementById('poz_brutto_' + id);
-            if (bEl)
-                bEl.value = (Number(cena) * 1.23).toFixed(2);
-        }
-    }
-
-
-    function renderPodsumowanieIlosci(pozycje) {
-        const kubki = {},
-            wieczka = {},
-            termiczne = {};
-        pozycje.forEach(p => {
-            if (p.rodzaj_produktu === 'kubek') {
-                const scianka = p.typ_scianki ? ` ${p.typ_scianki === 'dwuściankowy' ? 'dwu' : p.typ_scianki === 'jednościankowy' ? 'jedno' : p.typ_scianki}` : '';
-                const key = `${p.pojemnosc_ml}ml ${p.typ_materialu || ''}${scianka}`.trim();
-                kubki[key] = (kubki[key] || 0) + p.ilosc;
-            } else if (p.rodzaj_produktu === 'przykrywka') {
-                const key = `${p.pr_rozmiar}mm ${p.pr_typ || ''}`.trim();
-                wieczka[key] = (wieczka[key] || 0) + p.ilosc;
-            } else if (p.rodzaj_produktu === 'termiczny') {
-                const key = `${p.term_pojemnosc}ml`;
-                termiczne[key] = (termiczne[key] || 0) + p.ilosc;
+    function onTIloscChange(input, rowId, defaultCena) {
+        const val = parseInt(input.value) || 0;
+        const pd = document.getElementById('tprice_' + rowId);
+        if (!pd)
+            return;
+        if (val > 0) {
+            pd.style.display = 'flex';
+            const n = document.getElementById('tn_' + rowId);
+            if (n && !n.value && defaultCena) {
+                n.value = Number(defaultCena).toFixed(2);
+                const b = document.getElementById('tb_' + rowId);
+                if (b)
+                    b.value = (Number(defaultCena) * 1.23).toFixed(2);
             }
-        });
-        let html = '';
-        const kubkiEntries = Object.entries(kubki).sort();
-        const wieczkaEntries = Object.entries(wieczka).sort();
-        const termiczneEntries = Object.entries(termiczne).sort();
-        if (kubkiEntries.length) {
-            html += kubkiEntries.map(([k, v]) => `<div class="d-row"><span class="d-key">☕ ${k}</span><span class="d-val" style="font-size:15px;font-weight:700;">${v} szt.</span></div>`).join('');
-        }
-        if (wieczkaEntries.length) {
-            html += wieczkaEntries.map(([k, v]) => `<div class="d-row"><span class="d-key">🫗 ${k}</span><span class="d-val" style="font-size:15px;font-weight:700;">${v} szt.</span></div>`).join('');
-        }
-        if (termiczneEntries.length) {
-            html += termiczneEntries.map(([k, v]) => `<div class="d-row"><span class="d-key">🌡 ${k}</span><span class="d-val" style="font-size:15px;font-weight:700;">${v} szt.</span></div>`).join('');
-        }
-        return html || '<div style="color:var(--ink3);font-size:12px;padding:8px 0;">Brak pozycji produktowych.</div>';
+        } else
+            pd.style.display = 'none';
     }
 
+    function setTermTypInline(id, typ, btn) {
+        document.querySelectorAll(`#poz_${id} .btn-status`).forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(`poz_term_typ_val_${id}`).dataset.val = typ;
+        document.getElementById(`poz_term_sprzedaz_${id}`).style.display = typ === 'sprzedaz' ? 'block' : 'none';
+        document.getElementById(`poz_term_komis_${id}`).style.display = typ === 'komis' ? 'block' : 'none';
+    }
+
+    function setTermZrodloInline(id, zrodlo, btn) {
+        document.querySelectorAll(`#poz_term_sprzedaz_${id} .btn-status`).forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(`poz_term_zrodlo_val_${id}`).dataset.val = zrodlo;
+        document.getElementById(`ptlm_${id}`).style.display = zrodlo === 'magazyn' ? 'block' : 'none';
+        document.getElementById(`ptlk_${id}`).style.display = zrodlo === 'komis' ? 'block' : 'none';
+    }
 
     function renderTermPickerCard(item, id, field, pickerId, hidden) {
         const thumb = item.miniaturka
@@ -7197,3 +4954,33 @@
     </script>
 </body>
 </html>
+    } else if(typ2==='kubek'){
+      const rows=div.querySelectorAll('[data-kubek-id]');
+      for(const row of rows){
+        const kubId=row.dataset.kubekId;const magId=row.dataset.magId;const rowId=row.id;
+        const ilosc2=parseInt(document.getElementById('kq_'+rowId)?.value)||0;
+        if(ilosc2<=0)continue;
+        const cenaNet=parseFloat(document.getElementById('kn_'+rowId)?.value)||0;
+        const cenaBrut=parseFloat(document.getElementById('kb_'+rowId)?.value)||0;
+        const cena2=cenaNet||(cenaBrut/1.23)||0;
+        if(!kubId||!magId)continue;
+        pozycje.push({rodzaj_produktu:'kubek',kubek_id:kubId,magazyn_id:magId,ilosc:ilosc2,cena_jednostkowa:cena2});
+      }
+        } else if(typ2==='przykrywka'){
+      const rows=div.querySelectorAll('[data-mat]');
+      for(const row of rows){
+        const rowId=row.id;
+        const ilosc2=parseInt(document.getElementById('wq_'+rowId)?.value)||0;
+        if(ilosc2<=0)continue;
+        const cenaNet=parseFloat(document.getElementById('wn_'+rowId)?.value)||0;
+        const cenaBrut=parseFloat(document.getElementById('wb_'+rowId)?.value)||0;
+        const cena2=cenaNet||(cenaBrut/1.23)||0;
+        const prMat=row.dataset.mat;const prRozm=parseInt(row.dataset.rozm);const prKol=row.dataset.kol;
+        try{
+          let prs=await sbFetch('przykrywka',`?typ_materialu=eq.${prMat}&rozmiar_mm=eq.${prRozm}&kolor=eq.${prKol}`);
+          let pr=prs[0];
+          if(!pr){const[n]=await sbFetch('przykrywka','',{method:'POST',body:JSON.stringify({typ_materialu:prMat,rozmiar_mm:prRozm,kolor:prKol,cena_netto:cena2})});pr=n;}
+          pozycje.push({rodzaj_produktu:'przykrywka',przykrywka_id:pr.id,ilosc:ilosc2,cena_jednostkowa:cena2});
+        }catch(e){msg.className='f-msg err';msg.textContent='Błąd wieczka: '+e.message;return;}
+      }
+    
