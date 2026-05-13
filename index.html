@@ -2060,14 +2060,8 @@
         }
         if (scope === 'kubki') {
             activeMagKubki = mag;
-            if (mag === 'zlecone') {
-                renderKubki(allZlecone, 'listKubki', '', true);
-                updateStatsKubki([]);
-                return;
-            }
-            if (mag === 'archiwum') {
-                renderKubki(allArchiwum, 'listKubki', '', false);
-                updateStatsKubki([]);
+            if (mag === 'zlecone' || mag === 'archiwum') {
+                applyFilters('kubki');
                 return;
             }
         } else {
@@ -2277,7 +2271,16 @@
             const art = document.getElementById('fArt').value;
             const logo = document.getElementById('fLogo')?.value || '';
             const q = document.getElementById('searchKubki')?.value?.toLowerCase() || '';
-            const f = allKubki.filter(k => {
+            // Wybierz źródło danych wg aktywnego taba
+            let baseList;
+            if (activeMagKubki === 'zlecone')
+                baseList = allZlecone;
+            else if (activeMagKubki === 'archiwum')
+                baseList = allArchiwum;
+            else
+                baseList = allKubki;
+
+            const f = baseList.filter(k => {
                 if (poj && String(k.pojemnosc_ml) !== poj)
                     return false;
                 if (mat && k.typ_materialu !== mat)
@@ -2344,7 +2347,8 @@
                 const stanB = activeMagKubki && activeMagKubki !== 'zlecone' && activeMagKubki !== 'archiwum' ? (b.stany.find(s => s.magazyn_id === activeMagKubki)?.ilosc_dostepna || 0) : b.ilosc_lacznie;
                 return stanB - stanA;
             });
-            renderKubki(fSorted, 'listKubki', activeMagKubki, false);
+            const showDateKubki = activeMagKubki === 'zlecone';
+            renderKubki(fSorted, 'listKubki', activeMagKubki, showDateKubki);
         }
         else if (scope === 'zlecone') {
             const poj = document.getElementById('zfPoj').value;
@@ -3726,10 +3730,9 @@
             const cena = typ2 === 'termiczny'
             ? parseFloat(div.querySelector('[id^="poz_term_cena_"]')?.value) || 0
             : parseFloat(div.querySelector('[data-field="cena"]')?.value) || 0;
-            // Skip items with no ilosc (except wysylka which always has ilosc=1)
-            if (typ2 !== 'termiczny' && typ2 !== 'wysylka' && ilosc <= 0)
+            // Skip items with no ilosc
+            if (typ2 !== 'termiczny' && typ2 !== 'wysylka' && typ2 !== 'wlasne_logo' && ilosc <= 0)
                 continue;
-            if (typ2 === 'wysylka' && ilosc === 0) {} // wysylka doesn't need ilosc check
 
             if (typ2 === 'wlasne_logo') {
                 // Utwórz nowy kubek jako zlecony i dodaj do pozycji zamówienia
