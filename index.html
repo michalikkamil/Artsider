@@ -1340,12 +1340,6 @@
         <div class="dark-header" style="padding-bottom:14px;">
             <div class="filters">
                 <div class="filter-group">
-                    <span class="filter-label">Klient</span>
-                    <select class="dark-select" id="wfKlient" onchange="applyFilters('zamowienia')">
-                        <option value="">Wszyscy</option>
-                    </select>
-                </div>
-                <div class="filter-group">
                     <span class="filter-label">Status</span>
                     <select class="dark-select" id="wfStatus" onchange="applyFilters('zamowienia')">
                         <option value="">Wszystkie</option>
@@ -1371,15 +1365,37 @@
                     </select>
                 </div>
                 <div class="filter-group">
-                    <span class="filter-label">Źródło</span>
-                    <select class="dark-select" id="wfZrodlo" onchange="applyFilters('zamowienia')">
+                    <span class="filter-label">Rok</span>
+                    <select class="dark-select" id="wfRok" onchange="applyFilters('zamowienia')">
                         <option value="">Wszystkie</option>
-                        <option value="email">Email</option>
-                        <option value="telefon">Telefon</option>
-                        <option value="sms">SMS</option>
-                        <option value="strona">Strona</option>
-                        <option value="instagram">Instagram</option>
+                        <option value="2024">2024</option>
+                        <option value="2025">2025</option>
+                        <option value="2026">2026</option>
                     </select>
+                </div>
+                <div class="filter-group">
+                    <span class="filter-label">Miesiąc</span>
+                    <select class="dark-select" id="wfMiesiac" onchange="applyFilters('zamowienia')">
+                        <option value="">Wszystkie</option>
+                        <option value="01">Styczeń</option>
+                        <option value="02">Luty</option>
+                        <option value="03">Marzec</option>
+                        <option value="04">Kwiecień</option>
+                        <option value="05">Maj</option>
+                        <option value="06">Czerwiec</option>
+                        <option value="07">Lipiec</option>
+                        <option value="08">Sierpień</option>
+                        <option value="09">Wrzesień</option>
+                        <option value="10">Październik</option>
+                        <option value="11">Listopad</option>
+                        <option value="12">Grudzień</option>
+                    </select>
+                </div>
+            </div>
+            <div style="padding:8px 16px 0;">
+                <div class="autocomplete-wrap">
+                    <input class="autocomplete-input" id="zamSearchKlient" placeholder="Szukaj po kliencie…" oninput="zamAutocompleteKlient(this.value)" autocomplete="off" style="background:rgba(255,255,255,0.1);color:var(--bg);border-color:rgba(255,255,255,0.2);">
+                    <div class="autocomplete-list" id="zamSearchKlientList"></div>
                 </div>
             </div>
         </div>
@@ -3046,13 +3062,14 @@
     }
 
     function applyFiltersZamowienia() {
-        const klient = document.getElementById('wfKlient')?.value || '';
+        const klientId = document.getElementById('zamSearchKlient')?.dataset?.klientId || '';
         const status = document.getElementById('wfStatus').value;
         const platnosc = document.getElementById('wfPlatnosc').value;
         const faktura = document.getElementById('wfFaktura').value;
-        const zrodlo = document.getElementById('wfZrodlo').value;
+        const rok = document.getElementById('wfRok')?.value || '';
+        const miesiac = document.getElementById('wfMiesiac')?.value || '';
         const f = allZamowienia.filter(z => {
-            if (klient && z.klient_id !== klient)
+            if (klientId && z.klient_id !== klientId)
                 return false;
             if (status && z.status_realizacji !== status)
                 return false;
@@ -3060,7 +3077,9 @@
                 return false;
             if (faktura && z.status_faktury !== faktura)
                 return false;
-            if (zrodlo && z.zrodlo !== zrodlo)
+            if (rok && !(z.data_zamowienia || '').startsWith(rok))
+                return false;
+            if (miesiac && !(z.data_zamowienia || '').slice(5, 7) === miesiac)
                 return false;
             return true;
         });
@@ -3236,19 +3255,41 @@
 
     async function odejmijZeStan(zamId) {
         try {
-            const pozycje = await sbFetch('pozycja_zamowienia', `?zamowienie_id=eq.${zamId}&rodzaj_produktu=eq.kubek`);
+            const pozycje = await sbFetch('pozycja_zamowienia', `?zamowienie_id=eq.${zamId}&select=*`);
             for (const p of pozycje) {
-                if (!p.kubek_id || !p.magazyn_id)
-                    continue;
-                const [stan] = await sbFetch('stan_magazynowy', `?kubek_id=eq.${p.kubek_id}&magazyn_id=eq.${p.magazyn_id}`);
-                if (stan) {
-                    const nowaIlosc = Math.max(0, (stan.ilosc_dostepna || 0) - p.ilosc);
-                    await sbFetch('stan_magazynowy', `?kubek_id=eq.${p.kubek_id}&magazyn_id=eq.${p.magazyn_id}`, {
-                        method: 'PATCH',
-                        body: JSON.stringify({
-                            ilosc_dostepna: nowaIlosc
-                        })
-                    });
+                if (p.rodzaj_produktu === 'kubek') {
+                    if (!p.kubek_id || !p.magazyn_id)
+                        continue;
+                    const [stan] = await sbFetch('stan_magazynowy', `?kubek_id=eq.${p.kubek_id}&magazyn_id=eq.${p.magazyn_id}`);
+                    if (stan) {
+                        const nowaIlosc = Math.max(0, (stan.ilosc_dostepna || 0) - p.ilosc);
+                        await sbFetch('stan_magazynowy', `?kubek_id=eq.${p.kubek_id}&magazyn_id=eq.${p.magazyn_id}`, {
+                            method: 'PATCH',
+                            body: JSON.stringify({
+                                ilosc_dostepna: nowaIlosc
+                            })
+                        });
+                    }
+                } else if (p.rodzaj_produktu === 'termiczny' && p.typ_termiczny === 'sprzedaz') {
+                    if (!p.kubek_termiczny_id)
+                        continue;
+                    // Znajdź magazyn z największą dostępnością
+                    const stany = await sbFetch('stan_magazynowy_termiczne', `?kubek_id=eq.${p.kubek_termiczny_id}&order=ilosc_dostepna.desc`);
+                    let pozostalo = p.ilosc;
+                    for (const s of stany) {
+                        if (pozostalo <= 0)
+                            break;
+                        const odejmij = Math.min(pozostalo, s.ilosc_dostepna || 0);
+                        if (odejmij > 0) {
+                            await sbFetch('stan_magazynowy_termiczne', `?kubek_id=eq.${p.kubek_termiczny_id}&magazyn_id=eq.${s.magazyn_id}`, {
+                                method: 'PATCH',
+                                body: JSON.stringify({
+                                    ilosc_dostepna: Math.max(0, s.ilosc_dostepna - odejmij)
+                                })
+                            });
+                            pozostalo -= odejmij;
+                        }
+                    }
                 }
             }
         } catch (e) {
@@ -3339,7 +3380,8 @@
     <div class="d-section">Produkty</div>
     <div id="tresc-sticky-placeholder"></div>
     <div id="pozycjeZam"></div>
-    <button class="btn-secondary" onclick="dodajPozycje('kubek');makeTrescSticky();" style="margin-bottom:6px;">+ Kubek papierowy</button>
+    <button class="btn-secondary" onclick="dodajPozycje('kubek');makeTrescSticky();" style="margin-bottom:6px;">+ Kubek (Artsider)</button>
+    <button class="btn-secondary" onclick="dodajPozycjeWlasneLogo();makeTrescSticky();" style="margin-bottom:6px;background:#FBF3EA;border-color:#F0C8A8;">+ Kubek (własne logo)</button>
     <button class="btn-secondary" onclick="dodajPozycje('przykrywka');makeTrescSticky();" style="margin-bottom:6px;">+ Wieczko</button>
     <button class="btn-secondary" onclick="dodajPozycjeTermiczne();makeTrescSticky();" style="margin-bottom:6px;">+ Termiczne</button>
     <button class="btn-secondary" onclick="dodajPozycje('wysylka');makeTrescSticky();" style="margin-bottom:6px;">+ Wysyłka</button>
@@ -3347,6 +3389,7 @@
     <button class="btn-primary" onclick="zapiszZamowienie()" style="margin-top:12px;">💾 Zapisz zamówienie</button>
     <div class="f-msg" id="zamMsg"></div>
   `
+
 
 
 
@@ -3688,7 +3731,73 @@
                 continue;
             if (typ2 === 'wysylka' && ilosc === 0) {} // wysylka doesn't need ilosc check
 
-            if (typ2 === 'kubek') {
+            if (typ2 === 'wlasne_logo') {
+                // Utwórz nowy kubek jako zlecony i dodaj do pozycji zamówienia
+                const wlMat = div.querySelector(`[id^="wl_mat_"]`)?.value;
+                const wlPoj = parseInt(div.querySelector(`[id^="wl_poj_"]`)?.value) || 0;
+                const wlSci = div.querySelector(`[id^="wl_sci_"]`)?.value;
+                const wlPak = parseInt(div.querySelector(`[id^="wl_pak_"]`)?.value) || null;
+                const wlGrafika = div.querySelector(`[id^="wl_grafika_"]`)?.value?.trim() || 'Logo klienta';
+                const wlIlosc = parseInt(div.querySelector(`[id^="wl_ilosc_"]`)?.value) || 0;
+                const wlData = div.querySelector(`[id^="wl_data_"]`)?.value || new Date().toISOString().slice(0, 10);
+                const wlCenaNet = parseFloat(div.querySelector(`[id^="wl_cena_"]`)?.value) || 0;
+                const wlCenaBrut = parseFloat(div.querySelector(`[id^="wl_brutto_"]`)?.value) || 0;
+                const wlCena = wlCenaNet || (wlCenaBrut / 1.23) || 0;
+                if (!wlMat || !wlPoj || !wlSci) {
+                    msg.className = 'f-msg err';
+                    msg.textContent = 'Uzupełnij dane kubka z własnym logo.';
+                    return;
+                }
+                try {
+                    // Szukaj artysty "własne logo" lub utwórz
+                    // Utwórz grafikę bez artysty
+                    const [graf] = await sbFetch('grafika', '', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            nazwa: wlGrafika,
+                            miniaturka_url: null
+                        })
+                    });
+                    // Utwórz kubek zlecony
+                    const [nowyKubek] = await sbFetch('kubek', '', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            grafika_id: graf.id,
+                            pojemnosc_ml: wlPoj,
+                            typ_materialu: wlMat,
+                            typ_scianki: wlSci,
+                            sztuk_w_opakowaniu: wlPak,
+                            cena_netto: wlCena || null,
+                            status: 'zlecony',
+                            logo: 'klienta',
+                            ilosc_zlecona: wlIlosc,
+                            data_zlecenia: wlData,
+                        })
+                    });
+                    // Utwórz stany magazynowe (0 szt.)
+                    const stanyWl = allMagazyny.map(m => ({
+                        kubek_id: nowyKubek.id,
+                        magazyn_id: m.id,
+                        ilosc_dostepna: 0,
+                        ilosc_w_drodze: 0
+                    }));
+                    await sbFetch('stan_magazynowy', '', {
+                        method: 'POST',
+                        body: JSON.stringify(stanyWl)
+                    });
+                    // Dodaj do pozycji zamówienia
+                    pozycje.push({
+                        rodzaj_produktu: 'kubek',
+                        kubek_id: nowyKubek.id,
+                        ilosc: wlIlosc,
+                        cena_jednostkowa: wlCena
+                    });
+                } catch (wlErr) {
+                    msg.className = 'f-msg err';
+                    msg.textContent = 'Błąd tworzenia kubka: ' + wlErr.message;
+                    return;
+                }
+            } else if (typ2 === 'kubek') {
                 const kubId = div.querySelector('[data-field="kubek_id"]')?.value;
                 if (!kubId) {
                     msg.className = 'f-msg err';
@@ -6779,6 +6888,179 @@
         wrap.appendChild(div);
         setTimeout(() => renderTermPicker(id, 'sprzedaz'), 50);
     }
+
+    // ── WYSZUKIWARKA KLIENTÓW W ZAMÓWIENIACH ──
+    function zamAutocompleteKlient(q) {
+        const input = document.getElementById('zamSearchKlient');
+        const list = document.getElementById('zamSearchKlientList');
+        if (!q || q.length < 1) {
+            input.dataset.klientId = '';
+            list.classList.remove('open');
+            applyFilters('zamowienia');
+            return;
+        }
+        // Get unique clients from allZamowienia
+        const seen = new Set();
+        const klienci = allZamowienia.filter(z => {
+            if (seen.has(z.klient_id))
+                return false;
+            seen.add(z.klient_id);
+            return (z.klient || '').toLowerCase().includes(q.toLowerCase());
+        });
+        if (!klienci.length) {
+            list.classList.remove('open');
+            input.dataset.klientId = '';
+            applyFilters('zamowienia');
+            return;
+        }
+        list.innerHTML = klienci.slice(0, 8).map(z => {
+            const hl = (z.klient || '').replace(new RegExp(`(${q})`, 'gi'), '<strong>$1</strong>');
+            return `<div class="autocomplete-item" data-kid="${z.klient_id}" onclick="selectZamKlient(this,'${z.klient_id}','${(z.klient || '').replace(/'/g, "\'")}')"><span>${hl}</span></div>`;
+        }).join('');
+        list.classList.add('open');
+    }
+
+    function selectZamKlient(el, klientId, nazwa) {
+        const input = document.getElementById('zamSearchKlient');
+        const list = document.getElementById('zamSearchKlientList');
+        input.value = nazwa;
+        input.dataset.klientId = klientId;
+        list.classList.remove('open');
+        applyFilters('zamowienia');
+    }
+
+    // ── WŁASNE LOGO KUBEK W ZAMÓWIENIU ──
+    function dodajPozycjeWlasneLogo() {
+        const id = ++pozycjeCounter;
+        const wrap = document.getElementById('pozycjeZam');
+        const div = document.createElement('div');
+        div.id = `poz_${id}`;
+        div.dataset.typ = 'wlasne_logo';
+        div.style.cssText = 'background:#FBF3EA;border:1.5px solid #F0C8A8;border-radius:10px;padding:14px;margin-bottom:8px;position:relative;';
+        const maty = ['PE', 'BIO', 'rPET'];
+        div.innerHTML = `
+    <button onclick="document.getElementById('poz_${id}').remove()" style="position:absolute;top:8px;right:8px;background:none;border:none;font-size:16px;cursor:pointer;color:var(--ink3);">✕</button>
+    <div style="font-size:10px;text-transform:uppercase;color:#7A3D0F;margin-bottom:10px;font-weight:600;">🎨 Kubek — własne logo</div>
+    <div class="f-row">
+      <div class="f-group" style="flex:1;">
+        <label class="f-label">Materiał</label>
+        <select class="f-select" id="wl_mat_${
+
+
+
+        id}" onchange="updateWlPojemnosci(${id})" style="background:white;">
+          <option value="">— wybierz —</option>
+          ${
+        maty.map(m => `<option value="${m}">${m}</option>`).join('')}
+        </select>
+      </div>
+      <div class="f-group" style="flex:1;">
+        <label class="f-label">Pojemność</label>
+        <select class="f-select" id="wl_poj_${
+
+
+
+        id}" style="background:white;">
+          <option value="">— najpierw materiał —</option>
+        </select>
+      </div>
+    </div>
+    <div class="f-row">
+      <div class="f-group" style="flex:1;">
+        <label class="f-label">Ścianka</label>
+        <select class="f-select" id="wl_sci_${
+
+
+
+
+
+
+        id}" style="background:white;">
+          <option value="jednościankowy">Jednościankowy</option>
+          <option value="dwuściankowy" selected>Dwuściankowy</option>
+          <option value="inny">Inny</option>
+        </select>
+      </div>
+      <div class="f-group" style="flex:1;">
+        <label class="f-label">Szt. w opakowaniu</label>
+        <input class="f-input" id="wl_pak_${
+
+
+
+
+
+
+        id}" type="number" min="1" placeholder="np. 25" style="background:white;">
+      </div>
+    </div>
+    <div class="f-group">
+      <label class="f-label">Nazwa grafiki / klienta</label>
+      <input class="f-input" id="wl_grafika_${
+
+
+
+        id}" placeholder="np. Logo Kawiarnia Mała Czarna" style="background:white;">
+    </div>
+    <div class="f-row">
+      <div class="f-group" style="flex:1;">
+        <label class="f-label">Ilość do zamówienia</label>
+        <input class="f-input" id="wl_ilosc_${
+
+
+
+        id}" type="number" min="1" placeholder="np. 500">
+      </div>
+      <div class="f-group" style="flex:1;">
+        <label class="f-label">Data zlecenia</label>
+        <input class="f-input" id="wl_data_${
+
+
+        id}" type="date" value="${new Date().toISOString().slice(0, 10)}">
+      </div>
+    </div>
+    <div class="f-group">
+      <label class="f-label">Cena netto / brutto</label>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <input class="f-input" id="wl_cena_${
+
+
+
+
+        id}" type="number" step="0.01" placeholder="netto" style="flex:1;background:white;" oninput="syncBruttoWl(${id})">
+        <span style="font-size:10px;color:var(--ink3);">/</span>
+        <input class="f-input" id="wl_brutto_${
+        id}" type="number" step="0.01" placeholder="brutto" style="flex:1;background:white;" oninput="syncNettoWl(${id})">
+      </div>
+    </div>
+  `
+
+
+        ;
+        wrap.appendChild(div);
+    }
+
+    function updateWlPojemnosci(id) {
+        const mat = document.getElementById(`wl_mat_${id}`)?.value;
+        const sel = document.getElementById(`wl_poj_${id}`);
+        if (!sel || !mat)
+            return;
+        const pojs = POJEMNOSCI[mat] || [];
+        sel.innerHTML = pojs.map(p => `<option value="${p}">${p} ml</option>`).join('');
+    }
+
+    function syncBruttoWl(id) {
+        const n = parseFloat(document.getElementById(`wl_cena_${id}`)?.value) || 0;
+        const b = document.getElementById(`wl_brutto_${id}`);
+        if (b && n)
+            b.value = (n * 1.23).toFixed(2);
+    }
+    function syncNettoWl(id) {
+        const b = parseFloat(document.getElementById(`wl_brutto_${id}`)?.value) || 0;
+        const n = document.getElementById(`wl_cena_${id}`);
+        if (n && b)
+            n.value = (b / 1.23).toFixed(4);
+    }
+
     // ── INIT ──
     window.addEventListener('load', async () => {
         const {url, key} = getCfg();
