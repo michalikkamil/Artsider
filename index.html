@@ -3449,9 +3449,22 @@
     <div style="display:flex;gap:8px;">
       ${
         isWysylka ? '' : `<div class="f-group" style="flex:1;margin-bottom:0;"><label class="f-label">Ilość</label><input class="f-input" data-field="ilosc" type="number" min="1" value="1"></div>`}
-      <div class="f-group" style="flex:1;margin-bottom:0;"><label class="f-label">Cena netto (zł)</label><input class="f-input" id="poz_cena_${id}" data-field="cena" type="number" step="0.01" min="0" placeholder="${isWysylka ? 'np. 12.00' : 'auto'}"></div>
+      <div class="f-group" style="flex:1;margin-bottom:0;">
+        <label class="f-label">Cena netto / brutto</label>
+        <div style="display:flex;gap:4px;align-items:center;">
+          <input class="f-input" id="poz_cena_${
+
+
+        id}" data-field="cena" type="number" step="0.01" min="0" placeholder="netto" style="flex:1;" oninput="syncBrutto(${id})">
+          <span style="font-size:10px;color:var(--ink3);flex-shrink:0;">/</span>
+          <input class="f-input" id="poz_brutto_${
+        id}" type="number" step="0.01" min="0" placeholder="brutto" style="flex:1;" oninput="syncNetto(${id})">
+        </div>
+      </div>
     </div>
   `
+
+
 
         ;
         wrap.appendChild(div);
@@ -3528,9 +3541,15 @@
         const komisDoUtworzenia = [];
         for (const div of pozycjeDivs) {
             const typ2 = div.dataset.typ;
-            const ilosc = parseInt(div.querySelector('[data-field="ilosc"]')?.value) || 0;
-            const cena = parseFloat(div.querySelector('[data-field="cena"]')?.value) || 0;
-            if (ilosc <= 0 || cena <= 0)
+            // For termiczne, ilosc and cena use different IDs
+            const ilosc = typ2 === 'termiczny'
+            ? parseInt(div.querySelector('[id^="poz_term_ilosc_"]')?.value) || 0
+            : parseInt(div.querySelector('[data-field="ilosc"]')?.value) || 0;
+            const cena = typ2 === 'termiczny'
+            ? parseFloat(div.querySelector('[id^="poz_term_cena_"]')?.value) || 0
+            : parseFloat(div.querySelector('[data-field="cena"]')?.value) || 0;
+            // Skip only non-termiczny-komis items with no ilosc
+            if (typ2 !== 'termiczny' && typ2 !== 'wysylka' && ilosc <= 0)
                 continue;
 
             if (typ2 === 'kubek') {
@@ -5662,9 +5681,22 @@
       <div class="f-group" style="flex:1;margin-bottom:0;"><label class="f-label">Ilość</label><input class="f-input" id="poz_term_ilosc_${
 
         id}" data-field="ilosc" type="number" min="1" value="1"></div>
-      <div class="f-group" style="flex:1;margin-bottom:0;"><label class="f-label">Cena netto (zł)</label><input class="f-input" id="poz_term_cena_${id}" data-field="cena" type="number" step="0.01" placeholder="0.00"></div>
+      <div class="f-group" style="flex:1;margin-bottom:0;">
+        <label class="f-label">Cena netto / brutto</label>
+        <div style="display:flex;gap:4px;align-items:center;">
+          <input class="f-input" id="poz_term_cena_${
+
+
+        id}" data-field="cena" type="number" step="0.01" placeholder="netto" style="flex:1;" oninput="syncBruttoTerm(${id})">
+          <span style="font-size:10px;color:var(--ink3);flex-shrink:0;">/</span>
+          <input class="f-input" id="poz_term_brutto_${
+        id}" type="number" step="0.01" placeholder="brutto" style="flex:1;" oninput="syncNettoTerm(${id})">
+        </div>
+      </div>
     </div>
     <input type="hidden" id="poz_term_typ_${
+
+
         id}" value="sprzedaz">
     <input type="hidden" id="poz_term_zrodlo_${id}" value="magazyn">
   `
@@ -5811,8 +5843,12 @@
                 mv.value = mag;
         }
         const ceEl = document.getElementById(`poz_cena_${id}`);
-        if (ceEl && cena)
+        if (ceEl && cena) {
             ceEl.value = Number(cena).toFixed(2);
+            const bEl = document.getElementById('poz_brutto_' + id);
+            if (bEl)
+                bEl.value = (Number(cena) * 1.23).toFixed(2);
+        }
     }
 
 
@@ -5919,8 +5955,12 @@
         }
         document.getElementById(hidden).value = kubek_id;
         const ceEl = document.getElementById(`poz_term_cena_${id}`);
-        if (ceEl && cena)
+        if (ceEl && cena) {
             ceEl.value = Number(cena).toFixed(2);
+            const bEl = document.getElementById('poz_term_brutto_' + id);
+            if (bEl)
+                bEl.value = (Number(cena) * 1.23).toFixed(2);
+        }
     }
 
     // ── TERMICZNE: PRZENIEŚ I ZMIEŃ ILOŚĆ ──
@@ -6333,6 +6373,31 @@
         } catch (e) {
             alert('Błąd: ' + e.message);
         }
+    }
+
+    function syncBrutto(id) {
+        const n = parseFloat(document.getElementById('poz_cena_' + id)?.value) || 0;
+        const b = document.getElementById('poz_brutto_' + id);
+        if (b && n)
+            b.value = (n * 1.23).toFixed(2);
+    }
+    function syncNetto(id) {
+        const b = parseFloat(document.getElementById('poz_brutto_' + id)?.value) || 0;
+        const n = document.getElementById('poz_cena_' + id);
+        if (n && b)
+            n.value = (b / 1.23).toFixed(4);
+    }
+    function syncBruttoTerm(id) {
+        const n = parseFloat(document.getElementById('poz_term_cena_' + id)?.value) || 0;
+        const b = document.getElementById('poz_term_brutto_' + id);
+        if (b && n)
+            b.value = (n * 1.23).toFixed(2);
+    }
+    function syncNettoTerm(id) {
+        const b = parseFloat(document.getElementById('poz_term_brutto_' + id)?.value) || 0;
+        const n = document.getElementById('poz_term_cena_' + id);
+        if (n && b)
+            n.value = (b / 1.23).toFixed(4);
     }
     // ── INIT ──
     window.addEventListener('load', async () => {
