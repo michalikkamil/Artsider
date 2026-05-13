@@ -5,23 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <title>Artsider</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&family=Fraunces:ital,wght@0,300;0,600;1,300;1,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,wght@0,300;0,600;1,300&display=swap" rel="stylesheet">
     <style>
     :root {
-        --bg: #F5F0E8;
-        --bg2: #EDE8DF;
-        --surface: #FFFEFB;
-        --ink: #1C1714;
-        --ink2: #6B6560;
-        --ink3: #A8A49E;
+        --bg: #F5F2EC;
+        --bg2: #EDEAE1;
+        --surface: #fff;
+        --ink: #1A1714;
+        --ink2: #6B6760;
+        --ink3: #A8A5A0;
         --accent: #C8502A;
         --accent2: #E8855F;
-        --border: #DDD8CE;
-        --green: #4A8C0F;
+        --border: #D8D4CC;
+        --green: #639922;
         --blue: #185FA5;
-        --radius: 16px;
+        --radius: 14px;
         --fh: 'Fraunces', Georgia, serif;
-        --fm: 'Outfit', sans-serif;
+        --fm: 'DM Mono', monospace;
     }
 
     * {
@@ -34,9 +34,8 @@
         background: var(--bg);
         color: var(--ink);
         font-family: var(--fm);
-        font-size: 14px;
+        font-size: 13px;
         min-height: 100vh;
-        -webkit-font-smoothing: antialiased;
     }/* NAV */
     nav {
         background: var(--ink);
@@ -114,7 +113,7 @@
     }/* DARK HEADER */
     .dark-header {
         background: var(--ink);
-        padding: 10px 14px 0;
+        padding: 12px 16px 0;
     }
 
     .filters {
@@ -635,9 +634,9 @@
 
     .f-input, .f-select {
         background: var(--bg);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 11px 14px;
+        border: 1.5px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 12px;
         font-family: var(--fm);
         font-size: 16px;
         color: var(--ink);
@@ -1154,8 +1153,12 @@
             <em>sider</em>
         </div>
         <div class="nav-tabs">
-            <button class="nav-tab" onclick="showPage('cennik',this)">Cennik</button>
-            <button class="nav-tab" onclick="showPage('artysci',this)">Artyści</button>
+            <button class="nav-tab active" onclick="showPage('kubki',this)">☕ Kubki</button>
+            <button class="nav-tab" onclick="showPage('przykrywki',this)">🫗 Wieczka</button>
+            <button class="nav-tab" onclick="showPage('termiczne',this)">🌡 Termiczne</button>
+            <button class="nav-tab" onclick="showPage('zamowienia',this)">📦 Zamówienia</button>
+            <button class="nav-tab" onclick="showPage('cennik',this)">💰 Cennik</button>
+            <button class="nav-tab" onclick="showPage('artysci',this)">🎨 Artyści</button>
             <button class="nav-tab" onclick="showPage('dodaj',this)">+ Dodaj</button>
         </div>
         <button class="nav-cfg" onclick="document.getElementById('cfgModal').classList.add('open')">⚙</button>
@@ -1397,10 +1400,12 @@
             </div>
         </div>
         <div class="page-body" style="padding-top:12px;padding-bottom:0;">
+            <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;">
+                <button class="btn-primary" style="flex:1;" onclick="openNoweZamowienie()">+ Nowe zamówienie</button>
+                <button id="btnImportKlientow" onclick="importujKlientowZFakturowni()" title="Importuj klientów z Fakturowni" style="background:none;border:1px solid var(--border);border-radius:8px;padding:6px 8px;font-family:var(--fm);font-size:11px;color:var(--ink3);cursor:pointer;flex-shrink:0;line-height:1;">📥</button>
+            </div>
             <div class="f-msg" id="importMsg" style="margin-bottom:4px;font-size:11px;"></div>
         </div>
-        <!-- FAB -->
-        <button onclick="openNoweZamowienie()" id="fabNowe" style="position:fixed;bottom:80px;right:16px;width:52px;height:52px;border-radius:50%;background:var(--accent);color:white;border:none;font-size:24px;cursor:pointer;z-index:99;box-shadow:0 4px 16px rgba(200,80,42,0.45);display:flex;align-items:center;justify-content:center;font-family:var(--fm);">+</button>
         <div class="list" id="listZamowienia">
             <div class="state-msg">
                 <span class="big">📦</span>
@@ -7186,11 +7191,7 @@
             allZlecone = [];
             allArchiwum = [];
             allPrzykrywki = [];
-            // Start on zamowienia
-            showPage('zamowienia', null);
-            setBottomNav('zamowienia');
             await loadAll();
-            loadZamowienia();
         }
     });
     </script>
