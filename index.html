@@ -2755,7 +2755,7 @@
         <div>
           <div class="artysta-nalezne">${
 
-        Number(a.nalezne_lacznie).toFixed(2)} zł</div>
+        Math.max(0, Number(a.nalezne_lacznie)).toFixed(2)} zł</div>
           <div class="artysta-nalezne-lbl">należne</div>
         </div>
       </div>
@@ -4946,8 +4946,9 @@
                 statusColor};font-weight:500;">${k.status === 'w_magazynie' ? 'w mag.' : k.status === 'zlecony' ? 'zlecony' : 'archiwum'}</div>
           <div style="font-size:11px;color:var(--ink3);">mag: ${k.ilosc_w_magazynie} · sprzed: ${k.ilosc_sprzedana}</div>
         </div>
+        <button onclick="usunKubekArtysty('${
+                k.kubek_id}','${artId}')" style="background:#FBE9E9;border:1px solid #F4B5B5;color:#A32D2D;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;flex-shrink:0;margin-left:6px;">✕</button>
       </div>`
-
                 ;
             }).join('');
 
@@ -4970,7 +4971,7 @@
       <div class="d-row"><span class="d-key">Prowizja term. naliczona</span><span class="d-val">${Number(a.prowizja_termiczne_naliczona || 0).toFixed(2)} zł (${a.termiczne_sprzedane} szt.)</span></div>
       <div class="d-row"><span class="d-key">Łącznie naliczone</span><span class="d-val">${Number(a.prowizje_naliczone || 0).toFixed(2)} zł</span></div>
       <div class="d-row"><span class="d-key">Wypłacono</span><span class="d-val">${Number(a.wyplacono_lacznie).toFixed(2)} zł</span></div>
-      <div class="d-row" style="font-weight:600;"><span class="d-key">Należne</span><span class="d-val acc">${Number(a.nalezne_lacznie).toFixed(2)} zł</span></div>
+      <div class="d-row" style="font-weight:600;"><span class="d-key">Należne</span><span class="d-val acc">${Math.max(0, Number(a.nalezne_lacznie)).toFixed(2)} zł</span></div>
 
       <div class="d-section">Historia wypłat</div>
       <div id="wyplatyList">⏳</div>
@@ -7133,6 +7134,52 @@
             n.value = (b / 1.23).toFixed(4);
     }
 
+
+    async function usunKubekArtysty(kubek_id, artId) {
+        if (!confirm('Usunąć ten kubek? Jeśli był w zamówieniach zostanie zarchiwizowany (stan=0).'))
+            return;
+        try {
+            // Try to delete, if FK error - archive instead
+            try {
+                await sbFetch('stan_magazynowy', `?kubek_id=eq.${kubek_id}`, {
+                    method: 'DELETE'
+                });
+                const [k] = await sbFetch('kubek', `?id=eq.${kubek_id}`);
+                await sbFetch('kubek', `?id=eq.${kubek_id}`, {
+                    method: 'DELETE'
+                });
+                try {
+                    await sbFetch('grafika', `?id=eq.${k.grafika_id}`, {
+                        method: 'DELETE'
+                    });
+                } catch (e) {}
+            } catch (e) {
+                if (e.message.includes('23503') || e.message.includes('foreign key')) {
+                    const stany = await sbFetch('stan_magazynowy', `?kubek_id=eq.${kubek_id}`);
+                    for (const s of stany) {
+                        await sbFetch('stan_magazynowy', `?id=eq.${s.id}`, {
+                            method: 'PATCH',
+                            body: JSON.stringify({
+                                ilosc_dostepna: 0,
+                                ilosc_w_drodze: 0
+                            })
+                        });
+                    }
+                    await sbFetch('kubek', `?id=eq.${kubek_id}`, {
+                        method: 'PATCH',
+                        body: JSON.stringify({
+                            status: 'w_magazynie'
+                        })
+                    });
+                } else
+                    throw e;
+            }
+            openKartaArtysty(artId);
+            loadAll();
+        } catch (e) {
+            alert('Błąd: ' + e.message);
+        }
+    }
     // ── INIT ──
     window.addEventListener('load', async () => {
         const {url, key} = getCfg();
