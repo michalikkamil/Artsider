@@ -3878,10 +3878,14 @@
 
             pozHTML}</div>
       <button class="btn-secondary" onclick="dodajPozycjeEdit('kubek')" style="margin-bottom:6px;">+ Kubek papierowy</button>
-      <button class="btn-secondary" onclick="dodajPozycjeEdit('przykrywka')" style="margin-bottom:6px;">+ Przykrywka</button>
+      <button class="btn-secondary" onclick="dodajPozycjeEdit('przykrywka')" style="margin-bottom:6px;">+ Wieczko</button>
+      <button class="btn-secondary" onclick="dodajPozycjeTermiczneEdit()" style="margin-bottom:6px;">+ Termiczne</button>
+      <button class="btn-secondary" onclick="dodajPozycjeEdit('wysylka')" style="margin-bottom:6px;">+ Wysyłka</button>
       <div id="ePozycjeNowe"></div>
 
       <button class="btn-primary" onclick="zapiszEdycjeZamowienia('${
+
+
 
 
 
@@ -4042,6 +4046,61 @@
                             cena_jednostkowa: cena
                         })
                     });
+                } else if (typ2 === 'termiczny') {
+                    const termTyp = div.querySelector('[id^="poz_term_typ_"]')?.value || 'sprzedaz';
+                    const termIlosc = parseInt(div.querySelector('[id^="poz_term_ilosc_"]')?.value) || 0;
+                    const termCena = parseFloat(div.querySelector('[id^="poz_term_cena_"]')?.value) || 0;
+                    if (termIlosc <= 0)
+                        continue;
+                    if (termTyp === 'komis') {
+                        const kubId = div.querySelector('[data-field="kubek_termiczny_komis_id"]')?.value;
+                        if (!kubId)
+                            continue;
+                        const cenKom = parseFloat(div.querySelector('[id^="poz_term_cena_kom_"]')?.value) || 0;
+                        await sbFetch('komis', '', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                kubek_id: kubId,
+                                klient_id: klientId,
+                                ilosc: termIlosc,
+                                cena_komisowa: cenKom || null,
+                                status: 'aktywny',
+                                data_przekazania: new Date().toISOString().slice(0, 10)
+                            })
+                        });
+                    } else {
+                        const termZrodlo = div.querySelector('[id^="poz_term_zrodlo_"]')?.value || 'magazyn';
+                        const kubId = termZrodlo === 'komis' ? div.querySelector('[id^="poz_term_komis_kub_"]')?.value : div.querySelector('[data-field="kubek_termiczny_id"]')?.value;
+                        if (!kubId || termCena <= 0)
+                            continue;
+                        await sbFetch('pozycja_zamowienia', '', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                zamowienie_id: zamId,
+                                rodzaj_produktu: 'termiczny',
+                                kubek_termiczny_id: kubId,
+                                typ_termiczny: 'sprzedaz',
+                                ilosc: termIlosc,
+                                cena_jednostkowa: termCena
+                            })
+                        });
+                    }
+                } else if (typ2 === 'wysylka') {
+                    const wTyp = div.querySelector('[data-field="wysylka_typ"]')?.value || 'DPD';
+                    const wNazwa = div.querySelector('[data-field="wysylka_nazwa"]')?.value || ('Wysyłka ' + wTyp);
+                    const cenW = parseFloat(div.querySelector('[data-field="cena"]')?.value) || 0;
+                    if (cenW > 0)
+                        await sbFetch('pozycja_zamowienia', '', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                zamowienie_id: zamId,
+                                rodzaj_produktu: 'wysylka',
+                                typ_wysylki: wTyp,
+                                nazwa_wysylki: wNazwa,
+                                ilosc: 1,
+                                cena_jednostkowa: cenW
+                            })
+                        });
                 }
             }
 
@@ -6398,6 +6457,182 @@
         const n = document.getElementById('poz_term_cena_' + id);
         if (n && b)
             n.value = (b / 1.23).toFixed(4);
+    }
+
+    function dodajPozycjeEdit(typ) {
+        const wrap = document.getElementById('ePozycjeNowe');
+        if (!wrap)
+            return;
+        const id = ++pozycjeCounter;
+        const div = document.createElement('div');
+        div.id = `poz_${id}`;
+        div.dataset.typ = typ;
+        div.style.cssText = 'background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;position:relative;';
+
+        let selectHTML = '';
+        if (typ === 'kubek') {
+            const kubkiDostepne = allKubki.filter(k => !k.isPrzykrywka && k.ilosc_lacznie > 0).sort((a, b) => a.pojemnosc_ml - b.pojemnosc_ml);
+            const maty = [...new Set(kubkiDostepne.map(k => k.typ_materialu).filter(Boolean))].sort();
+            window['kubkiPicker_' + id] = kubkiDostepne;
+            selectHTML = `
+      <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
+        <select class="f-select" id="poz_mat_${
+            id}" onchange="filterKubkiPicker(${id})" style="flex:1;min-width:80px;"><option value="">— materiał —</option>${maty.map(m => `<option value="${m}">${m}</option>`).join('')}</select>
+        <select class="f-select" id="poz_poj_${id}" onchange="filterKubkiPicker(${id})" style="flex:1;min-width:80px;"><option value="">— pojemność —</option></select>
+        <select class="f-select" id="poz_sci_${id}" onchange="filterKubkiPicker(${id})" style="flex:1;min-width:80px;"><option value="">— ścianka —</option><option value="jednościankowy">Jedno</option><option value="dwuściankowy">Dwu</option></select>
+      </div>
+      <input type="hidden" id="poz_kub_${
+            id}" data-field="kubek_id">
+      <div id="poz_picker_${id}" style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;"></div>`;
+        } else if (typ === 'przykrywka') {
+            selectHTML = `<div style="display:flex;gap:6px;margin-bottom:6px;">
+      <select class="f-select" data-field="pr_mat" style="flex:1;"><option value="papierowa">Papierowa</option><option value="plastikowa">Plastikowa</option></select>
+      <select class="f-select" data-field="pr_rozm" style="flex:1;"><option value="80">80mm</option><option value="90">90mm</option><option value="72">72mm</option></select>
+      <select class="f-select" data-field="pr_kol" style="flex:1;"><option value="biały">Biały</option><option value="czarny">Czarny</option></select>
+    </div>`
+
+
+
+            ;
+        } else if (typ === 'wysylka') {
+            selectHTML = `<div style="display:flex;gap:6px;margin-bottom:6px;">
+      <select class="f-select" id="poz_wtyp_${id}" data-field="wysylka_typ" onchange="updateWysylkaNazwa(${id})" style="flex:1;"><option value="DPD">DPD</option><option value="InPost">InPost</option><option value="Orlen">Orlen</option><option value="inny">Inny</option></select>
+      <input class="f-input" id="poz_wnazwa_${id}" data-field="wysylka_nazwa" value="Wysyłka DPD" style="flex:1;">
+    </div>`
+            ;
+        }
+
+        const isWysylka = typ === 'wysylka';
+        div.innerHTML = `
+    <button onclick="document.getElementById('poz_${id}').remove()" style="position:absolute;top:8px;right:8px;background:none;border:none;font-size:16px;cursor:pointer;color:var(--ink3);">✕</button>
+    <div style="font-size:10px;text-transform:uppercase;color:var(--ink3);margin-bottom:8px;">${typ === 'kubek' ? 'Kubek papierowy' : typ === 'przykrywka' ? 'Wieczko' : '📦 Wysyłka'}</div>
+    ${selectHTML}
+    <div style="display:flex;gap:8px;">
+      ${
+        isWysylka ? '' : `<div class="f-group" style="flex:1;margin-bottom:0;"><label class="f-label">Ilość</label><input class="f-input" data-field="ilosc" type="number" min="1" value="1"></div>`}
+      <div class="f-group" style="flex:1;margin-bottom:0;">
+        <label class="f-label">Netto / brutto</label>
+        <div style="display:flex;gap:4px;">
+          <input class="f-input" id="poz_cena_${
+
+
+        id}" data-field="cena" type="number" step="0.01" placeholder="netto" style="flex:1;" oninput="syncBrutto(${id})">
+          <span style="font-size:10px;color:var(--ink3);align-self:center;">/</span>
+          <input class="f-input" id="poz_brutto_${
+        id}" type="number" step="0.01" placeholder="brutto" style="flex:1;" oninput="syncNetto(${id})">
+        </div>
+      </div>
+    </div>`
+
+
+        ;
+        wrap.appendChild(div);
+        if (typ === 'kubek')
+            setTimeout(() => renderKubkiPicker(id), 50);
+    }
+
+    async function dodajPozycjeTermiczneEdit() {
+        const klientId = document.getElementById('eZamKlient')?.value || '';
+        const wrap = document.getElementById('ePozycjeNowe');
+        if (!wrap)
+            return;
+        const id = ++pozycjeCounter;
+        const div = document.createElement('div');
+        div.id = `poz_${id}`;
+        div.dataset.typ = 'termiczny';
+        div.style.cssText = 'background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;position:relative;';
+
+        let kubkiTermHTML = '<option value="">— ładowanie —</option>';
+        try {
+            const kt = await sbFetch('v_stan_termicznych', '?select=*');
+            const map = {};
+            kt.forEach(r => {
+                if (!map[r.kubek_id])
+                    map[r.kubek_id] = {
+                        id: r.kubek_id,
+                        grafika: r.grafika,
+                        pojemnosc: r.pojemnosc_ml,
+                        pojemnosc_ml: r.pojemnosc_ml,
+                        kolor: r.kolor,
+                        ilosc: 0,
+                        cena: r.cena_netto,
+                        miniaturka: r.miniaturka_url
+                    };
+                map[r.kubek_id].ilosc += (r.ilosc_dostepna || 0);
+            });
+            window['termPicker_' + id] = Object.values(map).filter(k => k.ilosc > 0).sort((a, b) => a.pojemnosc - b.pojemnosc);
+            if (klientId) {
+                const komis = await sbFetch('v_komis_aktywny', `?klient_id=eq.${klientId}&select=*`);
+                window['komisPicker_' + id] = komis.map(k => ({
+                    id: k.kubek_id,
+                    komis_id: k.id,
+                    grafika: k.grafika,
+                    pojemnosc_ml: k.pojemnosc_ml,
+                    pojemnosc: k.pojemnosc_ml,
+                    kolor: k.kolor,
+                    ilosc: k.ilosc,
+                    cena: k.cena_netto || 0,
+                    miniaturka: k.miniaturka_url
+                }));
+            } else
+                window['komisPicker_' + id] = [];
+        } catch (e) {}
+
+        div.innerHTML = `
+    <button onclick="document.getElementById('poz_${id}').remove()" style="position:absolute;top:8px;right:8px;background:none;border:none;font-size:16px;cursor:pointer;color:var(--ink3);">✕</button>
+    <div style="font-size:10px;text-transform:uppercase;color:var(--ink3);margin-bottom:8px;">🌡 Kubek termiczny</div>
+    <div style="display:flex;gap:8px;margin-bottom:8px;">
+      <button onclick="setTermTyp(${
+
+        id},'sprzedaz',this)" class="btn-status active" style="flex:1;">💰 Sprzedaż</button>
+      <button onclick="setTermTyp(${id},'komis',this)" class="btn-status" style="flex:1;">🤝 Komis</button>
+    </div>
+    <div id="poz_term_sprzedaz_${
+        id}">
+      <div style="display:flex;gap:6px;margin-bottom:6px;">
+        <button onclick="setTermSprzedazTyp(${
+        id},'magazyn',this)" class="btn-status active" style="flex:1;font-size:11px;">Z magazynu</button>
+        <button onclick="setTermSprzedazTyp(${id},'komis',this)" class="btn-status" style="flex:1;font-size:11px;">Z komisu</button>
+      </div>
+      <input type="hidden" id="poz_term_kub_${
+        id}" data-field="kubek_termiczny_id">
+      <div id="poz_term_picker_${id}" style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;"></div>
+      <div id="poz_term_komis_sel_${id}" style="display:none;">
+        <input type="hidden" id="poz_term_komis_kub_${id}">
+        <div id="poz_term_komis_picker_${id}" style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;"></div>
+      </div>
+    </div>
+    <div id="poz_term_komis_${
+
+        id}" style="display:none;">
+      <input type="hidden" id="poz_term_komis_wyslij_${id}" data-field="kubek_termiczny_komis_id">
+      <div id="poz_term_komis_wyslij_picker_${id}" style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;"></div>
+      <div class="f-group" style="margin-bottom:0;"><label class="f-label">Cena komisowa</label><input class="f-input" id="poz_term_cena_kom_${id}" type="number" step="0.01" placeholder="np. 45.00"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <div class="f-group" style="flex:1;margin-bottom:0;"><label class="f-label">Ilość</label><input class="f-input" id="poz_term_ilosc_${
+
+        id}" type="number" min="1" value="1"></div>
+      <div class="f-group" style="flex:1;margin-bottom:0;">
+        <label class="f-label">Netto / brutto</label>
+        <div style="display:flex;gap:4px;">
+          <input class="f-input" id="poz_term_cena_${
+
+
+        id}" type="number" step="0.01" placeholder="netto" style="flex:1;" oninput="syncBruttoTerm(${id})">
+          <span style="font-size:10px;color:var(--ink3);align-self:center;">/</span>
+          <input class="f-input" id="poz_term_brutto_${
+        id}" type="number" step="0.01" placeholder="brutto" style="flex:1;" oninput="syncNettoTerm(${id})">
+        </div>
+      </div>
+    </div>
+    <input type="hidden" id="poz_term_typ_${
+
+
+        id}" value="sprzedaz">
+    <input type="hidden" id="poz_term_zrodlo_${id}" value="magazyn">`;
+        wrap.appendChild(div);
+        setTimeout(() => renderTermPicker(id, 'sprzedaz'), 50);
     }
     // ── INIT ──
     window.addEventListener('load', async () => {
