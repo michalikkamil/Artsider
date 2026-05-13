@@ -2078,48 +2078,178 @@
 
     function renderKomisInTermiczne() {
         const list = document.getElementById('listTermiczne');
-        list.innerHTML = `<div class="state-msg"><span class="big">⏳</span>Ładowanie komisu…</div>`;
-        sbFetch('v_komis_aktywny', '?select=*&order=grafika.asc').then(data => {
+        list.innerHTML = `
+    <div style="padding:12px 16px;">
+      <div class="autocomplete-wrap" style="margin-bottom:12px;">
+        <input class="autocomplete-input" id="komisSearchInput" placeholder="Szukaj klienta…" oninput="filterKomisKlienci(this.value)" autocomplete="off">
+        <div class="autocomplete-list" id="komisSearchList"></div>
+      </div>
+      <div id="komisKlienciList"></div>
+    </div>`
+
+
+
+
+
+
+        ;
+
+        sbFetch('v_komis_aktywny', '?select=*&order=klient.asc').then(data => {
             allKomis = data;
-            // Update stat
             const totalKomis = data.reduce((s, k) => s + (k.ilosc || 0), 0);
             const stEl = document.getElementById('stKomis');
             if (stEl)
                 stEl.textContent = totalKomis || '—';
-            if (!data.length) {
-                list.innerHTML = `<div class="state-msg"><span class="big">🤝</span>Brak aktywnych komisów.</div>`;
-                return;
-            }
-            const byKlient = {};
-            data.forEach(k => {
-                if (!byKlient[k.klient_id])
-                    byKlient[k.klient_id] = {
-                        klient: k.klient,
-                        pozycje: []
-                    };
-                byKlient[k.klient_id].pozycje.push(k);
-            });
-            list.innerHTML = Object.values(byKlient).map(({klient, pozycje}) => `
-      <div class="komis-card">
-        <div class="komis-klient">${
-            klient}</div>
-        ${pozycje.map(p => `
-          <div class="komis-row" style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--bg2);">
-            ${
-            p.miniaturka_url ? `<img src="${p.miniaturka_url}" style="width:40px;height:40px;border-radius:6px;object-fit:cover;flex-shrink:0;">` : `<div style="width:40px;height:40px;border-radius:6px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🌡</div>`}
-            <div style="flex:1;">
-              <div style="font-size:13px;font-weight:500;">${
-            p.grafika || '—'} · ${p.pojemnosc_ml}ml</div>
-              <div style="font-size:11px;color:var(--ink3);">${p.dni_w_komisie} dni w komisie</div>
-            </div>
-            <div style="font-family:var(--fh);font-size:18px;font-weight:700;">${
-            p.ilosc} szt.</div>
-          </div>`).join('')}
-      </div>`
-            ).join('');
+            renderKomisKlienciList(data, '');
         }).catch(e => {
             list.innerHTML = `<div class="state-msg"><span class="big">⚠️</span>${e.message}</div>`;
         });
+    }
+
+    function filterKomisKlienci(q) {
+        renderKomisKlienciList(allKomis, q.toLowerCase());
+        // autocomplete suggestions
+        const suggList = document.getElementById('komisSearchList');
+        if (!q || q.length < 1) {
+            suggList.classList.remove('open');
+            return;
+        }
+        const klienci = [...new Map(allKomis.filter(k => k.klient.toLowerCase().includes(q.toLowerCase())).map(k => [k.klient_id, k])).values()];
+        if (!klienci.length) {
+            suggList.classList.remove('open');
+            return;
+        }
+        suggList.innerHTML = klienci.slice(0, 6).map(k => `<div class="autocomplete-item" onclick="document.getElementById('komisSearchInput').value='${k.klient.replace(/'/g, "\'")}';filterKomisKlienci('${k.klient.replace(/'/g, "\'")}');document.getElementById('komisSearchList').classList.remove('open');">${k.klient}</div>`).join('');
+        suggList.classList.add('open');
+    }
+
+    function renderKomisKlienciList(data, q) {
+        const wrap = document.getElementById('komisKlienciList');
+        if (!wrap)
+            return;
+        // Grupuj po kliencie
+        const byKlient = {};
+        data.forEach(k => {
+            if (q && !k.klient.toLowerCase().includes(q))
+                return;
+            if (!byKlient[k.klient_id])
+                byKlient[k.klient_id] = {
+                    klient_id: k.klient_id,
+                    klient: k.klient,
+                    pozycje: [],
+                    lacznie: 0,
+                    ostatnia: k.data_przekazania
+                };
+            byKlient[k.klient_id].pozycje.push(k);
+            byKlient[k.klient_id].lacznie += (k.ilosc || 0);
+            if (k.data_przekazania > byKlient[k.klient_id].ostatnia)
+                byKlient[k.klient_id].ostatnia = k.data_przekazania;
+        });
+        const klienci = Object.values(byKlient).sort((a, b) => a.klient.localeCompare(b.klient));
+        if (!klienci.length) {
+            wrap.innerHTML = '<div style="color:var(--ink3);font-size:13px;padding:8px 0;">Brak wyników.</div>';
+            return;
+        }
+        wrap.innerHTML = klienci.map(kl => `
+    <div onclick="openKomisKlienta('${kl.klient_id}')"
+      style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;margin-bottom:8px;cursor:pointer;">
+      <div>
+        <div style="font-family:var(--fh);font-size:15px;font-weight:600;">${
+
+        kl.klient}</div>
+        <div style="font-size:11px;color:var(--ink3);margin-top:2px;">ostatnia zmiana: ${kl.ostatnia || '—'}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-family:var(--fh);font-size:22px;font-weight:700;color:var(--accent);">${
+
+        kl.lacznie}</div>
+        <div style="font-size:10px;color:var(--ink3);">szt. w komisie</div>
+      </div>
+    </div>`
+
+
+        ).join('');
+    }
+
+    function openKomisKlienta(klientId) {
+        const pozycje = allKomis.filter(k => k.klient_id === klientId);
+        if (!pozycje.length)
+            return;
+        const klientNazwa = pozycje[0].klient;
+
+        document.getElementById('drawerContent').innerHTML = `
+    <div class="drawer-handle"></div>
+    <button class="drawer-back" onclick="closeDrawer();renderKomisInTermiczne()">← Wróć</button>
+    <div class="drawer-title">${
+
+        klientNazwa}</div>
+    <div class="d-section">Kubki w komisie (${pozycje.reduce((s, p) => s + (p.ilosc || 0), 0)} szt.)</div>
+    ${pozycje.map(p => `
+      <div id="komisRow_${p.id}" style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bg2);">
+        ${p.miniaturka_url ? `<img src="${p.miniaturka_url}" style="width:44px;height:44px;border-radius:6px;object-fit:cover;flex-shrink:0;">` : `<div style="width:44px;height:44px;border-radius:6px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">🌡</div>`}
+        <div style="flex:1;">
+          <div style="font-family:var(--fh);font-size:14px;font-weight:600;">${
+        p.grafika || '—'}</div>
+          <div style="font-size:11px;color:var(--ink3);">${p.pojemnosc_ml}ml · ${p.kolor || ''} · ${p.dni_w_komisie} dni</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input type="number" min="0" value="${
+
+        p.ilosc}" id="komisIlosc_${p.id}"
+            style="width:60px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;padding:4px 8px;font-size:14px;text-align:center;font-family:var(--fm);">
+          <button onclick="zapiszKomisIlosc('${
+        p.id}','${klientId}')" style="background:var(--accent);color:white;border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;">✓</button>
+          <button onclick="usunKomis('${p.id}','${klientId}')" style="background:#FBE9E9;border:1.5px solid #F4B5B5;color:#A32D2D;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;">✕</button>
+        </div>
+      </div>`
+        ).join('')}
+  `
+        ;
+        document.getElementById('overlay').classList.add('open');
+        document.getElementById('drawer').classList.add('open');
+    }
+
+    async function zapiszKomisIlosc(komisId, klientId) {
+        const ilosc = parseInt(document.getElementById('komisIlosc_' + komisId)?.value) || 0;
+        try {
+            if (ilosc <= 0) {
+                await usunKomis(komisId, klientId);
+            } else {
+                await sbFetch('komis', `?id=eq.${komisId}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({
+                        ilosc,
+                        data_przekazania: new Date().toISOString().slice(0, 10)
+                    })
+                });
+                // Refresh allKomis
+                allKomis = await sbFetch('v_komis_aktywny', '?select=*&order=klient.asc');
+                const btn = document.querySelector(`button[onclick="zapiszKomisIlosc('${komisId}','${klientId}')"]`);
+                if (btn) {
+                    btn.textContent = '✓';
+                    btn.style.background = 'var(--green)';
+                }
+            }
+        } catch (e) {
+            alert('Błąd: ' + e.message);
+        }
+    }
+
+    async function usunKomis(komisId, klientId) {
+        if (!confirm('Usunąć tę pozycję z komisu?'))
+            return;
+        try {
+            await sbFetch('komis', `?id=eq.${komisId}`, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    status: 'zwrocony'
+                })
+            });
+            allKomis = await sbFetch('v_komis_aktywny', '?select=*&order=klient.asc');
+            openKomisKlienta(klientId);
+        } catch (e) {
+            alert('Błąd: ' + e.message);
+        }
     }
 
     // ── FILTERS ──
@@ -2986,10 +3116,15 @@
             const pozHTML = pozycje.map(p => {
                 let opis = '';
                 if (p.rodzaj_produktu === 'kubek')
-                    opis = `${p.grafika || '—'} · ${p.pojemnosc_ml}ml ${p.typ_materialu}`;
+                    opis = `${p.grafika || '—'} · ${p.pojemnosc_ml}ml ${p.typ_materialu || ''}`;
                 else if (p.rodzaj_produktu === 'przykrywka')
-                    opis = `Przykrywka ${p.pr_typ} ${p.pr_rozmiar}mm ${p.pr_kolor || ''}`;
-                return `<div class="d-row"><span class="d-key">${opis}</span><span class="d-val">${p.ilosc} szt. · ${Number(p.wartosc).toFixed(2)} zł</span></div>`;
+                    opis = `Wieczko ${p.pr_typ || ''} ${p.pr_rozmiar || ''}mm ${p.pr_kolor || ''}`;
+                else if (p.rodzaj_produktu === 'wysylka')
+                    opis = `📦 ${p.nazwa_wysylki || 'Wysyłka ' + p.typ_wysylki}`;
+                else if (p.rodzaj_produktu === 'termiczny')
+                    opis = `🌡 ${p.term_grafika || '—'} · ${p.term_pojemnosc || ''}ml ${p.typ_termiczny === 'komis' ? '(komis)' : ''}`;
+                const iloscStr = p.ilosc > 1 ? `${p.ilosc} szt. · ` : '';
+                return `<div class="d-row"><span class="d-key">${opis || '—'}</span><span class="d-val">${iloscStr}${Number(p.wartosc || p.cena_jednostkowa).toFixed(2)} zł</span></div>`;
             }).join('');
 
             document.getElementById('drawerZamContent').innerHTML = `
