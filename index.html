@@ -3714,14 +3714,15 @@
                         status_platnosci: 'nieoplacona',
                     })
                 });
-                const pozDoZapisu = pozycje.map(p => ({
-                    ...p,
-                    zamowienie_id: zam.id
-                }));
-                await sbFetch('pozycja_zamowienia', '', {
-                    method: 'POST',
-                    body: JSON.stringify(pozDoZapisu)
-                });
+                for (const p of pozycje) {
+                    await sbFetch('pozycja_zamowienia', '', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            ...p,
+                            zamowienie_id: zam.id
+                        })
+                    });
+                }
             }
             msg.className = 'f-msg ok';
             if (pozycje.length && komisDoUtworzenia.length)
