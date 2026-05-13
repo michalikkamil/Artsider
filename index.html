@@ -3548,9 +3548,10 @@
             const cena = typ2 === 'termiczny'
             ? parseFloat(div.querySelector('[id^="poz_term_cena_"]')?.value) || 0
             : parseFloat(div.querySelector('[data-field="cena"]')?.value) || 0;
-            // Skip only non-termiczny-komis items with no ilosc
+            // Skip items with no ilosc (except wysylka which always has ilosc=1)
             if (typ2 !== 'termiczny' && typ2 !== 'wysylka' && ilosc <= 0)
                 continue;
+            if (typ2 === 'wysylka' && ilosc === 0) {} // wysylka doesn't need ilosc check
 
             if (typ2 === 'kubek') {
                 const kubId = div.querySelector('[data-field="kubek_id"]')?.value;
@@ -3576,7 +3577,9 @@
                 const termTyp = div.querySelector('[id^="poz_term_typ_"]')?.value || 'sprzedaz';
                 const termZrodlo = div.querySelector('[id^="poz_term_zrodlo_"]')?.value || 'magazyn';
                 const termIlosc = parseInt(div.querySelector('[id^="poz_term_ilosc_"]')?.value) || 0;
-                const termCena = parseFloat(div.querySelector('[id^="poz_term_cena_"]')?.value) || 0;
+                const termCenaNet = parseFloat(div.querySelector('[id^="poz_term_cena_"]')?.value) || 0;
+                const termCenaBrut = parseFloat(div.querySelector('[id^="poz_term_brutto_"]')?.value) || 0;
+                const termCena = termCenaNet || (termCenaBrut / 1.23) || 0;
                 if (termIlosc <= 0)
                     continue;
                 if (termTyp === 'komis') {
@@ -3597,7 +3600,7 @@
                     } else {
                         kubId = div.querySelector('[data-field="kubek_termiczny_id"]')?.value;
                     }
-                    if (!kubId || termCena <= 0)
+                    if (!kubId)
                         continue;
                     // Extract id from div.id = 'poz_N'
                     const divNum = div.id.replace('poz_', '');
@@ -3633,7 +3636,9 @@
             } else if (typ2 === 'wysylka') {
                 const wTyp = div.querySelector('[data-field="wysylka_typ"]')?.value || 'DPD';
                 const wNazwa = div.querySelector('[data-field="wysylka_nazwa"]')?.value || ('Wysyłka ' + wTyp);
-                const cenW = parseFloat(div.querySelector('[data-field="cena"]')?.value) || 0;
+                const cenWNetto = parseFloat(div.querySelector('[data-field="cena"]')?.value) || 0;
+                const cenWBrutto = parseFloat(div.querySelector('[id^="poz_brutto_"]')?.value) || 0;
+                const cenW = cenWNetto || (cenWBrutto / 1.23) || 0;
                 if (cenW > 0)
                     pozycje.push({
                         rodzaj_produktu: 'wysylka',
@@ -4049,7 +4054,9 @@
                 } else if (typ2 === 'termiczny') {
                     const termTyp = div.querySelector('[id^="poz_term_typ_"]')?.value || 'sprzedaz';
                     const termIlosc = parseInt(div.querySelector('[id^="poz_term_ilosc_"]')?.value) || 0;
-                    const termCena = parseFloat(div.querySelector('[id^="poz_term_cena_"]')?.value) || 0;
+                    const termCenaNet = parseFloat(div.querySelector('[id^="poz_term_cena_"]')?.value) || 0;
+                    const termCenaBrut = parseFloat(div.querySelector('[id^="poz_term_brutto_"]')?.value) || 0;
+                    const termCena = termCenaNet || (termCenaBrut / 1.23) || 0;
                     if (termIlosc <= 0)
                         continue;
                     if (termTyp === 'komis') {
@@ -4071,7 +4078,7 @@
                     } else {
                         const termZrodlo = div.querySelector('[id^="poz_term_zrodlo_"]')?.value || 'magazyn';
                         const kubId = termZrodlo === 'komis' ? div.querySelector('[id^="poz_term_komis_kub_"]')?.value : div.querySelector('[data-field="kubek_termiczny_id"]')?.value;
-                        if (!kubId || termCena <= 0)
+                        if (!kubId)
                             continue;
                         await sbFetch('pozycja_zamowienia', '', {
                             method: 'POST',
@@ -4088,7 +4095,9 @@
                 } else if (typ2 === 'wysylka') {
                     const wTyp = div.querySelector('[data-field="wysylka_typ"]')?.value || 'DPD';
                     const wNazwa = div.querySelector('[data-field="wysylka_nazwa"]')?.value || ('Wysyłka ' + wTyp);
-                    const cenW = parseFloat(div.querySelector('[data-field="cena"]')?.value) || 0;
+                    const cenWn = parseFloat(div.querySelector('[data-field="cena"]')?.value) || 0;
+                    const cenWb = parseFloat(div.querySelector('[id^="poz_brutto_"]')?.value) || 0;
+                    const cenW = cenWn || (cenWb / 1.23) || 0;
                     if (cenW > 0)
                         await sbFetch('pozycja_zamowienia', '', {
                             method: 'POST',
