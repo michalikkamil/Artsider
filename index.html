@@ -3751,11 +3751,20 @@
                 try {
                     // Szukaj artysty "własne logo" lub utwórz
                     // Utwórz grafikę bez artysty
+                    const wlArtId = div.querySelector(`[id^="wl_artysta_"]`)?.value || null;
+                    const wlFileInput = div.querySelector(`[id^="wl_file_"]`);
+                    let wlMiniaturka = null;
+                    if (wlFileInput?.files?.[0]) {
+                        try {
+                            wlMiniaturka = await sbUpload(wlFileInput.files[0]);
+                        } catch (e) {}
+                    }
                     const [graf] = await sbFetch('grafika', '', {
                         method: 'POST',
                         body: JSON.stringify({
                             nazwa: wlGrafika,
-                            miniaturka_url: null
+                            miniaturka_url: wlMiniaturka,
+                            artysta_id: wlArtId || undefined
                         })
                     });
                     // Utwórz kubek zlecony
@@ -6975,7 +6984,7 @@
 
 
 
-        id}" style="background:white;">
+        id}" onchange="autoCenaWl(${id})" style="background:white;">
           <option value="jednościankowy">Jednościankowy</option>
           <option value="dwuściankowy" selected>Dwuściankowy</option>
           <option value="inny">Inny</option>
@@ -6994,17 +7003,40 @@
       </div>
     </div>
     <div class="f-group">
-      <label class="f-label">Nazwa grafiki / klienta</label>
+      <label class="f-label">Nazwa grafiki</label>
       <input class="f-input" id="wl_grafika_${
 
 
 
         id}" placeholder="np. Logo Kawiarnia Mała Czarna" style="background:white;">
     </div>
+    <div class="f-group">
+      <label class="f-label">Artysta (opcjonalnie)</label>
+      <select class="f-select" id="wl_artysta_${
+
+
+        id}" style="background:white;">
+        <option value="">— brak artysty —</option>
+        ${
+        allArtysci.map(a => `<option value="${a.id}">${a.imie_nazwisko}</option>`).join('')}
+      </select>
+    </div>
+    <div class="f-group">
+      <label class="f-label">Miniaturka zdjęcia (opcjonalnie)</label>
+      <div style="border:2px dashed #F0C8A8;border-radius:8px;padding:12px;text-align:center;cursor:pointer;background:white;" onclick="document.getElementById('wl_file_${
+
+
+
+        id}').click()">
+        <input type="file" id="wl_file_${id}" accept="image/*" style="display:none;" onchange="previewWlFile(${id})">
+        <div id="wl_preview_${id}" style="font-size:12px;color:var(--ink3);">📷 Kliknij żeby wybrać zdjęcie</div>
+      </div>
+    </div>
     <div class="f-row">
       <div class="f-group" style="flex:1;">
         <label class="f-label">Ilość do zamówienia</label>
         <input class="f-input" id="wl_ilosc_${
+
 
 
 
@@ -7031,8 +7063,10 @@
         <input class="f-input" id="wl_brutto_${
         id}" type="number" step="0.01" placeholder="brutto" style="flex:1;background:white;" oninput="syncNettoWl(${id})">
       </div>
+      <div style="font-size:10px;color:var(--ink3);margin-top:3px;">Cena ładuje się automatycznie po wyborze materiału, pojemności i ścianki</div>
     </div>
   `
+
 
 
         ;
@@ -7046,6 +7080,41 @@
             return;
         const pojs = POJEMNOSCI[mat] || [];
         sel.innerHTML = pojs.map(p => `<option value="${p}">${p} ml</option>`).join('');
+        sel.onchange = () => autoCenaWl(id);
+        document.getElementById(`wl_cena_${id}`).value = '';
+        document.getElementById(`wl_brutto_${id}`).value = '';
+    }
+
+    async function autoCenaWl(id) {
+        const mat = document.getElementById(`wl_mat_${id}`)?.value;
+        const poj = document.getElementById(`wl_poj_${id}`)?.value;
+        const sci = document.getElementById(`wl_sci_${id}`)?.value;
+        if (!mat || !poj || !sci)
+            return;
+        try {
+            const res = await sbFetch('cennik_papierowe', `?typ_materialu=eq.${mat}&pojemnosc_ml=eq.${poj}&typ_scianki=eq.${sci}`);
+            const c = res[0];
+            if (c) {
+                const ceEl = document.getElementById(`wl_cena_${id}`);
+                const bEl = document.getElementById(`wl_brutto_${id}`);
+                if (ceEl)
+                    ceEl.value = Number(c.cena_netto).toFixed(4);
+                if (bEl)
+                    bEl.value = (Number(c.cena_netto) * 1.23).toFixed(2);
+            }
+        } catch (e) {}
+    }
+
+    function previewWlFile(id) {
+        const file = document.getElementById(`wl_file_${id}`)?.files?.[0];
+        const prev = document.getElementById(`wl_preview_${id}`);
+        if (!file || !prev)
+            return;
+        const reader = new FileReader();
+        reader.onload = e => {
+            prev.innerHTML = `<img src="${e.target.result}" style="max-height:80px;border-radius:6px;">`
+        };
+        reader.readAsDataURL(file);
     }
 
     function syncBruttoWl(id) {
