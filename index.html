@@ -1148,19 +1148,16 @@
 
     <!-- NAV -->
     <nav>
-        <div class="nav-logo">
+        <div class="nav-logo" style="font-size:14px;padding:10px 10px;">
             Art
             <em>sider</em>
         </div>
         <div class="nav-tabs">
-            <button class="nav-tab active" onclick="showPage('kubki',this)">☕ Kubki</button>
-            <button class="nav-tab" onclick="showPage('przykrywki',this)">🫗 Wieczka</button>
-            <button class="nav-tab" onclick="showPage('termiczne',this)">🌡 Termiczne</button>
-            <button class="nav-tab" onclick="showPage('zamowienia',this)">📦 Zamówienia</button>
-            <button class="nav-tab" onclick="showPage('cennik',this)">💰 Cennik</button>
-            <button class="nav-tab" onclick="showPage('artysci',this)">🎨 Artyści</button>
+            <button class="nav-tab" onclick="showPage('cennik',this)">Cennik</button>
+            <button class="nav-tab" onclick="showPage('artysci',this)">Artyści</button>
             <button class="nav-tab" onclick="showPage('dodaj',this)">+ Dodaj</button>
         </div>
+        <button onclick="showPage('zamowienia',this)" style="background:var(--accent);color:white;border-radius:8px;margin:6px 4px;padding:6px 12px;font-family:var(--fm);font-size:11px;font-weight:600;border:none;cursor:pointer;flex-shrink:0;">📦</button>
         <button class="nav-cfg" onclick="document.getElementById('cfgModal').classList.add('open')">⚙</button>
     </nav>
 
@@ -1954,16 +1951,33 @@
             wrap.appendChild(btnW);
         } else if (scope === 'termiczne') {
             wrap.innerHTML = '';
+            // Kolejność: Wszystko, Komis, Kraków, Sącz, Biecz, Archiwum
             const btnW = document.createElement('button');
             btnW.className = 'mag-tab active';
             btnW.dataset.mag = '';
             btnW.dataset.typ = 'magazyn';
-            btnW.textContent = 'Wszystkie';
+            btnW.textContent = 'Wszystko';
             btnW.onclick = function() {
                 selectMag(this, scope);
             };
             wrap.appendChild(btnW);
-            magazyny.forEach(m => {
+            // Komis
+            const btnKom = document.createElement('button');
+            btnKom.className = 'mag-tab';
+            btnKom.dataset.mag = 'komis';
+            btnKom.dataset.typ = 'komis';
+            btnKom.textContent = '🤝 Komis';
+            btnKom.onclick = function() {
+                selectMag(this, scope);
+            };
+            wrap.appendChild(btnKom);
+            // Magazyny w kolejności
+            const kolejnoscT = ['Kraków', 'Sącz', 'Biecz'];
+            const posortowaneT = [
+            ...kolejnoscT.map(n => magazyny.find(m => m.nazwa === n)).filter(Boolean),
+            ...magazyny.filter(m => !kolejnoscT.includes(m.nazwa))
+            ];
+            posortowaneT.forEach(m => {
                 const btn = document.createElement('button');
                 btn.className = 'mag-tab';
                 btn.dataset.mag = m.id;
@@ -1984,16 +1998,6 @@
                 selectMag(this, scope);
             };
             wrap.appendChild(btnAT);
-            // Komis
-            const btnK = document.createElement('button');
-            btnK.className = 'mag-tab';
-            btnK.dataset.mag = 'komis';
-            btnK.dataset.typ = 'komis';
-            btnK.textContent = '🤝 Komis';
-            btnK.onclick = function() {
-                selectMag(this, scope);
-            };
-            wrap.appendChild(btnK);
         } else {
             wrap.innerHTML = `<button class="mag-tab active" data-mag="" onclick="selectMag(this,'${scope}')">Wszystkie</button>`;
             magazyny.forEach(m => {
@@ -2508,7 +2512,7 @@
             cardTitle}</span>
           ${!isTermiczny && !k.isPrzykrywka && k.typ_materialu ? `<span class="tag tag-mat" style="font-size:11px;padding:2px 8px;">${k.typ_materialu}</span>` : ''}
           ${pakTag}
-          <span style="margin-left:auto;font-size:12px;font-weight:500;color:var(--accent);">${k.cena_netto != null ? Number(k.cena_netto).toFixed(2) + ' zł' : '—'}</span>
+          <div style="margin-left:auto;text-align:right;"><div style="font-size:18px;font-weight:600;color:var(--accent);">${k.cena_netto != null ? Number(k.cena_netto).toFixed(2) + ' zł' : '—'}</div>${k.cena_netto != null ? `<div style="font-size:12px;color:var(--ink3);">${(Number(k.cena_netto) * 1.23).toFixed(2)} zł brutto</div>` : ''}</div>
         </div>
         <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${
             cardSub}</div>
@@ -2537,7 +2541,7 @@
             return;
 
         const stanyHtml = k.stany?.map(s => `
-    <div class="mag-card"><div class="mag-card-name">${s.magazyn}</div><div class="mag-card-num">${s.ilosc_dostepna}</div><div class="mag-card-sub">dostępnych</div>${s.ilosc_w_drodze > 0 ? `<div class="mag-card-order">+${s.ilosc_w_drodze} w drodze</div>` : ''}</div>`).join('') || '';
+    <div class="mag-card"><div class="mag-card-name">${s.magazyn}</div><div class="mag-card-num">${s.ilosc_dostepna}</div>${s.ilosc_w_drodze > 0 ? `<div class="mag-card-order">+${s.ilosc_w_drodze} w drodze</div>` : ''}</div>`).join('') || '';
 
         const acceptHtml = typ === 'zlecony' ? `
     <div class="d-section">Przyjmij do magazynu</div>
@@ -2566,30 +2570,18 @@
 
         document.getElementById('drawerContent').innerHTML = `
     <button class="drawer-back" onclick="closeDrawer()">← Wróć</button>
-    <div class="drawer-title">${
-        k.grafika || '—'}</div>
-    <div class="drawer-sub">${k.artysta || 'brak artysty'}${k.data_zlecenia ? ` &nbsp;·&nbsp; zlecono: ${k.data_zlecenia}` : ''}</div>
+    <div class="drawer-title" style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">${
+        k.grafika || '—'}${k.artysta ? `<span style="font-family:var(--fm);font-size:13px;font-weight:400;color:var(--ink3);">${k.artysta}</span>` : ''}</div>
+    ${k.data_zlecenia ? `<div class="drawer-sub">zlecono: ${k.data_zlecenia}</div>` : ''}
     <div class="d-section">Szczegóły</div>
     ${
-        !k.isPrzykrywka ? `<div class="d-row"><span class="d-key">Pojemność</span><span class="d-val">${k.pojemnosc_ml} ml</span></div>` : ''}
+        typ === 'termiczny' ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0;"><div style="background:var(--bg);border-radius:8px;padding:8px;"><div style="font-size:10px;color:var(--ink3);margin-bottom:2px;">POJEMNOŚĆ</div><div style="font-size:15px;font-weight:600;">${k.pojemnosc_ml} ml</div></div><div style="background:var(--bg);border-radius:8px;padding:8px;"><div style="font-size:10px;color:var(--ink3);margin-bottom:2px;">KOLOR</div><div style="font-size:15px;font-weight:600;">${k.kolor || '—'}</div></div><div style="background:var(--bg);border-radius:8px;padding:8px;"><div style="font-size:10px;color:var(--ink3);margin-bottom:2px;">NETTO</div><div style="font-size:15px;font-weight:600;color:var(--accent);">${k.cena_netto != null ? Number(k.cena_netto).toFixed(2) + ' zł' : '—'}</div></div><div style="background:var(--bg);border-radius:8px;padding:8px;"><div style="font-size:10px;color:var(--ink3);margin-bottom:2px;">BRUTTO</div><div style="font-size:15px;font-weight:600;">${k.cena_netto != null ? (Number(k.cena_netto) * 1.23).toFixed(2) + ' zł' : '—'}</div></div></div>` : `
+    ${!k.isPrzykrywka ? `<div class="d-row"><span class="d-key">Pojemność</span><span class="d-val">${k.pojemnosc_ml} ml</span></div>` : ''}
     ${k.typ_materialu ? `<div class="d-row"><span class="d-key">Materiał</span><span class="d-val">${k.typ_materialu}</span></div>` : ''}
-    ${k.typ_scianki ? `<div class="d-row"><span class="d-key">Ścianka</span><span class="d-val">${k.typ_scianki}</span></div>` : ''}
-    ${typ !== 'termiczny' ? `<div class="d-row">
-      <span class="d-key">Szt. w opakowaniu</span>
-      <span class="d-val" style="display:flex;align-items:center;gap:8px;">
-        <input type="number" min="1" value="${
-
-        k.sztuk_w_opakowaniu || ''}" id="editPak_${k.kubek_id}"
-          style="width:70px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;padding:4px 8px;font-family:var(--fm);font-size:13px;text-align:center;">
-        <button onclick="zapiszPak('${
-        k.kubek_id}')" style="background:var(--accent);color:white;border:none;border-radius:6px;padding:4px 10px;font-family:var(--fm);font-size:11px;cursor:pointer;">✓</button>
-      </span>
-    </div>`
-        : ''}
     ${k.kolor ? `<div class="d-row"><span class="d-key">Kolor</span><span class="d-val">${k.kolor}</span></div>` : ''}
     <div class="d-row"><span class="d-key">Cena netto</span><span class="d-val acc">${k.cena_netto != null ? Number(k.cena_netto).toFixed(2) + ' zł' : '—'}</span></div>
-    <div class="d-row"><span class="d-key">Cena brutto</span><span class="d-val">${k.cena_netto != null ? (Number(k.cena_netto) * 1.23).toFixed(2) + ' zł' : '—'}</span></div>
-    ${stanyHtml ? `<div class="d-section">Stan wg magazynu</div><div class="mag-grid">${stanyHtml}${typ === 'termiczny' ? `<div class="mag-card" id="termKomisBox_${k.kubek_id}" style="background:#FBF3EA;border-color:#F0C8A8;"><div class="mag-card-name">🤝 Komis</div><div class="mag-card-num" id="termKomisNum_${k.kubek_id}">—</div><div class="mag-card-sub">szt.</div></div>` : ''}</div>` : ''}\n    ${acceptHtml}
+    <div class="d-row"><span class="d-key">Cena brutto</span><span class="d-val">${k.cena_netto != null ? (Number(k.cena_netto) * 1.23).toFixed(2) + ' zł' : '—'}</span></div>`}
+    ${stanyHtml ? `<div class="d-section">Stan wg magazynu</div><div class="mag-grid">${stanyHtml}${typ === 'termiczny' ? `<div class="mag-card" id="termKomisBox_${k.kubek_id}" style="background:#FBF3EA;border-color:#F0C8A8;"><div class="mag-card-name">🤝 Komis</div><div class="mag-card-num" id="termKomisNum_${k.kubek_id}">—</div></div>` : ''}</div>` : ''}\n    ${acceptHtml}
     ${typ === 'kubek' && activeMagKubki && activeMagKubki !== 'zlecone' && activeMagKubki !== 'archiwum' ? renderPrzeniesForm(k) + renderZmienIlosc(k) : ''}
     ${typ === 'kubek' && (!activeMagKubki || activeMagKubki === 'archiwum' || k.ilosc_lacznie === 0) ? renderZmienIloscGlobal(k) : ''}
     ${typ === 'kubek' ? renderZamowDoProdukcji(k) : ''}
@@ -2751,7 +2743,7 @@
         <div>
           <div class="artysta-nalezne">${
 
-        Math.max(0, Number(a.nalezne_lacznie)).toFixed(2)} zł</div>
+        Math.max(0, Number(a.prowizje_naliczone) - Number(a.wyplacono_historia || a.wyplacono_lacznie || 0)).toFixed(2)} zł</div>
           <div class="artysta-nalezne-lbl">należne</div>
         </div>
       </div>
@@ -3079,7 +3071,7 @@
                 return false;
             if (rok && !(z.data_zamowienia || '').startsWith(rok))
                 return false;
-            if (miesiac && !(z.data_zamowienia || '').slice(5, 7) === miesiac)
+            if (miesiac && (z.data_zamowienia || '').slice(5, 7) !== miesiac)
                 return false;
             return true;
         });
@@ -3102,22 +3094,27 @@
 
     function renderZamowienia(zamowienia) {
         const list = document.getElementById('listZamowienia');
+        // Sort newest first
+        zamowienia = [...zamowienia].sort((a, b) => (b.data_zamowienia || '').localeCompare(a.data_zamowienia || ''));
         if (!zamowienia.length) {
             list.innerHTML = `<div class="state-msg"><span class="big">📦</span>Brak zamówień.</div>`;
             return;
         }
-        list.innerHTML = zamowienia.map(z => `
-    <div class="card" style="flex-direction:column;padding:14px 16px;">
-      <div class="card-top" style="margin-bottom:6px;cursor:pointer;" onclick="openZamowienieDrawer('${
-        z.id}')">
-        <div class="card-title" style="white-space:normal;">${z.klient}</div>
+        list.innerHTML = zamowienia.map(z => {
+            const isWlasneLogo = z.typ_zamowienia === 'wlasne_logo';
+            const cardBg = isWlasneLogo ? 'background:#FEFBE8;border-left:3px solid #D4A800;' : '';
+            const dostawaDate = z.data_zamowienia ? new Date(new Date(z.data_zamowienia).getTime() + 32 * 86400000).toISOString().slice(0, 10) : '';
+            return `
+    <div class="card" style="flex-direction:column;padding:14px 16px;${cardBg}">
+      <div class="card-top" style="margin-bottom:6px;cursor:pointer;" onclick="openZamowienieDrawer('${z.id}')">
+        <div class="card-title" style="white-space:normal;">${z.klient}${isWlasneLogo ? ' <span style="font-size:10px;background:#FEF08A;border-radius:4px;padding:1px 5px;color:#92400E;">własne logo</span>' : ''}</div>
         <div class="card-price">${Number(z.wartosc_lacznie).toFixed(2)} zł</div>
       </div>
-      <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;cursor:pointer;" onclick="openZamowienieDrawer('${
-        z.id}')">${z.data_zamowienia} · ${z.zrodlo || '—'} · ${z.liczba_pozycji} poz.</div>
+      <div style="font-size:11px;color:var(--ink3);margin-bottom:4px;cursor:pointer;" onclick="openZamowienieDrawer('${
+            z.id}')">${z.data_zamowienia}${dostawaDate ? ` · dostawa: ${dostawaDate}` : ''} · ${z.zrodlo || '—'} · ${z.liczba_pozycji} poz.</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
         <span class="tag" style="background:#F0F4FB;border-color:#B5C4F4;color:#1840A5;">${
-        STATUS_LABELS[z.status_realizacji] || z.status_realizacji}</span>
+            STATUS_LABELS[z.status_realizacji] || z.status_realizacji}</span>
         <span class="tag" style="background:${z.status_platnosci === 'oplacona' ? '#EAF3DE' : '#FBE9E9'};border-color:${z.status_platnosci === 'oplacona' ? '#C0DD97' : '#F4B5B5'};color:${z.status_platnosci === 'oplacona' ? '#3B6D11' : '#A32D2D'};">${PLATNOSC_LABELS[z.status_platnosci] || z.status_platnosci}</span>
         <span class="tag" style="background:#FBF3EA;border-color:#F0C8A8;color:#7A3D0F;">${FAKTURA_LABELS[z.status_faktury] || z.status_faktury}</span>
       </div>
@@ -3125,7 +3122,8 @@
     </div>`
 
 
-        ).join('');
+            ;
+        }).join('');
     }
 
     async function openZamowienieDrawer(zamId) {
@@ -5072,7 +5070,7 @@
       <div class="d-row"><span class="d-key">Prowizja term. naliczona</span><span class="d-val">${Number(a.prowizja_termiczne_naliczona || 0).toFixed(2)} zł (${a.termiczne_sprzedane} szt.)</span></div>
       <div class="d-row"><span class="d-key">Łącznie naliczone</span><span class="d-val">${Number(a.prowizje_naliczone || 0).toFixed(2)} zł</span></div>
       <div class="d-row"><span class="d-key">Wypłacono</span><span class="d-val">${Number(a.wyplacono_lacznie).toFixed(2)} zł</span></div>
-      <div class="d-row" style="font-weight:600;"><span class="d-key">Należne</span><span class="d-val acc">${Math.max(0, Number(a.nalezne_lacznie)).toFixed(2)} zł</span></div>
+      <div class="d-row" style="font-weight:600;"><span class="d-key">Należne</span><span class="d-val acc">${Math.max(0, Number(a.prowizje_naliczone) - Number(a.wyplacono_historia || a.wyplacono_lacznie || 0)).toFixed(2)} zł</span></div>
 
       <div class="d-section">Historia wypłat</div>
       <div id="wyplatyList">⏳</div>
