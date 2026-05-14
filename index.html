@@ -1840,8 +1840,9 @@
                     grafika: r.grafika,
                     artysta: r.artysta,
                     miniaturka: r.miniaturka_url,
-                    ilosc_zlecona: r.ilosc_zlecona || 0,
-                    data_zlecenia: r.data_zlecenia,
+                    ilosc_w_produkcji: r.ilosc_w_produkcji || 0,
+                    data_najwczesniejszego_zlecenia: r.data_najwczesniejszego_zlecenia,
+                    data_najwczesniejszej_dostawy: r.data_najwczesniejszej_dostawy,
                     logo: r.logo,
                     stany: [],
                     ilosc_lacznie: 0,
@@ -1862,23 +1863,32 @@
 
     async function ladujZlecone() {
         try {
-            const kubki = await sbFetch('kubek', '?status=eq.zlecony&select=*,grafika(nazwa,miniaturka_url,artysta(imie_nazwisko))');
+            const kubki = await sbFetch('v_stan_kubkow', '?ilosc_w_produkcji=gt.0&select=*');
+            const zlecenia = await sbFetch('v_zlecenia_produkcyjne', '?status=eq.w_produkcji&select=*');
+            const zleceniaByKubek = {};
+            zlecenia.forEach(z => {
+                if (!zleceniaByKubek[z.kubek_id])
+                    zleceniaByKubek[z.kubek_id] = [];
+                zleceniaByKubek[z.kubek_id].push(z);
+            });
             return kubki.map(k => ({
-                kubek_id: k.id,
+                kubek_id: k.kubek_id,
                 pojemnosc_ml: k.pojemnosc_ml,
                 typ_materialu: k.typ_materialu,
                 typ_scianki: k.typ_scianki,
                 sztuk_w_opakowaniu: k.sztuk_w_opakowaniu,
                 cena_netto: k.cena_netto,
-                ilosc_zlecona: k.ilosc_zlecona || 0,
-                data_zlecenia: k.data_zlecenia,
+                ilosc_zlecona: k.ilosc_w_produkcji || 0,
+                data_zlecenia: k.data_najwczesniejszego_zlecenia,
+                data_planowanej_dostawy: k.data_najwczesniejszej_dostawy,
                 logo: k.logo,
-                grafika: k.grafika?.nazwa,
-                artysta: k.grafika?.artysta?.imie_nazwisko,
-                miniaturka: k.grafika?.miniaturka_url,
-                data_zlecenia: k.data_zlecenia,
+                grafika: k.grafika,
+                artysta: k.artysta,
+                miniaturka: k.miniaturka,
+                zlecenia: zleceniaByKubek[k.kubek_id] || [],
             }));
         } catch (e) {
+            console.warn('ladujZlecone:', e);
             return [];
         }
     }
@@ -2336,16 +2346,12 @@
                     return false;
                 // w konkretnym magazynie: tylko kubki w_magazynie z >0 sztuk
                 if (activeMagKubki && activeMagKubki !== 'zlecone' && activeMagKubki !== 'archiwum') {
-                    if (k.status === 'zlecony')
-                        return false;
                     const s = k.stany.find(x => x.magazyn_id === activeMagKubki);
                     if (!s || s.ilosc_dostepna <= 0)
                         return false;
                 }
                 // w trybie wszystkie: ukryj zlecone i archiwum (0 sztuk)
                 if (!activeMagKubki) {
-                    if (k.status === 'zlecony')
-                        return false;
                     if (k.ilosc_lacznie <= 0 && !k.isPrzykrywka)
                         return false;
                 }
@@ -2592,6 +2598,7 @@
             </div>
             ${
             totalLacznie > stan ? `<div style="font-size:9px;color:var(--ink3);line-height:1.1;">z ${totalLacznie} szt.</div>` : ''}
+            ${(k.ilosc_w_produkcji || 0) > 0 && !showDate ? `<div style="font-size:9px;color:#BA7517;line-height:1.1;font-weight:600;">🏭 +${k.ilosc_w_produkcji} w prod.</div>` : ''}
             ${k.cena_netto != null ? `<div style="font-size:12px;color:var(--accent);font-weight:700;line-height:1.1;">${Number(k.cena_netto).toFixed(2)} zł <span style="font-size:9px;color:var(--ink3);font-weight:400;">(${(Number(k.cena_netto) * 1.23).toFixed(2)} zł)</span></div>` : ''}
           `
             }
@@ -2605,7 +2612,134 @@
     }
 
     // ── DRAWER ──
-    function openDrawer(kubek_id, typ) {
+    function renderZleceniaProdukcyjne(k) {
+        const zlecenia = k.zlecenia || [];
+        const aktywne = zlecenia.filter(z => z.status === 'w_produkcji');
+        let html = '<div class="d-section">Zlecenia produkcyjne</div>';
+        if (aktywne.length) {
+            html += '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;">';
+            aktywne.forEach(z => {
+                const dataDost = z.data_planowanej_dostawy || 'brak';
+                html += `<div style="background:#FBF3EA;border:1px solid #F0C8A8;border-radius:8px;padding:8px 10px;display:flex;align-items:center;gap:8px;">
+        <div style="flex:1;">
+          <div style="font-family:var(--fh);font-size:14px;font-weight:600;">${
+                z.ilosc_zlecona} szt.</div>
+          <div style="font-size:10px;color:var(--ink3);">zlecone: ${z.data_zlecenia}${z.data_planowanej_dostawy ? ` · dostawa: ${dataDost}` : ''}</div>
+        </div>
+        <button onclick="zrealizujZlecenie('${
+                z.id}','${k.kubek_id}')" style="background:var(--green);color:white;border:none;border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:var(--fm);">✓ Zrealizuj</button>
+        <button onclick="anulujZlecenie('${z.id}','${k.kubek_id}')" style="background:#FBE9E9;color:#A32D2D;border:1px solid #F4B5B5;border-radius:6px;padding:5px 8px;font-size:11px;cursor:pointer;font-family:var(--fm);">✕</button>
+      </div>`
+                ;
+            });
+            html += '</div>';
+        } else {
+            html += '<div style="color:var(--ink3);font-size:12px;padding:4px 0;">Brak aktywnych zleceń.</div>';
+        }
+        // Formularz nowego zlecenia
+        html += `<button class="btn-secondary" onclick="document.getElementById('formNoweZlec_${k.kubek_id}').style.display='block';this.style.display='none';">🏭 Domów ten kubek</button>
+    <div id="formNoweZlec_${k.kubek_id}" style="display:none;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;margin-top:8px;">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;">
+        <div style="flex:1;min-width:80px;">
+          <label style="font-size:10px;color:var(--ink3);">Ilość</label>
+          <input type="number" id="noweZlec_ilosc_${
+
+
+        k.kubek_id}" min="1" placeholder="np. 500" style="width:100%;background:var(--surface);border:1.5px solid var(--border);border-radius:6px;padding:6px;font-family:var(--fm);font-size:14px;">
+        </div>
+        <div style="flex:1;min-width:120px;">
+          <label style="font-size:10px;color:var(--ink3);">Data zlecenia</label>
+          <input type="date" id="noweZlec_data_${
+
+
+        k.kubek_id}" value="${new Date().toISOString().slice(0, 10)}" style="width:100%;background:var(--surface);border:1.5px solid var(--border);border-radius:6px;padding:6px;font-family:var(--fm);font-size:14px;">
+        </div>
+        <div style="flex:1;min-width:120px;">
+          <label style="font-size:10px;color:var(--ink3);">Planowana dostawa</label>
+          <input type="date" id="noweZlec_dostawa_${
+
+
+        k.kubek_id}" style="width:100%;background:var(--surface);border:1.5px solid var(--border);border-radius:6px;padding:6px;font-family:var(--fm);font-size:14px;">
+        </div>
+      </div>
+      <button class="btn-primary" style="margin-top:8px;" onclick="dodajZlecenie('${
+
+        k.kubek_id}')">✓ Zleć produkcję</button>
+      <div class="f-msg" id="noweZlec_msg_${k.kubek_id}"></div>
+    </div>`
+        ;
+        return html;
+    }
+
+    async function dodajZlecenie(kubekId) {
+        const il = parseInt(document.getElementById('noweZlec_ilosc_' + kubekId)?.value) || 0;
+        const dz = document.getElementById('noweZlec_data_' + kubekId)?.value || new Date().toISOString().slice(0, 10);
+        const dd = document.getElementById('noweZlec_dostawa_' + kubekId)?.value || null;
+        const msg = document.getElementById('noweZlec_msg_' + kubekId);
+        if (il <= 0) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'Podaj ilość';
+            return;
+        }
+        try {
+            await sbFetch('zlecenie_produkcyjne', '', {
+                method: 'POST',
+                body: JSON.stringify({
+                    kubek_id: kubekId,
+                    ilosc_zlecona: il,
+                    data_zlecenia: dz,
+                    data_planowanej_dostawy: dd || null,
+                    status: 'w_produkcji'
+                })
+            });
+            msg.className = 'f-msg ok';
+            msg.textContent = '✓ Zlecenie dodane';
+            setTimeout(() => {
+                closeDrawer();
+                loadAll();
+            }, 700);
+        } catch (e) {
+            console.error(e);
+            msg.className = 'f-msg err';
+            msg.textContent = 'Błąd: ' + e.message;
+        }
+    }
+
+    async function zrealizujZlecenie(zlecId, kubekId) {
+        if (!confirm('Oznaczyć zlecenie jako zrealizowane? Pamiętaj żeby najpierw przyjąć sztuki do magazynu.'))
+            return;
+        try {
+            await sbFetch('zlecenie_produkcyjne', `?id=eq.${zlecId}`, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    status: 'zrealizowane'
+                })
+            });
+            closeDrawer();
+            loadAll();
+        } catch (e) {
+            alert('Błąd: ' + e.message);
+        }
+    }
+
+    async function anulujZlecenie(zlecId, kubekId) {
+        if (!confirm('Anulować zlecenie produkcyjne?'))
+            return;
+        try {
+            await sbFetch('zlecenie_produkcyjne', `?id=eq.${zlecId}`, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    status: 'anulowane'
+                })
+            });
+            closeDrawer();
+            loadAll();
+        } catch (e) {
+            alert('Błąd: ' + e.message);
+        }
+    }
+
+    async function openDrawer(kubek_id, typ) {
         let k;
         if (typ === 'kubek')
             k = allKubki.find(x => x.kubek_id === kubek_id);
@@ -2619,6 +2753,15 @@
             k = allKubki.find(x => x.kubek_id === kubek_id) || allPrzykrywki.find(x => x.kubek_id === kubek_id);
         if (!k)
             return;
+        // Załaduj zlecenia produkcyjne dla tego kubka
+        try {
+            const zlc = await sbFetch('zlecenie_produkcyjne', `?kubek_id=eq.${kubek_id}&order=data_zlecenia.desc&select=*`);
+            k = Object.assign({}, k, {
+                zlecenia: zlc
+            });
+        } catch (e) {
+            k.zlecenia = [];
+        }
 
         const stanyHtml = k.stany?.map(s => `
     <div class="mag-card"><div class="mag-card-name">${s.magazyn}</div><div class="mag-card-num">${s.ilosc_dostepna}</div><div class="mag-card-sub">dostępnych</div>${s.ilosc_w_drodze > 0 ? `<div class="mag-card-order">+${s.ilosc_w_drodze} w drodze</div>` : ''}</div>`).join('') || '';
@@ -2673,7 +2816,7 @@
     ${k.kolor ? `<div class="d-row"><span class="d-key">Kolor</span><span class="d-val">${k.kolor}</span></div>` : ''}
     <div class="d-row"><span class="d-key">Cena netto</span><span class="d-val acc">${k.cena_netto != null ? Number(k.cena_netto).toFixed(2) + ' zł' : '—'}</span></div>
     <div class="d-row"><span class="d-key">Cena brutto</span><span class="d-val">${k.cena_netto != null ? (Number(k.cena_netto) * 1.23).toFixed(2) + ' zł' : '—'}</span></div>
-    ${stanyHtml ? `<div class="d-section">Stan wg magazynu</div><div class="mag-grid">${stanyHtml}${typ === 'termiczny' ? `<div class="mag-card" id="termKomisBox_${k.kubek_id}" style="background:#FBF3EA;border-color:#F0C8A8;"><div class="mag-card-name">🤝 Komis</div><div class="mag-card-num" id="termKomisNum_${k.kubek_id}">—</div><div class="mag-card-sub">szt.</div></div>` : ''}</div>` : ''}\n    ${acceptHtml}
+    ${stanyHtml ? `<div class="d-section">Stan wg magazynu</div><div class="mag-grid">${stanyHtml}${typ === 'termiczny' ? `<div class="mag-card" id="termKomisBox_${k.kubek_id}" style="background:#FBF3EA;border-color:#F0C8A8;"><div class="mag-card-name">🤝 Komis</div><div class="mag-card-num" id="termKomisNum_${k.kubek_id}">—</div><div class="mag-card-sub">szt.</div></div>` : ''}</div>` : ''}\n    ${typ === 'kubek' || typ === 'zlecony' ? renderZleceniaProdukcyjne(k) : ''}\n    ${acceptHtml}
     ${typ === 'kubek' && activeMagKubki && activeMagKubki !== 'zlecone' && activeMagKubki !== 'archiwum' ? renderPrzeniesForm(k) + renderZmienIlosc(k) : ''}
     ${typ === 'kubek' && (!activeMagKubki || activeMagKubki === 'archiwum' || k.ilosc_lacznie === 0) ? renderZmienIloscGlobal(k) : ''}
     ${typ === 'kubek' ? renderZamowDoProdukcji(k) : ''}
@@ -2744,11 +2887,11 @@
                     });
                 }
             }
-            // zmień status kubka na w_magazynie
-            await sbFetch('kubek', `?id=eq.${kubek_id}`, {
+            // oznacz aktywne zlecenia produkcyjne tego kubka jako zrealizowane
+            await sbFetch('zlecenie_produkcyjne', `?kubek_id=eq.${kubek_id}&status=eq.w_produkcji`, {
                 method: 'PATCH',
                 body: JSON.stringify({
-                    status: 'w_magazynie'
+                    status: 'zrealizowane'
                 })
             });
             msg.className = 'f-msg ok';
@@ -4013,10 +4156,17 @@
                             typ_scianki: wlSci,
                             sztuk_w_opakowaniu: wlPak,
                             cena_netto: wlCena || null,
-                            status: 'zlecony',
                             logo: 'klienta',
+                        })
+                    });
+                    // Stwórz zlecenie produkcyjne
+                    await sbFetch('zlecenie_produkcyjne', '', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            kubek_id: nowyKubek.id,
                             ilosc_zlecona: wlIlosc,
                             data_zlecenia: wlData,
+                            status: 'w_produkcji'
                         })
                     });
                     // Utwórz stany magazynowe (0 szt.)
@@ -4867,12 +5017,6 @@
                             })
                         });
                     }
-                    await sbFetch('kubek', `?id=eq.${kubek_id}`, {
-                        method: 'PATCH',
-                        body: JSON.stringify({
-                            status: 'w_magazynie'
-                        })
-                    });
                     alert('✓ Kubek zarchiwizowany (był w zamówieniach — stan ustawiony na 0, znajdziesz go w Archiwum).');
                     closeDrawer();
                     loadAll();
@@ -5181,7 +5325,7 @@
                 typ_materialu: k.typ_materialu,
                 typ_scianki: k.typ_scianki,
                 cena_netto: k.cena_netto,
-                status: k.status,
+                ilosc_w_produkcji: k.ilosc_w_produkcji || 0,
                 grafika: k.grafika?.nazwa,
                 artysta: k.grafika?.artysta?.imie_nazwisko,
                 miniaturka: k.grafika?.miniaturka_url,
@@ -5222,7 +5366,9 @@
             const kubkiHTML = kubki.map(k => {
                 const thumb = k.miniaturka_url ? `<img src="${k.miniaturka_url}" style="width:48px;height:48px;border-radius:6px;object-fit:cover;flex-shrink:0;">`
                 : `<div style="width:48px;height:48px;border-radius:6px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">☕</div>`;
-                const statusColor = k.status === 'w_magazynie' ? 'var(--green)' : k.status === 'zlecony' ? '#BA7517' : 'var(--ink3)';
+                const inProd = (k.ilosc_w_produkcji || 0) > 0;
+                const inStock = (k.ilosc_lacznie || 0) > 0;
+                const statusColor = inStock ? 'var(--green)' : inProd ? '#BA7517' : 'var(--ink3)';
                 return `<div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--bg2);">
         ${thumb}
         <div style="flex:1;min-width:0;">
@@ -5233,7 +5379,7 @@
         <div style="text-align:right;flex-shrink:0;">
           <div style="font-size:11px;color:${
 
-                statusColor};font-weight:500;">${k.status === 'w_magazynie' ? 'w mag.' : k.status === 'zlecony' ? 'zlecony' : 'archiwum'}</div>
+                statusColor};font-weight:500;">${inStock ? 'w mag.' : inProd ? 'zlecony' : 'archiwum'}</div>
           <div style="font-size:11px;color:var(--ink3);">mag: ${k.ilosc_w_magazynie} · sprzed: ${k.ilosc_sprzedana}</div>
         </div>
         <button onclick="usunKubekArtysty('${
@@ -7394,12 +7540,6 @@
                             })
                         });
                     }
-                    await sbFetch('kubek', `?id=eq.${kubek_id}`, {
-                        method: 'PATCH',
-                        body: JSON.stringify({
-                            status: 'w_magazynie'
-                        })
-                    });
                 } else
                     throw e;
             }
