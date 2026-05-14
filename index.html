@@ -415,8 +415,8 @@
     }
 
     .stock-dot {
-        width: 7px;
-        height: 7px;
+        width: 10px;
+        height: 10px;
         border-radius: 50%;
         flex-shrink: 0;
     }
@@ -2490,6 +2490,18 @@
             // Pokaż łączną liczbę w komisie
             const totalKomis = allKomis.reduce((s, k) => s + (k.ilosc || 0), 0);
             document.getElementById('stKomis').textContent = totalKomis || '—';
+            // Sortowanie: pojemność ASC, grafika ASC, ilość DESC
+            f.sort((a, b) => {
+                if (a.pojemnosc_ml !== b.pojemnosc_ml)
+                    return a.pojemnosc_ml - b.pojemnosc_ml;
+                const ga = (a.grafika || '').toLowerCase();
+                const gb = (b.grafika || '').toLowerCase();
+                if (ga !== gb)
+                    return ga.localeCompare(gb, 'pl');
+                const ia = activeMagTermiczne ? (a.stany.find(x => x.magazyn_id === activeMagTermiczne)?.ilosc_dostepna || 0) : a.ilosc_lacznie;
+                const ib = activeMagTermiczne ? (b.stany.find(x => x.magazyn_id === activeMagTermiczne)?.ilosc_dostepna || 0) : b.ilosc_lacznie;
+                return ib - ia;
+            });
             renderKubki(f, 'listTermiczne', activeMagTermiczne, false, 'termiczny');
         }
         else if (scope === 'zamowienia') {
@@ -2544,7 +2556,14 @@
             const cardSub = k.isPrzykrywka
             ? (k.grafika || '').replace(/Przykrywka (papierowa|plastikowa) \d+mm\s*/, '').trim() || '—'
             : `${k.grafika || '—'}${k.artysta ? ' · ' + k.artysta : ''}`;
-            return `<div class="card" onclick="openDrawer('${k.kubek_id}','${typKarty}')">
+            const cardBg = (!isTermiczny && !k.isPrzykrywka) ? (
+            k.pojemnosc_ml === 250 ? '' :
+            k.pojemnosc_ml === 300 ? 'background:#FFF9E6;' :
+            k.pojemnosc_ml === 400 ? 'background:#E8F5E9;' :
+            k.pojemnosc_ml === 180 ? 'background:#FFF0E0;' :
+            k.pojemnosc_ml === 500 ? 'background:#E3F2FD;' : ''
+            ) : '';
+            return `<div class="card" style="${cardBg}" onclick="openDrawer('${k.kubek_id}','${typKarty}')">
       <div class="card-thumb">${thumb}</div>
       <div class="card-body">
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:1px;">
@@ -2566,10 +2585,10 @@
             ${k.data_zlecenia && k.data_zlecenia !== '1970-01-01' ? `<div style="font-size:10px;color:var(--ink3);line-height:1.1;">${k.data_zlecenia}</div>` : ''}
             ${k.ilosc_zlecona > 0 ? `<div style="font-family:var(--fh);font-size:14px;font-weight:700;color:var(--accent);line-height:1.1;">${k.ilosc_zlecona} szt.</div>` : ''}
           ` : `
-            <div style="display:flex;align-items:center;gap:4px;justify-content:flex-end;line-height:1.1;">
+            <div style="display:flex;align-items:center;gap:5px;justify-content:flex-end;line-height:1;margin-top:-1px;">
               <span class="stock-dot ${
             dotCls}"></span>
-              <span style="font-family:var(--fh);font-size:14px;font-weight:700;color:var(--ink);">${stan} szt.</span>
+              <span style="font-family:var(--fh);font-size:16px;font-weight:700;color:var(--ink);">${stan} szt.</span>
             </div>
             ${
             totalLacznie > stan ? `<div style="font-size:9px;color:var(--ink3);line-height:1.1;">z ${totalLacznie} szt.</div>` : ''}
