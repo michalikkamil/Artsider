@@ -1400,10 +1400,6 @@
             </div>
         </div>
         <div class="page-body" style="padding-top:12px;padding-bottom:0;">
-            <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;">
-                <button class="btn-primary" style="flex:1;" onclick="openNoweZamowienie()">+ Nowe zamówienie</button>
-                <button id="btnImportKlientow" onclick="importujKlientowZFakturowni()" title="Importuj klientów z Fakturowni" style="background:none;border:1px solid var(--border);border-radius:8px;padding:6px 8px;font-family:var(--fm);font-size:11px;color:var(--ink3);cursor:pointer;flex-shrink:0;line-height:1;">📥</button>
-            </div>
             <div class="f-msg" id="importMsg" style="margin-bottom:4px;font-size:11px;"></div>
         </div>
         <div class="list" id="listZamowienia">
@@ -3650,7 +3646,7 @@
           <span style="font-size:13px;font-weight:600;">${ilosc.toLocaleString('pl')}</span>
         </div>
         ${
-            totalIlosc > ilosc ? `<div style="font-size:10px;color:var(--ink3);">(${totalIlosc.toLocaleString('pl')} łącznie)</div>` : ''}
+            totalIlosc > ilosc ? `<div style="font-size:10px;color:var(--ink3);">(z ${totalIlosc.toLocaleString('pl')})</div>` : ''}
       </div>
       <input type="number" min="0" value="" placeholder="0" id="kq_${
             rowId}"
@@ -3735,13 +3731,19 @@
             kol: 'biały'
         },
         ];
-        wrap.innerHTML = combos.map(c => {
+        const rows = combos.map(c => {
             const prz = allPrzykrywki?.find(p => p.rozmiar_mm === c.rozm && (p.grafika || '').toLowerCase().includes(c.mat) && (p.grafika || '').toLowerCase().includes(c.kol));
             const ilosc = prz?.ilosc_lacznie || 0;
+            if (ilosc <= 0)
+                return ''; // ukryj brak stanu
             const cena = prz?.cena_netto || 0;
             const rowId = `wr_${id}_${c.mat}_${c.rozm}_${c.kol}`;
-            const dotCls = ilosc === 0 ? 'stock-empty' : ilosc < 100 ? 'stock-low' : 'stock-ok';
+            const dotCls = ilosc < 100 ? 'stock-low' : 'stock-ok';
+            const thumb = prz?.miniaturka
+            ? `<img src="${prz.miniaturka}" style="width:40px;height:40px;border-radius:6px;object-fit:cover;flex-shrink:0;">`
+            : `<div style="width:40px;height:40px;border-radius:6px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🫗</div>`;
             return `<div id="${rowId}" style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--bg2);" data-mat="${c.mat}" data-rozm="${c.rozm}" data-kol="${c.kol}" data-cena="${cena}">
+      ${thumb}
       <div style="flex:1;">
         <div style="font-size:13px;font-weight:600;">${
             c.rozm}mm <span style="font-weight:400;color:var(--ink3);font-size:11px;">${c.mat} ${c.kol}</span></div>
@@ -3774,7 +3776,8 @@
     </div>`
 
             ;
-        }).join('');
+        }).filter(Boolean).join('');
+        wrap.innerHTML = rows || '<div style="color:var(--ink3);font-size:12px;padding:8px;">Brak wieczek w magazynie.</div>';
     }
 
     function onWIloscChange(input, rowId, defaultCena) {
@@ -6070,7 +6073,7 @@
                     };
                 map[r.kubek_id].ilosc += (r.ilosc_dostepna || 0);
             });
-            window['tl_mag_' + id] = Object.values(map).sort((a, b) => a.pojemnosc - b.pojemnosc);
+            window['tl_mag_' + id] = Object.values(map).filter(k => k.ilosc > 0).sort((a, b) => a.pojemnosc - b.pojemnosc);
             if (klientId) {
                 const komis = await sbFetch('v_komis_aktywny', `?klient_id=eq.${klientId}&select=*`);
                 window['tl_kom_' + id] = komis.map(k => ({
@@ -7163,5 +7166,6 @@
         }
     });
     </script>
+    <button onclick="openNoweZamowienie()" id="fabNowe" style="position:fixed;bottom:24px;right:16px;width:56px;height:56px;border-radius:50%;background:#2E7D32;color:white;border:none;font-size:28px;cursor:pointer;z-index:500;box-shadow:0 4px 16px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;">+</button>
 </body>
 </html>
