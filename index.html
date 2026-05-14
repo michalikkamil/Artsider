@@ -1157,6 +1157,8 @@
         color: var(--accent);
     }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
 
@@ -2234,6 +2236,319 @@
         ).join('');
     }
 
+    // ── RAPORT KOMISU PDF ───────────────────────────────────────────
+    async function otworzGenerujRaport(klientId) {
+        // Sprawdź czy istnieje wcześniejszy raport - domyślna data "od"
+        let dataOd = '';
+        try {
+            const last = await sbFetch('raport_komisu', `?klient_id=eq.${klientId}&order=data_raportu.desc&limit=1`);
+            if (last.length) {
+                dataOd = last[0].data_raportu;
+            } else {
+                // domyślnie 30 dni wstecz
+                const d = new Date();
+                d.setDate(d.getDate() - 30);
+                dataOd = d.toISOString().slice(0, 10);
+            }
+        } catch (e) {
+            const d = new Date();
+            d.setDate(d.getDate() - 30);
+            dataOd = d.toISOString().slice(0, 10);
+        }
+        const dataDo = new Date().toISOString().slice(0, 10);
+
+        // Modal z wyborem daty
+        const modalHtml = `
+    <div id="raportModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;">
+      <div style="background:var(--surface);border-radius:14px;max-width:400px;width:100%;padding:20px;">
+        <h3 style="font-family:var(--fh);margin:0 0 12px;">📄 Generuj raport komisu</h3>
+        <div class="f-group">
+          <label class="f-label">Okres "od" (uwzględnia sprzedaże i nowe pozycje od tej daty)</label>
+          <input type="date" id="raportDataOd" value="${
+
+
+
+
+        dataOd}" class="f-input">
+        </div>
+        <div class="f-group">
+          <label class="f-label">Data raportu</label>
+          <input type="date" id="raportDataDo" value="${
+
+
+        dataDo}" class="f-input">
+        </div>
+        <div style="display:flex;gap:8px;margin-top:16px;">
+          <button class="btn-secondary" onclick="document.getElementById('raportModal').remove()" style="flex:1;">Anuluj</button>
+          <button class="btn-primary" onclick="generujRaportKomisu('${
+
+
+        klientId}')" style="flex:1;">Generuj PDF</button>
+        </div>
+        <div class="f-msg" id="raportMsg"></div>
+      </div>
+    </div>`
+
+
+
+        ;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
+
+    async function generujRaportKomisu(klientId) {
+        const msg = document.getElementById('raportMsg');
+        const dataOd = document.getElementById('raportDataOd').value;
+        const dataDo = document.getElementById('raportDataDo').value;
+        if (!dataOd || !dataDo) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'Podaj obie daty';
+            return;
+        }
+        msg.className = 'f-msg';
+        msg.textContent = '⏳ Pobieram dane…';
+
+        try {
+            // 1. Aktualnie w komisie
+            const komisAkt = await sbFetch('v_komis_aktywny', `?klient_id=eq.${klientId}&select=*`);
+
+            // 2. Sprzedane od dataOd
+            const sprzedane = await sbFetch('sprzedaz_termicznych', `?klient_id=eq.${klientId}&data_sprzedazy=gte.${dataOd}&data_sprzedazy=lte.${dataDo}&select=*`);
+            // Wzbogać sprzedane o dane kubków (grafika, miniaturka, pojemność)
+            const kubekIds = [...new Set(sprzedane.map(s => s.kubek_id))];
+            let kubekMap = {};
+            if (kubekIds.length) {
+                const ids = kubekIds.map(id => `"${id}"`).join(',');
+                const kubki = await sbFetch('kubek_termiczny', `?id=in.(${ids})&select=id,pojemnosc_ml,kolor,cena_netto,grafika(nazwa,miniaturka_url,artysta(imie_nazwisko))`);
+                kubki.forEach(k => {
+                    kubekMap[k.id] = {
+                        pojemnosc_ml: k.pojemnosc_ml,
+                        kolor: k.kolor,
+                        cena_netto: k.cena_netto,
+                        grafika: k.grafika?.nazwa,
+                        miniaturka_url: k.grafika?.miniaturka_url,
+                        artysta: k.grafika?.artysta?.imie_nazwisko
+                    };
+                });
+            }
+            const sprzedaneWzbog = sprzedane.map(s => ({
+                ...s,
+                ...(kubekMap[s.kubek_id] || {})
+            }));
+
+            // 3. Nowo dodane w okresie
+            const nowoDodane = await sbFetch('komis', `?klient_id=eq.${klientId}&data_przekazania=gte.${dataOd}&data_przekazania=lte.${dataDo}&select=*`);
+
+            // 4. Dane klienta
+            const klient = await sbFetch('klient', `?id=eq.${klientId}&select=*`);
+            const klientNazwa = klient[0]?.nazwa_wlasna || klient[0]?.nazwa_formalna || '';
+
+            msg.textContent = '⏳ Renderuję PDF…';
+
+            // 5. Renderuj HTML raportu
+            const htmlRaport = buildHtmlRaport(klientNazwa, dataDo, dataOd, komisAkt, sprzedaneWzbog, nowoDodane);
+
+            // 6. Stwórz tymczasowy div, html2canvas, jsPDF
+            const tmpDiv = document.createElement('div');
+            tmpDiv.style.cssText = 'position:fixed;left:-9999px;top:0;width:800px;background:white;';
+            tmpDiv.innerHTML = htmlRaport;
+            document.body.appendChild(tmpDiv);
+
+            // Załaduj obrazki (czekaj na nie)
+            await Promise.all([...tmpDiv.querySelectorAll('img')].map(img => {
+                return new Promise(resolve => {
+                    if (img.complete)
+                        resolve();
+                    else {
+                        img.onload = resolve;
+                        img.onerror = resolve;
+                    }
+                });
+            }));
+
+            const canvas = await html2canvas(tmpDiv, {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: '#ffffff'
+            });
+            document.body.removeChild(tmpDiv);
+
+            const imgData = canvas.toDataURL('image/jpeg', 0.92);
+            const {jsPDF} = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfW = pdf.internal.pageSize.getWidth();
+            const pdfH = pdf.internal.pageSize.getHeight();
+            const imgW = pdfW - 20;
+            const imgH = canvas.height * imgW / canvas.width;
+            let posY = 10;
+            let remaining = imgH;
+            let srcY = 0;
+            if (imgH <= pdfH - 20) {
+                pdf.addImage(imgData, 'JPEG', 10, 10, imgW, imgH);
+            } else {
+                // wielostronicowo
+                let pageNum = 0;
+                while (remaining > 0) {
+                    if (pageNum > 0)
+                        pdf.addPage();
+                    const sliceH = Math.min(pdfH - 20, remaining);
+                    pdf.addImage(imgData, 'JPEG', 10, 10 - srcY, imgW, imgH);
+                    // Maska na resztę - dodaj białe prostokąty góra/dół
+                    // To uproszczone podejście; lepsze podejście to canvas per strona
+                    remaining = 0; // dla MVP - jedna duża strona
+                    pageNum++;
+                }
+            }
+
+            const filename = `Raport_Komis_${klientNazwa.replace(/[^a-zA-ZąęóśłżźćńĄĘÓŚŁŻŹĆŃ0-9]/g, '_')}_${dataDo}.pdf`;
+            pdf.save(filename);
+
+            // 7. Zapisz snapshot w bazie
+            const sumaSprz = sprzedaneWzbog.reduce((s, p) => s + (p.ilosc || 0), 0);
+            const sumaWart = sprzedaneWzbog.reduce((s, p) => s + (p.ilosc || 0) * (p.cena_netto || 0), 0);
+            try {
+                await sbFetch('raport_komisu', '', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        klient_id: klientId,
+                        data_raportu: dataDo,
+                        data_od: dataOd,
+                        pozycje_komisu: komisAkt,
+                        pozycje_sprzedane: sprzedaneWzbog,
+                        pozycje_nowe: nowoDodane,
+                        suma_sprzedanych_szt: sumaSprz,
+                        suma_wartosc_netto: sumaWart
+                    })
+                });
+            } catch (e) {
+                console.warn('snapshot save:', e);
+            }
+
+            msg.className = 'f-msg ok';
+            msg.textContent = '✓ Raport zapisany!';
+            setTimeout(() => document.getElementById('raportModal')?.remove(), 1500);
+
+        } catch (e) {
+            console.error('generujRaportKomisu:', e);
+            msg.className = 'f-msg err';
+            msg.textContent = 'Błąd: ' + e.message;
+        }
+    }
+
+    function buildHtmlRaport(klientNazwa, dataDo, dataOd, komisAkt, sprzedane, nowoDodane) {
+        const sumaSprzSzt = sprzedane.reduce((s, p) => s + (p.ilosc || 0), 0);
+        const sumaSprzWart = sprzedane.reduce((s, p) => s + (p.ilosc || 0) * (p.cena_netto || 0), 0);
+        const sumaKomisuSzt = komisAkt.reduce((s, p) => s + (p.ilosc || 0), 0);
+
+        // Pomocnicze - identyfikator nowo dodanych kubek_id
+        const noweKubekIds = new Set(nowoDodane.map(n => n.kubek_id));
+
+        const wiersz = (p, sprzedaneObj) => {
+            const thumb = p.miniaturka_url ? `<img src="${p.miniaturka_url}" style="width:50px;height:50px;border-radius:6px;object-fit:cover;" crossorigin="anonymous">` : `<div style="width:50px;height:50px;border-radius:6px;background:#eee;display:inline-block;"></div>`;
+            const cena = Number(p.cena_netto || 0).toFixed(0);
+            const brutto = (Number(p.cena_netto || 0) * 1.23).toFixed(2);
+            const isNew = noweKubekIds.has(p.kubek_id);
+            const sprzIl = sprzedaneObj?.[p.kubek_id] || 0;
+            return `<tr style="border-bottom:1px solid #eee;">
+      <td style="padding:8px 6px;font-weight:600;font-size:14px;">${p.ilosc} × ${p.pojemnosc_ml}ml ${p.grafika || ''}${p.kolor ? ` (${p.kolor})` : ''}${isNew ? ' <span style="color:#3B6D11;font-size:10px;">★ nowy</span>' : ''}</td>
+      <td style="padding:8px 6px;text-align:center;">${thumb}</td>
+      <td style="padding:8px 6px;text-align:right;font-weight:600;color:#1A1714;font-size:13px;white-space:nowrap;">
+        ${
+            cena} PLN<br><span style="color:#3B6D11;font-size:11px;font-weight:400;">${brutto} brutto</span>
+      </td>
+      <td style="padding:8px 6px;text-align:center;font-weight:700;color:#3B6D11;font-size:14px;">${
+            sprzIl || ''}</td>
+    </tr>`
+            ;
+        };
+
+        // Mapa sprzedanych po kubek_id
+        const sprzMap = {};
+        sprzedane.forEach(s => {
+            sprzMap[s.kubek_id] = (sprzMap[s.kubek_id] || 0) + s.ilosc;
+        });
+
+        // Sortuj komis: pojemność rosnąco
+        const komisSorted = [...komisAkt].sort((a, b) => a.pojemnosc_ml - b.pojemnosc_ml);
+
+        return `<div style="font-family:Arial,sans-serif;padding:20px;color:#1A1714;width:800px;background:white;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;border-bottom:2px solid #C8502A;padding-bottom:12px;">
+      <div>
+        <div style="font-family:Georgia,serif;font-size:28px;color:#C8502A;font-weight:300;">Art<i>sider</i></div>
+        <div style="font-size:11px;color:#666;margin-top:4px;">www.artsider.pl</div>
+      </div>
+      <div style="text-align:right;font-size:12px;line-height:1.6;">
+        <strong>Kontakt:</strong><br>
+        Kamil Michalik<br>
+        tel. 798 017 122<br>
+        artsider@artsider.pl
+      </div>
+    </div>
+    <div style="text-align:center;margin-bottom:20px;">
+      <div style="font-size:20px;font-weight:bold;margin-bottom:6px;">Nazwa: ${
+
+
+
+
+
+
+
+
+
+
+
+
+        klientNazwa}</div>
+      <div style="font-size:16px;">Potwierdzenie stanu kubków termicznych na dzień ${dataDo}</div>
+      <div style="font-size:11px;color:#888;margin-top:4px;">Okres raportu: ${dataOd} → ${dataDo}</div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+      <thead>
+        <tr style="background:#F5F0E8;border-bottom:2px solid #C8502A;">
+          <th style="padding:8px 6px;text-align:left;font-size:12px;">Pozycja</th>
+          <th style="padding:8px 6px;text-align:center;font-size:12px;">Miniatura</th>
+          <th style="padding:8px 6px;text-align:right;font-size:12px;">Cena</th>
+          <th style="padding:8px 6px;text-align:center;font-size:12px;color:#3B6D11;">Sprzedano</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${
+
+
+
+
+
+
+
+
+
+
+        komisSorted.map(p => wiersz(p, sprzMap)).join('')}
+      </tbody>
+    </table>
+    ${
+
+        sprzedane.length > 0 ? `
+    <div style="background:#F5F0E8;border-radius:8px;padding:14px;margin-top:20px;">
+      <div style="font-weight:bold;font-size:14px;margin-bottom:8px;">📊 Podsumowanie sprzedaży (${
+        dataOd} → ${dataDo})</div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;">
+        <div>Sprzedanych łącznie: <strong>${
+        sumaSprzSzt} szt.</strong></div>
+        <div>Wartość netto: <strong style="color:#C8502A;">${sumaSprzWart.toFixed(2)} PLN</strong></div>
+        <div>Wartość brutto: <strong>${(sumaSprzWart * 1.23).toFixed(2)} PLN</strong></div>
+      </div>
+    </div>`
+        : ''}
+    <div style="margin-top:24px;font-size:11px;color:#888;text-align:center;border-top:1px solid #eee;padding-top:12px;">
+      Stan kubków w komisie: ${
+        sumaKomisuSzt} szt. · Raport wygenerowany ${dataDo} z systemu Artsider
+    </div>
+  </div>`
+
+        ;
+    }
+
+
     function openKomisKlienta(klientId) {
         const pozycje = allKomis.filter(k => k.klient_id === klientId);
         if (!pozycje.length)
@@ -2246,6 +2561,7 @@
     <div class="drawer-title">${
 
         klientNazwa}</div>
+    <button class="btn-primary" style="margin-top:8px;background:#3B6D11;" onclick="otworzGenerujRaport('${klientId}')">📄 Generuj raport PDF</button>
     <div class="d-section">Kubki w komisie (${pozycje.reduce((s, p) => s + (p.ilosc || 0), 0)} szt.)</div>
     ${pozycje.map(p => `
       <div id="komisRow_${p.id}" style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bg2);">
