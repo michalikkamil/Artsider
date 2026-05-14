@@ -309,8 +309,11 @@
 
     .card-body {
         flex: 1;
-        padding: 10px 12px 28px;
+        padding: 5px 10px;
         min-width: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
     }
 
     .card-top {
@@ -391,14 +394,12 @@
     }
 
     .card-stock {
-        position: absolute;
-        right: 12px;
-        bottom: 8px;
-        display: flex;
+        display: inline-flex;
         align-items: center;
-        gap: 6px;
+        gap: 4px;
         font-size: 11px;
         color: var(--ink2);
+        margin-left: auto;
     }
 
     .card-date {
@@ -420,8 +421,8 @@
     }
 
     .stock-dot-big {
-        width: 14px;
-        height: 14px;
+        width: 10px;
+        height: 10px;
         border-radius: 50%;
         flex-shrink: 0;
     }
@@ -1427,10 +1428,7 @@
             </div>
         </div>
         <div class="page-body" style="padding-top:12px;padding-bottom:0;">
-            <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;">
-                <button class="btn-primary" style="flex:1;" onclick="openNoweZamowienie()">+ Nowe zamówienie</button>
-                <button id="btnImportKlientow" onclick="importujKlientowZFakturowni()" title="Importuj klientów z Fakturowni" style="background:none;border:1px solid var(--border);border-radius:8px;padding:6px 8px;font-family:var(--fm);font-size:11px;color:var(--ink3);cursor:pointer;flex-shrink:0;line-height:1;">📥</button>
-            </div>
+
             <div class="f-msg" id="importMsg" style="margin-bottom:4px;font-size:11px;"></div>
         </div>
         <div class="list" id="listZamowienia">
@@ -1723,8 +1721,12 @@
     function showPage(name, btn) {
         document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
         document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
-        document.getElementById('page-' + name).classList.add('active');
-        btn.classList.add('active');
+        document.getElementById('page-' + name)?.classList.add('active');
+        btn?.classList.add('active');
+        // FAB visibility - only on zamowienia
+        const fab = document.getElementById('fabNowe');
+        if (fab)
+            fab.style.display = name === 'zamowienia' ? 'flex' : 'none';
         if (name === 'artysci')
             loadArtysci();
         if (name === 'komis')
@@ -2544,17 +2546,22 @@
             return `<div class="card" onclick="openDrawer('${k.kubek_id}','${typKarty}')">
       <div class="card-thumb">${thumb}</div>
       <div class="card-body">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
-          <span style="font-family:var(--fh);font-size:18px;font-weight:700;color:var(--ink);">${
+        <div style="display:flex;align-items:center;gap:6px;line-height:1.15;">
+          <span style="font-family:var(--fh);font-size:16px;font-weight:700;color:var(--ink);">${
 
             cardTitle}</span>
-          ${!isTermiczny && !k.isPrzykrywka && k.typ_materialu ? `<span class="tag tag-mat" style="font-size:11px;padding:2px 8px;">${k.typ_materialu}</span>` : ''}
+          ${!isTermiczny && !k.isPrzykrywka && k.typ_materialu ? `<span style="font-size:10px;color:var(--ink3);">${k.typ_materialu}</span>` : ''}
           ${pakTag}
-          <div style="margin-left:auto;text-align:right;"><div style="font-size:15px;font-weight:600;color:var(--accent);">${k.cena_netto != null ? Number(k.cena_netto).toFixed(2) + ' zł' : '—'}</div>${k.cena_netto != null ? `<div style="font-size:10px;color:var(--ink3);">${(Number(k.cena_netto) * 1.23).toFixed(2)} zł brutto</div>` : ''}</div>
+          ${stockHtml}
         </div>
-        <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${
-            cardSub}</div>
-        ${stockHtml}${dateHtml}
+        <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--ink3);line-height:1.2;">
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;">${
+
+            cardSub}</span>
+          ${k.cena_netto != null ? `<span style="font-weight:600;color:var(--accent);font-size:12px;flex-shrink:0;">${Number(k.cena_netto).toFixed(2)} zł</span>` : ''}
+        </div>
+        ${
+            dateHtml}
       </div>
     </div>`
 
@@ -3973,14 +3980,17 @@
                         ilosc_dostepna: 0,
                         ilosc_w_drodze: 0
                     }));
-                    await sbFetch('stan_magazynowy', '', {
-                        method: 'POST',
-                        body: JSON.stringify(stanyWl)
-                    });
+                    for (const s of stanyWl) {
+                        await sbFetch('stan_magazynowy', '', {
+                            method: 'POST',
+                            body: JSON.stringify(s)
+                        });
+                    }
                     // Dodaj do pozycji zamówienia
                     pozycje.push({
                         rodzaj_produktu: 'kubek',
                         kubek_id: nowyKubek.id,
+                        magazyn_id: allMagazyny[0]?.id || null,
                         ilosc: wlIlosc,
                         cena_jednostkowa: wlCena
                     });
@@ -5287,81 +5297,6 @@
     }
 
     // ── IMPORT KLIENTÓW Z FAKTUROWNI ──
-    async function importujKlientowZFakturowni() {
-        const btn = document.getElementById('btnImportKlientow');
-        const msg = document.getElementById('importMsg');
-        btn.disabled = true;
-        btn.textContent = '⏳ Importuję…';
-        msg.textContent = '';
-        try {
-            const {url, key} = getCfg();
-            const res = await fetch(`${url}/functions/v1/import-klientow`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${key}`
-                },
-                body: JSON.stringify({}),
-            });
-            const data = await res.json();
-            if (data.success) {
-                msg.className = 'f-msg ok';
-                msg.textContent = `✓ Zaimportowano ${data.dodano} nowych klientów (${data.pominięto} już było w bazie).`;
-                const artysci = await sbFetch('klient', '?select=id,nazwa_wlasna&order=nazwa_wlasna.asc');
-                allKlienci = artysci;
-            } else {
-                msg.className = 'f-msg err';
-                msg.textContent = 'Błąd: ' + (data.error || 'nieznany błąd');
-            }
-        } catch (e) {
-            msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
-        }
-        finally {
-            btn.disabled = false;
-            btn.textContent = '📥 Importuj klientów z Fakturowni';
-        }
-    }
-
-    // ── TOGGLE BEZ PRODUKCJI ──
-    function toggleBezProdukcji() {
-        const checked = document.getElementById('nBezProdukcji')?.checked;
-        const wrap = document.getElementById('nMagStany');
-        const zleconaWrap = document.getElementById('nZleconaWrap');
-        if (zleconaWrap)
-            zleconaWrap.style.display = checked ? 'none' : 'block';
-        if (!wrap)
-            return;
-        if (checked) {
-            wrap.style.display = 'block';
-            wrap.innerHTML = allMagazyny.map(m => `
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-        <span style="flex:1;font-size:12px;color:var(--ink2);">${
-            m.nazwa}</span>
-        <input class="f-input" id="nStanMag_${m.id}" type="number" min="0" value="0" style="width:80px;text-align:center;">
-        <span style="font-size:11px;color:var(--ink3);">szt.</span>
-      </div>`
-
-            ).join('');
-        } else {
-            wrap.style.display = 'none';
-            wrap.innerHTML = '';
-        }
-    }
-
-
-    function updateEkPojemnosci() {
-        const mat = document.getElementById('ekMat')?.value || '';
-        const sel = document.getElementById('ekPoj');
-        if (!sel)
-            return;
-        const pojs = POJEMNOSCI[mat] || [];
-        sel.innerHTML = pojs.map(p => `<option value="${p}">${p} ml</option>`).join('');
-    }
-
-    // ── CENNIK ──
-    let cennikPap = [],
-        cennikTerm = [];
 
     async function loadCennik() {
         try {
@@ -7413,8 +7348,15 @@
             allArchiwum = [];
             allPrzykrywki = [];
             await loadAll();
+            // Show FAB if zamowienia is active
+            const fab = document.getElementById('fabNowe');
+            if (fab) {
+                const activeP = document.querySelector('.page.active');
+                fab.style.display = activeP?.id === 'page-zamowienia' ? 'flex' : 'none';
+            }
         }
     });
     </script>
+    <button onclick="openNoweZamowienie()" id="fabNowe" style="display:none;position:fixed;bottom:24px;right:20px;width:56px;height:56px;border-radius:50%;background:var(--accent);color:white;border:none;font-size:30px;font-weight:300;cursor:pointer;z-index:500;box-shadow:0 4px 16px rgba(200,80,42,0.45);align-items:center;justify-content:center;line-height:1;padding:0;">+</button>
 </body>
 </html>
