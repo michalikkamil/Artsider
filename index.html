@@ -6551,7 +6551,7 @@
             termiczne = {};
         pozycje.forEach(p => {
             if (p.rodzaj_produktu === 'kubek') {
-                const scianka = p.typ_scianki ? ` ${p.typ_scianki === 'dwuściankowy' ? 'dwu' : p.typ_scianki === 'jednościankowy' ? 'jedno' : p.typ_scianki}` : '';
+                const scianka = p.typ_scianki ? ` ${p.typ_scianki === 'dwuściankowy' ? 'dwuściank.' : p.typ_scianki === 'jednościankowy' ? '1ściank.' : p.typ_scianki}` : '';
                 const key = `${p.pojemnosc_ml}ml ${p.typ_materialu || ''}${scianka}`.trim();
                 kubki[key] = (kubki[key] || 0) + p.ilosc;
             } else if (p.rodzaj_produktu === 'przykrywka') {
