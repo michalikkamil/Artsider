@@ -3897,15 +3897,21 @@
     }
 
     async function zapiszZamowienie() {
+        console.log('=== zapiszZamowienie START ===');
         const klientId = document.getElementById('zamKlient')?.value || document.getElementById('zamKlientInput')?.dataset?.id || '';
-        const zrodlo = document.getElementById('zamZrodlo').value;
-        const typ = document.getElementById('zamTyp').value;
-        const tresc = document.getElementById('zamTresc').value.trim();
+        const zrodlo = document.getElementById('zamZrodlo')?.value || 'inne';
+        const typ = document.getElementById('zamTyp')?.value || 'artsider';
+        const tresc = document.getElementById('zamTresc')?.value?.trim() || '';
         const msg = document.getElementById('zamMsg');
+        console.log('klientId:', klientId, 'zrodlo:', zrodlo);
 
+        if (!msg) {
+            alert('Bug: brak elementu zamMsg w formularzu');
+            return;
+        }
         if (!klientId) {
             msg.className = 'f-msg err';
-            msg.textContent = 'Wybierz klienta.';
+            msg.textContent = 'Wybierz klienta z listy.';
             return;
         }
 
@@ -4173,6 +4179,8 @@
                 }
             }
         }
+
+        console.log('pozycje:', pozycje, 'komis:', komisDoUtworzenia, 'maWlasneLogo:', maWlasneLogo);
 
         try {
             msg.className = 'f-msg';
