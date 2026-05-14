@@ -1723,10 +1723,10 @@
         document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
         document.getElementById('page-' + name)?.classList.add('active');
         btn?.classList.add('active');
-        // FAB visibility - only on zamowienia
+        // FAB visible on all pages
         const fab = document.getElementById('fabNowe');
         if (fab)
-            fab.style.display = name === 'zamowienia' ? 'flex' : 'none';
+            fab.style.display = 'flex';
         if (name === 'artysci')
             loadArtysci();
         if (name === 'komis')
@@ -2520,7 +2520,7 @@
             const typKarty = typOverride || (showDate ? 'zlecony' : isTermiczny ? 'termiczny' : k.isPrzykrywka ? 'przykrywka' : 'kubek');
             const stan = activeMag ? (k.stany?.find(s => s.magazyn_id === activeMag)?.ilosc_dostepna || 0) : k.ilosc_lacznie || 0;
             const drodze = activeMag ? (k.stany?.find(s => s.magazyn_id === activeMag)?.ilosc_w_drodze || 0) : k.ilosc_w_drodze || 0;
-            const dotCls = stan === 0 ? 'stock-empty' : stan < 500 ? 'stock-low' : 'stock-ok';
+            const dotCls = stan === 0 ? 'stock-empty' : (isTermiczny ? stan < 10 : stan < 500) ? 'stock-low' : 'stock-ok';
             const sciTag = k.typ_scianki ? `<span class="tag tag-sci">${k.typ_scianki === 'dwuściankowy' ? '2×' : '1×'}</span>` : '';
             const pakTag = k.sztuk_w_opakowaniu ? `<span class="tag tag-pak">${k.sztuk_w_opakowaniu}/op.</span>` : '';
             const termTag = '';
@@ -2857,8 +2857,9 @@
             allArtysci = artysci;
             buildArtystFilters(artysci);
         } catch (e) {
+            console.error('zapiszZamowienie:', e);
             msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
+            msg.textContent = 'Błąd zapisu: ' + (e.message || e);
         }
         finally {
             btn.disabled = false;
@@ -3087,8 +3088,9 @@
             onRodzajChange();
             loadAll();
         } catch (e) {
+            console.error('zapiszZamowienie:', e);
             msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
+            msg.textContent = 'Błąd zapisu: ' + (e.message || e);
         }
         finally {
             btn.disabled = false;
@@ -3911,7 +3913,10 @@
         const pozycjeDivs = document.querySelectorAll('#pozycjeZam > div[data-typ]');
         const pozycje = [];
         const komisDoUtworzenia = [];
+        let maWlasneLogo = false;
         for (const div of pozycjeDivs) {
+            if (div.dataset.typ === 'wlasne_logo')
+                maWlasneLogo = true;
             const typ2 = div.dataset.typ;
             if (typ2 === 'kubek' || typ2 === 'przykrywka' || typ2 === 'termiczny') {}
             else if (typ2 !== 'wysylka' && typ2 !== 'wlasne_logo') {
@@ -4188,12 +4193,17 @@
             }
 
             // Zapisz zamówienie tylko jeśli są pozycje sprzedażowe
+            if (!pozycje.length && !komisDoUtworzenia.length) {
+                msg.className = 'f-msg err';
+                msg.textContent = 'Dodaj przynajmniej jedną pozycję do zamówienia (lub komis).';
+                return;
+            }
             if (pozycje.length) {
                 const [zam] = await sbFetch('zamowienie', '', {
                     method: 'POST',
                     body: JSON.stringify({
                         klient_id: klientId,
-                        typ_zamowienia: typ,
+                        typ_zamowienia: maWlasneLogo ? 'wlasne_logo' : 'artsider',
                         zrodlo,
                         tresc_zamowienia: tresc || null,
                         status_realizacji: 'w_produkcji',
@@ -4223,8 +4233,9 @@
                 loadZamowienia();
             }, 1000);
         } catch (e) {
+            console.error('zapiszZamowienie:', e);
             msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
+            msg.textContent = 'Błąd zapisu: ' + (e.message || e);
         }
     }
 
@@ -4605,8 +4616,9 @@
             msg.textContent = '✓ Zapisano zmiany!';
             setTimeout(() => openZamowienieDrawer(zamId), 1000);
         } catch (e) {
+            console.error('zapiszZamowienie:', e);
             msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
+            msg.textContent = 'Błąd zapisu: ' + (e.message || e);
         }
     }
 
@@ -4771,8 +4783,9 @@
                 loadAll();
             }, 1000);
         } catch (e) {
+            console.error('zapiszZamowienie:', e);
             msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
+            msg.textContent = 'Błąd zapisu: ' + (e.message || e);
         }
     }
 
@@ -5003,8 +5016,9 @@
                 loadAll();
             }, 1000);
         } catch (e) {
+            console.error('zapiszZamowienie:', e);
             msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
+            msg.textContent = 'Błąd zapisu: ' + (e.message || e);
         }
     }
 
@@ -5047,8 +5061,9 @@
                 loadAll();
             }, 1000);
         } catch (e) {
+            console.error('zapiszZamowienie:', e);
             msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
+            msg.textContent = 'Błąd zapisu: ' + (e.message || e);
         }
     }
 
@@ -5291,8 +5306,9 @@
                 loadArtysci();
             }, 800);
         } catch (e) {
+            console.error('zapiszZamowienie:', e);
             msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
+            msg.textContent = 'Błąd zapisu: ' + (e.message || e);
         }
     }
 
@@ -5517,8 +5533,9 @@
             document.getElementById('cennikPapForm').style.display = 'none';
             loadCennik();
         } catch (e) {
+            console.error('zapiszZamowienie:', e);
             msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
+            msg.textContent = 'Błąd zapisu: ' + (e.message || e);
         }
     }
 
@@ -5613,8 +5630,9 @@
             document.getElementById('cennikTermForm').style.display = 'none';
             loadCennik();
         } catch (e) {
+            console.error('zapiszZamowienie:', e);
             msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
+            msg.textContent = 'Błąd zapisu: ' + (e.message || e);
         }
     }
 
@@ -5899,8 +5917,9 @@
             loadCennikPrz();
             loadAll(); // odśwież widok kubków
         } catch (e) {
+            console.error('zapiszZamowienie:', e);
             msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
+            msg.textContent = 'Błąd zapisu: ' + (e.message || e);
         }
     }
 
@@ -5974,8 +5993,9 @@
                 loadAll();
             }, 1000);
         } catch (e) {
+            console.error('zapiszZamowienie:', e);
             msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
+            msg.textContent = 'Błąd zapisu: ' + (e.message || e);
         }
     }
 
@@ -6061,8 +6081,9 @@
             msg.textContent = '✓ Zapisano';
             setTimeout(() => msg.textContent = '', 2000);
         } catch (e) {
+            console.error('zapiszZamowienie:', e);
             msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
+            msg.textContent = 'Błąd zapisu: ' + (e.message || e);
         }
     }
 
@@ -6538,8 +6559,9 @@
                 loadAll();
             }, 1000);
         } catch (e) {
+            console.error('zapiszZamowienie:', e);
             msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
+            msg.textContent = 'Błąd zapisu: ' + (e.message || e);
         }
     }
 
@@ -6565,8 +6587,9 @@
                 loadAll();
             }, 1000);
         } catch (e) {
+            console.error('zapiszZamowienie:', e);
             msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
+            msg.textContent = 'Błąd zapisu: ' + (e.message || e);
         }
     }
 
@@ -6603,8 +6626,9 @@
                 loadAll();
             }, 1000);
         } catch (e) {
+            console.error('zapiszZamowienie:', e);
             msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
+            msg.textContent = 'Błąd zapisu: ' + (e.message || e);
         }
     }
 
@@ -6700,8 +6724,9 @@
                 loadAll();
             }, 1000);
         } catch (e) {
+            console.error('zapiszZamowienie:', e);
             msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
+            msg.textContent = 'Błąd zapisu: ' + (e.message || e);
         }
     }
 
@@ -6727,8 +6752,9 @@
                 loadAll();
             }, 1000);
         } catch (e) {
+            console.error('zapiszZamowienie:', e);
             msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
+            msg.textContent = 'Błąd zapisu: ' + (e.message || e);
         }
     }
 
@@ -6765,8 +6791,9 @@
                 loadAll();
             }, 1000);
         } catch (e) {
+            console.error('zapiszZamowienie:', e);
             msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
+            msg.textContent = 'Błąd zapisu: ' + (e.message || e);
         }
     }
 
@@ -6831,8 +6858,9 @@
             zaladujWyplaty(artId);
             loadArtysci();
         } catch (e) {
+            console.error('zapiszZamowienie:', e);
             msg.className = 'f-msg err';
-            msg.textContent = 'Błąd: ' + e.message;
+            msg.textContent = 'Błąd zapisu: ' + (e.message || e);
         }
     }
 
@@ -7348,15 +7376,13 @@
             allArchiwum = [];
             allPrzykrywki = [];
             await loadAll();
-            // Show FAB if zamowienia is active
+            // Show FAB always
             const fab = document.getElementById('fabNowe');
-            if (fab) {
-                const activeP = document.querySelector('.page.active');
-                fab.style.display = activeP?.id === 'page-zamowienia' ? 'flex' : 'none';
-            }
+            if (fab)
+                fab.style.display = 'flex';
         }
     });
     </script>
-    <button onclick="openNoweZamowienie()" id="fabNowe" style="display:none;position:fixed;bottom:24px;right:20px;width:56px;height:56px;border-radius:50%;background:var(--accent);color:white;border:none;font-size:30px;font-weight:300;cursor:pointer;z-index:500;box-shadow:0 4px 16px rgba(200,80,42,0.45);align-items:center;justify-content:center;line-height:1;padding:0;">+</button>
+    <button onclick="openNoweZamowienie()" id="fabNowe" style="display:flex;position:fixed;bottom:24px;right:20px;width:56px;height:56px;border-radius:50%;background:var(--accent);color:white;border:none;font-size:30px;font-weight:300;cursor:pointer;z-index:500;box-shadow:0 4px 16px rgba(200,80,42,0.45);align-items:center;justify-content:center;line-height:1;padding:0;">+</button>
 </body>
 </html>
