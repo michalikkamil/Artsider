@@ -265,8 +265,8 @@
     }
 
     .card-thumb {
-        width: 44px;
-        height: 44px;
+        width: 46px;
+        height: 62px;
         flex-shrink: 0;
         background: var(--bg2);
         display: flex;
@@ -280,11 +280,12 @@
         width: 100%;
         height: 100%;
         object-fit: cover;
+        display: block;
     }
 
     #page-termiczne .card-thumb {
-        width: 32px !important;
-        height: 32px !important;
+        width: 36px !important;
+        height: 52px !important;
     }
 
     #page-termiczne .card-body {
@@ -293,10 +294,17 @@
 
     #page-termiczne .card-title {
         font-size: 13px !important;
+        line-height: 1.2 !important;
+    }
+
+    #page-termiczne .card-sub {
+        font-size: 10px !important;
+        margin: 1px 0 2px !important;
     }
 
     #page-termiczne .stock-row {
-        font-size: 10px !important;
+        margin-top: 2px !important;
+        font-size: 11px !important;
     }
 
     .card-body {
@@ -315,7 +323,7 @@
 
     .card-title {
         font-family: var(--fh);
-        font-size: 15px;
+        font-size: 14px;
         font-weight: 600;
         line-height: 1.2;
         white-space: nowrap;
@@ -528,7 +536,7 @@
     .mag-grid {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
-        gap: 4px;
+        gap: 6px;
         margin-top: 4px;
     }
 
@@ -536,7 +544,7 @@
         background: var(--bg);
         border: 1px solid var(--border);
         border-radius: 8px;
-        padding: 6px;
+        padding: 8px;
     }
 
     .mag-card-name {
@@ -547,7 +555,7 @@
 
     .mag-card-num {
         font-family: var(--fh);
-        font-size: 16px;
+        font-size: 18px;
         font-weight: 600;
         line-height: 1;
     }
@@ -1166,7 +1174,7 @@
 
     <!-- NAV -->
     <nav>
-        <div class="nav-logo" style="font-size:13px;padding:10px 8px;">
+        <div class="nav-logo">
             Art
             <em>sider</em>
         </div>
@@ -1174,11 +1182,12 @@
             <button class="nav-tab active" onclick="showPage('kubki',this)">☕ Kubki</button>
             <button class="nav-tab" onclick="showPage('przykrywki',this)">🫗 Wieczka</button>
             <button class="nav-tab" onclick="showPage('termiczne',this)">🌡 Termiczne</button>
-            <button class="nav-tab" onclick="showPage('cennik',this)">Cennik</button>
-            <button class="nav-tab" onclick="showPage('artysci',this)">Artyści</button>
+            <button class="nav-tab" onclick="showPage('zamowienia',this)">📦 Zamówienia</button>
+            <button class="nav-tab" onclick="showPage('cennik',this)">💰 Cennik</button>
+            <button class="nav-tab" onclick="showPage('artysci',this)">🎨 Artyści</button>
             <button class="nav-tab" onclick="showPage('dodaj',this)">+ Dodaj</button>
         </div>
-        <button onclick="showPage('zamowienia',this)" style="background:var(--accent);color:white;border-radius:8px;margin:6px 4px;padding:6px 12px;font-family:var(--fm);font-size:11px;font-weight:600;border:none;cursor:pointer;flex-shrink:0;">📦</button>
+        <button onclick="showPage('zamowienia',this)" style="background:var(--accent);color:white;border-radius:8px;margin:6px 4px;padding:5px 10px;font-family:var(--fm);font-size:11px;font-weight:600;border:none;cursor:pointer;flex-shrink:0;">📦</button>
         <button class="nav-cfg" onclick="document.getElementById('cfgModal').classList.add('open')">⚙</button>
     </nav>
 
@@ -1418,6 +1427,10 @@
             </div>
         </div>
         <div class="page-body" style="padding-top:12px;padding-bottom:0;">
+            <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;">
+                <button class="btn-primary" style="flex:1;" onclick="openNoweZamowienie()">+ Nowe zamówienie</button>
+                <button id="btnImportKlientow" onclick="importujKlientowZFakturowni()" title="Importuj klientów z Fakturowni" style="background:none;border:1px solid var(--border);border-radius:8px;padding:6px 8px;font-family:var(--fm);font-size:11px;color:var(--ink3);cursor:pointer;flex-shrink:0;line-height:1;">📥</button>
+            </div>
             <div class="f-msg" id="importMsg" style="margin-bottom:4px;font-size:11px;"></div>
         </div>
         <div class="list" id="listZamowienia">
@@ -1972,7 +1985,6 @@
             wrap.appendChild(btnW);
         } else if (scope === 'termiczne') {
             wrap.innerHTML = '';
-            // Kolejność: Wszystko, Komis, Kraków, Sącz, Biecz, Archiwum
             const btnW = document.createElement('button');
             btnW.className = 'mag-tab active';
             btnW.dataset.mag = '';
@@ -1982,7 +1994,6 @@
                 selectMag(this, scope);
             };
             wrap.appendChild(btnW);
-            // Komis
             const btnKom = document.createElement('button');
             btnKom.className = 'mag-tab';
             btnKom.dataset.mag = 'komis';
@@ -1992,12 +2003,8 @@
                 selectMag(this, scope);
             };
             wrap.appendChild(btnKom);
-            // Magazyny w kolejności
             const kolejnoscT = ['Kraków', 'Sącz', 'Biecz'];
-            const posortowaneT = [
-            ...kolejnoscT.map(n => magazyny.find(m => m.nazwa === n)).filter(Boolean),
-            ...magazyny.filter(m => !kolejnoscT.includes(m.nazwa))
-            ];
+            const posortowaneT = [...kolejnoscT.map(n => magazyny.find(m => m.nazwa === n)).filter(Boolean), ...magazyny.filter(m => !kolejnoscT.includes(m.nazwa))];
             posortowaneT.forEach(m => {
                 const btn = document.createElement('button');
                 btn.className = 'mag-tab';
@@ -2019,6 +2026,16 @@
                 selectMag(this, scope);
             };
             wrap.appendChild(btnAT);
+            // Komis
+            const btnK = document.createElement('button');
+            btnK.className = 'mag-tab';
+            btnK.dataset.mag = 'komis';
+            btnK.dataset.typ = 'komis';
+            btnK.textContent = '🤝 Komis';
+            btnK.onclick = function() {
+                selectMag(this, scope);
+            };
+            wrap.appendChild(btnK);
         } else {
             wrap.innerHTML = `<button class="mag-tab active" data-mag="" onclick="selectMag(this,'${scope}')">Wszystkie</button>`;
             magazyny.forEach(m => {
@@ -2533,7 +2550,7 @@
             cardTitle}</span>
           ${!isTermiczny && !k.isPrzykrywka && k.typ_materialu ? `<span class="tag tag-mat" style="font-size:11px;padding:2px 8px;">${k.typ_materialu}</span>` : ''}
           ${pakTag}
-          <div style="margin-left:auto;text-align:right;"><div style="font-size:16px;font-weight:600;color:var(--accent);">${k.cena_netto != null ? Number(k.cena_netto).toFixed(2) + ' zł' : '—'}</div>${k.cena_netto != null ? `<div style="font-size:12px;color:var(--ink3);">${(Number(k.cena_netto) * 1.23).toFixed(2)} zł brutto</div>` : ''}</div>
+          <div style="margin-left:auto;text-align:right;"><div style="font-size:15px;font-weight:600;color:var(--accent);">${k.cena_netto != null ? Number(k.cena_netto).toFixed(2) + ' zł' : '—'}</div>${k.cena_netto != null ? `<div style="font-size:10px;color:var(--ink3);">${(Number(k.cena_netto) * 1.23).toFixed(2)} zł brutto</div>` : ''}</div>
         </div>
         <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${
             cardSub}</div>
@@ -2562,7 +2579,7 @@
             return;
 
         const stanyHtml = k.stany?.map(s => `
-    <div class="mag-card"><div class="mag-card-name">${s.magazyn}</div><div class="mag-card-num">${s.ilosc_dostepna}</div>${s.ilosc_w_drodze > 0 ? `<div class="mag-card-order">+${s.ilosc_w_drodze} w drodze</div>` : ''}</div>`).join('') || '';
+    <div class="mag-card"><div class="mag-card-name">${s.magazyn}</div><div class="mag-card-num">${s.ilosc_dostepna}</div><div class="mag-card-sub">dostępnych</div>${s.ilosc_w_drodze > 0 ? `<div class="mag-card-order">+${s.ilosc_w_drodze} w drodze</div>` : ''}</div>`).join('') || '';
 
         const acceptHtml = typ === 'zlecony' ? `
     <div class="d-section">Przyjmij do magazynu</div>
@@ -2591,18 +2608,30 @@
 
         document.getElementById('drawerContent').innerHTML = `
     <button class="drawer-back" onclick="closeDrawer()">← Wróć</button>
-    <div class="drawer-title" style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">${
-        k.grafika || '—'}${k.artysta ? `<span style="font-family:var(--fm);font-size:13px;font-weight:400;color:var(--ink3);">${k.artysta}</span>` : ''}</div>
-    ${k.data_zlecenia ? `<div class="drawer-sub">zlecono: ${k.data_zlecenia}</div>` : ''}
+    <div class="drawer-title">${
+        k.grafika || '—'}</div>
+    <div class="drawer-sub">${k.artysta || 'brak artysty'}${k.data_zlecenia ? ` &nbsp;·&nbsp; zlecono: ${k.data_zlecenia}` : ''}</div>
     <div class="d-section">Szczegóły</div>
     ${
-        typ === 'termiczny' ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0;"><div style="background:var(--bg);border-radius:8px;padding:8px;"><div style="font-size:10px;color:var(--ink3);margin-bottom:2px;">POJEMNOŚĆ</div><div style="font-size:15px;font-weight:600;">${k.pojemnosc_ml} ml</div></div><div style="background:var(--bg);border-radius:8px;padding:8px;"><div style="font-size:10px;color:var(--ink3);margin-bottom:2px;">KOLOR</div><div style="font-size:15px;font-weight:600;">${k.kolor || '—'}</div></div><div style="background:var(--bg);border-radius:8px;padding:8px;"><div style="font-size:10px;color:var(--ink3);margin-bottom:2px;">NETTO</div><div style="font-size:15px;font-weight:600;color:var(--accent);">${k.cena_netto != null ? Number(k.cena_netto).toFixed(2) + ' zł' : '—'}</div></div><div style="background:var(--bg);border-radius:8px;padding:8px;"><div style="font-size:10px;color:var(--ink3);margin-bottom:2px;">BRUTTO</div><div style="font-size:15px;font-weight:600;">${k.cena_netto != null ? (Number(k.cena_netto) * 1.23).toFixed(2) + ' zł' : '—'}</div></div></div>` : `
-    ${!k.isPrzykrywka ? `<div class="d-row"><span class="d-key">Pojemność</span><span class="d-val">${k.pojemnosc_ml} ml</span></div>` : ''}
+        !k.isPrzykrywka ? `<div class="d-row"><span class="d-key">Pojemność</span><span class="d-val">${k.pojemnosc_ml} ml</span></div>` : ''}
     ${k.typ_materialu ? `<div class="d-row"><span class="d-key">Materiał</span><span class="d-val">${k.typ_materialu}</span></div>` : ''}
+    ${k.typ_scianki ? `<div class="d-row"><span class="d-key">Ścianka</span><span class="d-val">${k.typ_scianki}</span></div>` : ''}
+    ${typ !== 'termiczny' ? `<div class="d-row">
+      <span class="d-key">Szt. w opakowaniu</span>
+      <span class="d-val" style="display:flex;align-items:center;gap:8px;">
+        <input type="number" min="1" value="${
+
+        k.sztuk_w_opakowaniu || ''}" id="editPak_${k.kubek_id}"
+          style="width:70px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;padding:4px 8px;font-family:var(--fm);font-size:13px;text-align:center;">
+        <button onclick="zapiszPak('${
+        k.kubek_id}')" style="background:var(--accent);color:white;border:none;border-radius:6px;padding:4px 10px;font-family:var(--fm);font-size:11px;cursor:pointer;">✓</button>
+      </span>
+    </div>`
+        : ''}
     ${k.kolor ? `<div class="d-row"><span class="d-key">Kolor</span><span class="d-val">${k.kolor}</span></div>` : ''}
     <div class="d-row"><span class="d-key">Cena netto</span><span class="d-val acc">${k.cena_netto != null ? Number(k.cena_netto).toFixed(2) + ' zł' : '—'}</span></div>
-    <div class="d-row"><span class="d-key">Cena brutto</span><span class="d-val">${k.cena_netto != null ? (Number(k.cena_netto) * 1.23).toFixed(2) + ' zł' : '—'}</span></div>`}
-    ${stanyHtml ? `<div class="d-section">Stan wg magazynu</div><div class="mag-grid">${stanyHtml}${typ === 'termiczny' ? `<div class="mag-card" id="termKomisBox_${k.kubek_id}" style="background:#FBF3EA;border-color:#F0C8A8;"><div class="mag-card-name">🤝 Komis</div><div class="mag-card-num" id="termKomisNum_${k.kubek_id}">—</div></div>` : ''}</div>` : ''}\n    ${acceptHtml}
+    <div class="d-row"><span class="d-key">Cena brutto</span><span class="d-val">${k.cena_netto != null ? (Number(k.cena_netto) * 1.23).toFixed(2) + ' zł' : '—'}</span></div>
+    ${stanyHtml ? `<div class="d-section">Stan wg magazynu</div><div class="mag-grid">${stanyHtml}${typ === 'termiczny' ? `<div class="mag-card" id="termKomisBox_${k.kubek_id}" style="background:#FBF3EA;border-color:#F0C8A8;"><div class="mag-card-name">🤝 Komis</div><div class="mag-card-num" id="termKomisNum_${k.kubek_id}">—</div><div class="mag-card-sub">szt.</div></div>` : ''}</div>` : ''}\n    ${acceptHtml}
     ${typ === 'kubek' && activeMagKubki && activeMagKubki !== 'zlecone' && activeMagKubki !== 'archiwum' ? renderPrzeniesForm(k) + renderZmienIlosc(k) : ''}
     ${typ === 'kubek' && (!activeMagKubki || activeMagKubki === 'archiwum' || k.ilosc_lacznie === 0) ? renderZmienIloscGlobal(k) : ''}
     ${typ === 'kubek' ? renderZamowDoProdukcji(k) : ''}
@@ -3115,24 +3144,23 @@
 
     function renderZamowienia(zamowienia) {
         const list = document.getElementById('listZamowienia');
-        // Sort newest first
-        zamowienia = [...zamowienia].sort((a, b) => (b.data_zamowienia || '').localeCompare(a.data_zamowienia || ''));
         if (!zamowienia.length) {
             list.innerHTML = `<div class="state-msg"><span class="big">📦</span>Brak zamówień.</div>`;
             return;
         }
+        zamowienia = [...zamowienia].sort((a, b) => (b.data_zamowienia || '').localeCompare(a.data_zamowienia || ''));
         list.innerHTML = zamowienia.map(z => {
-            const isWlasneLogo = z.typ_zamowienia === 'wlasne_logo' || z.ma_wlasne_logo;
-            const cardBg = isWlasneLogo ? 'background:#FEFBE8;border-left:3px solid #D4A800;' : '';
+            const isWL = z.typ_zamowienia === 'wlasne_logo';
+            const wlBg = isWL ? 'background:#FFFBEB;border-left:3px solid #F59E0B;' : '';
             const dostawaDate = z.data_zamowienia ? new Date(new Date(z.data_zamowienia).getTime() + 32 * 86400000).toISOString().slice(0, 10) : '';
             return `
-    <div class="card" style="flex-direction:column;padding:14px 16px;${cardBg}">
-      <div class="card-top" style="margin-bottom:6px;cursor:pointer;" onclick="openZamowienieDrawer('${z.id}')">
-        <div class="card-title" style="white-space:normal;">${z.klient}${isWlasneLogo ? ' <span style="font-size:10px;background:#FEF08A;border-radius:4px;padding:1px 5px;color:#92400E;">własne logo</span>' : ''}</div>
+    <div class="card" style="flex-direction:column;padding:12px 14px;${wlBg}">
+      <div class="card-top" style="margin-bottom:4px;cursor:pointer;" onclick="openZamowienieDrawer('${z.id}')">
+        <div class="card-title" style="white-space:normal;">${z.klient}${isWL ? ' ✏️' : ''}</div>
         <div class="card-price">${Number(z.wartosc_lacznie).toFixed(2)} zł</div>
       </div>
-      <div style="font-size:11px;color:var(--ink3);margin-bottom:4px;cursor:pointer;" onclick="openZamowienieDrawer('${
-            z.id}')">${z.data_zamowienia}${dostawaDate ? ` · dostawa: ${dostawaDate}` : ''} · ${z.zrodlo || '—'} · ${z.liczba_pozycji} poz.</div>
+      <div style="font-size:11px;color:var(--ink3);margin-bottom:6px;cursor:pointer;" onclick="openZamowienieDrawer('${
+            z.id}')">${z.data_zamowienia}${dostawaDate ? ' · dost. ' + dostawaDate : ''} · ${z.zrodlo || '—'} · ${z.liczba_pozycji} poz.</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
         <span class="tag" style="background:#F0F4FB;border-color:#B5C4F4;color:#1840A5;">${
             STATUS_LABELS[z.status_realizacji] || z.status_realizacji}</span>
@@ -3194,9 +3222,9 @@
 
       ${
             zam.tresc_zamowienia ? `<div class="d-section">Treść zamówienia</div><div style="background:var(--bg);border-radius:10px;padding:12px;font-size:12px;line-height:1.6;color:var(--ink2);white-space:pre-wrap;">${zam.tresc_zamowienia}</div>` : ''}
-      ${zam.numer_faktury ? `<div class="d-section">Faktura</div><div class="d-row"><span class="d-key">Numer</span><span class="d-val">${zam.numer_faktury}</span></div>` : ''}
+      ${zam.numer_faktury ? `<div class="d-row"><span class="d-key">🧾 Faktura</span><span class="d-val">${zam.numer_faktury}</span></div>` : ''}
 
-      <div class="d-section">Akcje</div>
+      
       <div style="display:flex;gap:8px;margin-bottom:12px;">
         <button onclick="przygotujFakture('${
 
@@ -3375,7 +3403,8 @@
     </div>
 
     <div class="d-section">Szczegóły</div>
-    <div class="f-group"><label class="f-label">Źródło</label>
+    <div class="f-row">
+      <div class="f-group"><label class="f-label">Źródło</label>
         <select class="f-select" id="zamZrodlo">
           <option value="email">Email</option>
           <option value="telefon">Telefon</option>
@@ -3384,6 +3413,8 @@
           <option value="instagram">Instagram</option>
         </select>
       </div>
+
+    </div>
     <div class="f-group"><label class="f-label">Treść zamówienia (wklej z maila/SMS)</label>
       <textarea class="f-input" id="zamTresc" rows="4" placeholder="Wklej tutaj treść wiadomości od klienta…" style="resize:vertical;"></textarea>
     </div>
@@ -3400,6 +3431,9 @@
     <button class="btn-primary" onclick="zapiszZamowienie()" style="margin-top:12px;">💾 Zapisz zamówienie</button>
     <div class="f-msg" id="zamMsg"></div>
   `
+
+
+
 
 
 
@@ -3593,14 +3627,8 @@
       <div style="display:flex;gap:6px;margin-bottom:8px;">
         <select class="f-select" id="poz_wtyp_${
 
-            id}" data-field="wysylka_typ" onchange="updateWysylkaNazwa(${id})" style="flex:1;">
-          <option value="DPD">DPD</option><option value="InPost">InPost</option>
-          <option value="Orlen">Orlen</option><option value="inny">Inny</option>
-        </select>
-        <input class="f-input" id="poz_wnazwa_${
-
-
-            id}" data-field="wysylka_nazwa" value="Wysyłka DPD" style="flex:1;">
+            id}" data-field="wysylka_typ" onchange="updateWysylkaNazwa(${id})" style="flex:1;"><option value="DPD">DPD</option><option value="InPost">InPost</option><option value="Orlen">Orlen</option><option value="inny">Inny</option></select>
+        <input class="f-input" id="poz_wnazwa_${id}" data-field="wysylka_nazwa" value="Wysyłka DPD" style="flex:1;">
       </div>
       <div style="display:flex;gap:4px;">
         <input class="f-input" id="poz_cena_${
@@ -3657,30 +3685,16 @@
         <div style="font-size:11px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${k.grafika || '—'}${k.artysta ? ' · ' + k.artysta : ''}</div>
       </div>
       <div style="text-align:right;flex-shrink:0;">
-        <div style="display:flex;align-items:center;gap:3px;justify-content:flex-end;">
-          <span class="stock-dot ${
+        <div style="display:flex;align-items:center;gap:3px;justify-content:flex-end;"><span class="stock-dot ${
 
-
-            dotCls}"></span>
-          <span style="font-size:13px;font-weight:600;">${ilosc.toLocaleString('pl')}</span>
-        </div>
-        ${
-            totalIlosc > ilosc ? `<div style="font-size:10px;color:var(--ink3);">(z ${totalIlosc.toLocaleString('pl')})</div>` : ''}
+            dotCls}"></span><span style="font-size:13px;font-weight:600;">${ilosc.toLocaleString('pl')}</span></div>
+        ${totalIlosc > ilosc ? `<div style="font-size:10px;color:var(--ink3);">(z ${totalIlosc.toLocaleString('pl')})</div>` : ''}
       </div>
       <input type="number" min="0" value="" placeholder="0" id="kq_${
-            rowId}"
-        style="width:50px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:6px;font-size:14px;text-align:center;font-family:var(--fm);"
-        oninput="onKIloscChange(this,'${
-            rowId}','${k.cena_netto || 0}')">
+            rowId}" style="width:50px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:6px;font-size:14px;text-align:center;font-family:var(--fm);" oninput="onKIloscChange(this,'${rowId}','${k.cena_netto || 0}')">
       <div id="kprice_${rowId}" style="display:none;flex-direction:column;gap:2px;">
-        <input type="number" step="0.01" placeholder="netto" id="kn_${rowId}"
-          style="width:60px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:5px;font-size:12px;text-align:center;font-family:var(--fm);"
-          oninput="const b=document.getElementById('kb_${
-            rowId}');if(b)b.value=(parseFloat(this.value||0)*1.23).toFixed(2);">
-        <input type="number" step="0.01" placeholder="brutto" id="kb_${rowId}"
-          style="width:60px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:5px;font-size:12px;text-align:center;font-family:var(--fm);"
-          oninput="const n=document.getElementById('kn_${
-            rowId}');if(n)n.value=(parseFloat(this.value||0)/1.23).toFixed(2);">
+        <input type="number" step="0.01" placeholder="netto" id="kn_${rowId}" style="width:60px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:5px;font-size:12px;text-align:center;font-family:var(--fm);" oninput="const b=document.getElementById('kb_${rowId}');if(b)b.value=(parseFloat(this.value||0)*1.23).toFixed(2);">
+        <input type="number" step="0.01" placeholder="brutto" id="kb_${rowId}" style="width:60px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:5px;font-size:12px;text-align:center;font-family:var(--fm);" oninput="const n=document.getElementById('kn_${rowId}');if(n)n.value=(parseFloat(this.value||0)/1.23).toFixed(2);">
       </div>
     </div>`
 
@@ -3711,8 +3725,7 @@
         const wrap = document.getElementById(`plist_${id}`);
         if (!wrap)
             return;
-        const combos = [
-        {
+        const combos = [{
             mat: 'papierowa',
             rozm: 80,
             kol: 'biały'
@@ -3720,8 +3733,7 @@
             mat: 'papierowa',
             rozm: 80,
             kol: 'czarny'
-        },
-        {
+        }, {
             mat: 'papierowa',
             rozm: 90,
             kol: 'biały'
@@ -3729,13 +3741,11 @@
             mat: 'papierowa',
             rozm: 90,
             kol: 'czarny'
-        },
-        {
+        }, {
             mat: 'papierowa',
             rozm: 72,
             kol: 'biały'
-        },
-        {
+        }, {
             mat: 'plastikowa',
             rozm: 80,
             kol: 'biały'
@@ -3743,54 +3753,28 @@
             mat: 'plastikowa',
             rozm: 80,
             kol: 'czarny'
-        },
-        {
+        }, {
             mat: 'plastikowa',
             rozm: 90,
             kol: 'biały'
-        },
-        ];
+        }];
         const rows = combos.map(c => {
             const prz = allPrzykrywki?.find(p => p.rozmiar_mm === c.rozm && (p.grafika || '').toLowerCase().includes(c.mat) && (p.grafika || '').toLowerCase().includes(c.kol));
             const ilosc = prz?.ilosc_lacznie || 0;
             if (ilosc <= 0)
-                return ''; // ukryj brak stanu
+                return '';
             const cena = prz?.cena_netto || 0;
             const rowId = `wr_${id}_${c.mat}_${c.rozm}_${c.kol}`;
             const dotCls = ilosc < 100 ? 'stock-low' : 'stock-ok';
-            const thumb = prz?.miniaturka
-            ? `<img src="${prz.miniaturka}" style="width:40px;height:40px;border-radius:6px;object-fit:cover;flex-shrink:0;">`
-            : `<div style="width:40px;height:40px;border-radius:6px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🫗</div>`;
+            const thumb = prz?.miniaturka ? `<img src="${prz.miniaturka}" style="width:40px;height:40px;border-radius:6px;object-fit:cover;flex-shrink:0;">` : `<div style="width:40px;height:40px;border-radius:6px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🫗</div>`;
             return `<div id="${rowId}" style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--bg2);" data-mat="${c.mat}" data-rozm="${c.rozm}" data-kol="${c.kol}" data-cena="${cena}">
       ${thumb}
-      <div style="flex:1;">
-        <div style="font-size:13px;font-weight:600;">${
-            c.rozm}mm <span style="font-weight:400;color:var(--ink3);font-size:11px;">${c.mat} ${c.kol}</span></div>
-      </div>
-      <div style="text-align:right;flex-shrink:0;">
-        <div style="display:flex;align-items:center;gap:3px;justify-content:flex-end;">
-          <span class="stock-dot ${
-
-
-            dotCls}"></span>
-          <span style="font-size:13px;font-weight:600;">${ilosc}</span>
-        </div>
-      </div>
-      <input type="number" min="0" value="" placeholder="0" id="wq_${
-
-            rowId}"
-        style="width:50px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:6px;font-size:14px;text-align:center;font-family:var(--fm);"
-        oninput="onWIloscChange(this,'${
-            rowId}','${cena}')">
+      <div style="flex:1;"><div style="font-size:13px;font-weight:600;">${c.rozm}mm <span style="font-weight:400;color:var(--ink3);font-size:11px;">${c.mat} ${c.kol}</span></div></div>
+      <div style="text-align:right;flex-shrink:0;"><div style="display:flex;align-items:center;gap:3px;justify-content:flex-end;"><span class="stock-dot ${dotCls}"></span><span style="font-size:13px;font-weight:600;">${ilosc}</span></div></div>
+      <input type="number" min="0" value="" placeholder="0" id="wq_${rowId}" style="width:50px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:6px;font-size:14px;text-align:center;font-family:var(--fm);" oninput="onWIloscChange(this,'${rowId}','${cena}')">
       <div id="wprice_${rowId}" style="display:none;flex-direction:column;gap:2px;">
-        <input type="number" step="0.01" placeholder="netto" id="wn_${rowId}"
-          style="width:60px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:5px;font-size:12px;text-align:center;font-family:var(--fm);"
-          oninput="const b=document.getElementById('wb_${
-            rowId}');if(b)b.value=(parseFloat(this.value||0)*1.23).toFixed(2);">
-        <input type="number" step="0.01" placeholder="brutto" id="wb_${rowId}"
-          style="width:60px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:5px;font-size:12px;text-align:center;font-family:var(--fm);"
-          oninput="const n=document.getElementById('wn_${
-            rowId}');if(n)n.value=(parseFloat(this.value||0)/1.23).toFixed(2);">
+        <input type="number" step="0.01" placeholder="netto" id="wn_${rowId}" style="width:60px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:5px;font-size:12px;text-align:center;font-family:var(--fm);" oninput="const b=document.getElementById('wb_${rowId}');if(b)b.value=(parseFloat(this.value||0)*1.23).toFixed(2);">
+        <input type="number" step="0.01" placeholder="brutto" id="wb_${rowId}" style="width:60px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:5px;font-size:12px;text-align:center;font-family:var(--fm);" oninput="const n=document.getElementById('wn_${rowId}');if(n)n.value=(parseFloat(this.value||0)/1.23).toFixed(2);">
       </div>
     </div>`
 
@@ -3825,6 +3809,84 @@
             el.value = 'Wysyłka ' + typ;
     }
 
+    // ── DODAJ POZYCJE TERMICZNE ──
+    async function dodajPozycjeTermiczne() {
+        const klientId = document.getElementById('zamKlient')?.value || '';
+        const id = ++pozycjeCounter;
+        const wrap = document.getElementById('pozycjeZam');
+        const div = document.createElement('div');
+        div.id = `poz_${id}`;
+        div.dataset.typ = 'termiczny';
+        div.style.cssText = 'background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;position:relative;';
+        div.innerHTML = `
+    <button onclick="document.getElementById('poz_${id}').remove()" style="position:absolute;top:8px;right:8px;background:none;border:none;font-size:16px;cursor:pointer;color:var(--ink3);">✕</button>
+    <div style="font-size:10px;text-transform:uppercase;color:var(--ink3);letter-spacing:.08em;margin-bottom:10px;font-weight:600;">🌡 Kubki termiczne</div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <button onclick="setTermTypInline(${
+
+        id},'sprzedaz',this)" class="btn-status active" style="flex:1;font-size:12px;">💰 Sprzedaż</button>
+      <button onclick="setTermTypInline(${id},'komis',this)" class="btn-status" style="flex:1;font-size:12px;">🤝 Komis</button>
+    </div>
+    <div id="poz_term_typ_val_${
+        id}" data-val="sprzedaz" style="display:none;"></div>
+    <div id="poz_term_sprzedaz_${id}">
+      <div style="display:flex;gap:6px;margin-bottom:8px;">
+        <button onclick="setTermZrodloInline(${
+        id},'magazyn',this)" class="btn-status active" style="flex:1;font-size:11px;">Z magazynu</button>
+        <button onclick="setTermZrodloInline(${id},'komis',this)" class="btn-status" style="flex:1;font-size:11px;">Z komisu</button>
+      </div>
+      <div id="poz_term_zrodlo_val_${
+        id}" data-val="magazyn" style="display:none;"></div>
+      <div id="ptlm_${id}"><div style="color:var(--ink3);font-size:12px;padding:8px;">⏳ Ładowanie…</div></div>
+      <div id="ptlk_${id}" style="display:none;"><div style="color:var(--ink3);font-size:12px;padding:8px;">⏳ Ładowanie…</div></div>
+    </div>
+    <div id="poz_term_komis_${
+        id}" style="display:none;">
+      <div id="ptlw_${id}"><div style="color:var(--ink3);font-size:12px;padding:8px;">⏳ Ładowanie…</div></div>
+    </div>
+  `
+
+        ;
+        wrap.appendChild(div);
+        try {
+            const kt = await sbFetch('v_stan_termicznych', '?select=*');
+            const map = {};
+            kt.forEach(r => {
+                if (!map[r.kubek_id])
+                    map[r.kubek_id] = {
+                        id: r.kubek_id,
+                        grafika: r.grafika,
+                        pojemnosc: r.pojemnosc_ml,
+                        kolor: r.kolor || '',
+                        ilosc: 0,
+                        cena: r.cena_netto,
+                        miniaturka: r.miniaturka_url
+                    };
+                map[r.kubek_id].ilosc += (r.ilosc_dostepna || 0);
+            });
+            window['tl_mag_' + id] = Object.values(map).filter(k => k.ilosc > 0).sort((a, b) => a.pojemnosc - b.pojemnosc);
+            if (klientId) {
+                const komis = await sbFetch('v_komis_aktywny', `?klient_id=eq.${klientId}&select=*`);
+                window['tl_kom_' + id] = komis.map(k => ({
+                    id: k.kubek_id,
+                    komis_id: k.id,
+                    grafika: k.grafika,
+                    pojemnosc: k.pojemnosc_ml,
+                    kolor: k.kolor || '',
+                    ilosc: k.ilosc,
+                    cena: k.cena_netto || 0,
+                    miniaturka: k.miniaturka_url
+                })).sort((a, b) => a.pojemnosc - b.pojemnosc);
+            } else
+                window['tl_kom_' + id] = [];
+            renderTermInline(id, 'mag');
+            renderTermInline(id, 'kom');
+            renderTermInline(id, 'wyslij');
+        } catch (e) {
+            console.warn(e);
+        }
+    }
+
     async function zapiszZamowienie() {
         const klientId = document.getElementById('zamKlient')?.value || document.getElementById('zamKlientInput')?.dataset?.id || '';
         const zrodlo = document.getElementById('zamZrodlo').value;
@@ -3844,10 +3906,10 @@
         const komisDoUtworzenia = [];
         for (const div of pozycjeDivs) {
             const typ2 = div.dataset.typ;
-            // Inline list types handle rows internally
-            if (typ2 !== 'kubek' && typ2 !== 'przykrywka' && typ2 !== 'termiczny' && typ2 !== 'wysylka' && typ2 !== 'wlasne_logo') {
-                const ilosc = parseInt(div.querySelector('[data-field="ilosc"]')?.value) || 0;
-                if (ilosc <= 0)
+            if (typ2 === 'kubek' || typ2 === 'przykrywka' || typ2 === 'termiczny') {}
+            else if (typ2 !== 'wysylka' && typ2 !== 'wlasne_logo') {
+                const ilosCheck = parseInt(div.querySelector('[data-field="ilosc"]')?.value) || 0;
+                if (ilosCheck <= 0)
                     continue;
             }
             const cena = parseFloat(div.querySelector('[data-field="cena"]')?.value) || 0;
@@ -3928,8 +3990,7 @@
                     return;
                 }
             } else if (typ2 === 'kubek') {
-                const rows = div.querySelectorAll('[data-kubek-id]');
-                for (const row of rows) {
+                for (const row of div.querySelectorAll('[data-kubek-id]')) {
                     const kubId = row.dataset.kubekId;
                     const magId = row.dataset.magId;
                     const rowId = row.id;
@@ -3938,15 +3999,12 @@
                         continue;
                     const cn = parseFloat(document.getElementById('kn_' + rowId)?.value) || 0;
                     const cb = parseFloat(document.getElementById('kb_' + rowId)?.value) || 0;
-                    const c = cn || (cb / 1.23) || 0;
-                    if (!kubId || !magId)
-                        continue;
                     pozycje.push({
                         rodzaj_produktu: 'kubek',
                         kubek_id: kubId,
                         magazyn_id: magId,
                         ilosc: il,
-                        cena_jednostkowa: c
+                        cena_jednostkowa: cn || (cb / 1.23) || 0
                     });
                 }
             } else if (typ2 === 'termiczny') {
@@ -3964,7 +4022,6 @@
                     if (il <= 0)
                         continue;
                     const cn = parseFloat(document.getElementById('tn_' + rowId)?.value) || 0;
-                    const c = cn || 0;
                     if (termTyp === 'komis') {
                         komisDoUtworzenia.push({
                             kubek_id: kubId,
@@ -3977,7 +4034,7 @@
                             kubek_termiczny_id: kubId,
                             typ_termiczny: 'sprzedaz',
                             ilosc: il,
-                            cena_jednostkowa: c
+                            cena_jednostkowa: cn
                         });
                         if (termZrodlo === 'komis' && row.dataset.komisId) {
                             const kl = window['tl_kom_' + sid] || [];
@@ -4001,6 +4058,58 @@
                         }
                     }
                 }
+                continue;
+                if (termTyp === 'komis') {
+                    const kubId = div.querySelector('[data-field="kubek_termiczny_komis_id"]')?.value;
+                    if (!kubId)
+                        continue;
+                    const cenKom = parseFloat(div.querySelector('[id^="poz_term_cena_kom_"]')?.value) || 0;
+                    komisDoUtworzenia.push({
+                        kubek_id: kubId,
+                        ilosc: termIlosc,
+                        cena_komisowa: cenKom || null
+                    });
+                } else {
+                    // sprzedaz
+                    let kubId;
+                    if (termZrodlo === 'komis') {
+                        kubId = div.querySelector('[id^="poz_term_komis_kub_"]')?.value;
+                    } else {
+                        kubId = div.querySelector('[data-field="kubek_termiczny_id"]')?.value;
+                    }
+                    if (!kubId)
+                        continue;
+                    // Extract id from div.id = 'poz_N'
+                    const divNum = div.id.replace('poz_', '');
+                    const komisKubek = termZrodlo === 'komis' ? (window['komisPicker_' + divNum] || []).find(k => k.id === kubId) : null;
+                    pozycje.push({
+                        rodzaj_produktu: 'termiczny',
+                        kubek_termiczny_id: kubId,
+                        typ_termiczny: 'sprzedaz',
+                        ilosc: termIlosc,
+                        cena_jednostkowa: termCena
+                    });
+                    // Jeśli sprzedaż z komisu - zmniejsz ilosc w komis
+                    if (termZrodlo === 'komis' && komisKubek?.komis_id) {
+                        const nowaIlosc = (komisKubek.ilosc || 0) - termIlosc;
+                        if (nowaIlosc <= 0) {
+                            await sbFetch('komis', `?id=eq.${komisKubek.komis_id}`, {
+                                method: 'PATCH',
+                                body: JSON.stringify({
+                                    status: 'sprzedany',
+                                    ilosc: 0
+                                })
+                            });
+                        } else {
+                            await sbFetch('komis', `?id=eq.${komisKubek.komis_id}`, {
+                                method: 'PATCH',
+                                body: JSON.stringify({
+                                    ilosc: nowaIlosc
+                                })
+                            });
+                        }
+                    }
+                }
             } else if (typ2 === 'wysylka') {
                 const wTyp = div.querySelector('[data-field="wysylka_typ"]')?.value || 'DPD';
                 const wNazwa = div.querySelector('[data-field="wysylka_nazwa"]')?.value || ('Wysyłka ' + wTyp);
@@ -4016,44 +4125,36 @@
                         cena_jednostkowa: cenW
                     });
             } else if (typ2 === 'przykrywka') {
-                const rows = div.querySelectorAll('[data-mat]');
-                for (const row of rows) {
-                    const rowId = row.id;
-                    const il = parseInt(document.getElementById('wq_' + rowId)?.value) || 0;
-                    if (il <= 0)
-                        continue;
-                    const cn = parseFloat(document.getElementById('wn_' + rowId)?.value) || 0;
-                    const cb = parseFloat(document.getElementById('wb_' + rowId)?.value) || 0;
-                    const c = cn || (cb / 1.23) || 0;
-                    const prMat = row.dataset.mat;
-                    const prRozm = parseInt(row.dataset.rozm);
-                    const prKol = row.dataset.kol;
-                    try {
-                        let prs = await sbFetch('przykrywka', `?typ_materialu=eq.${prMat}&rozmiar_mm=eq.${prRozm}&kolor=eq.${prKol}`);
-                        let pr = prs[0];
-                        if (!pr) {
-                            const [n] = await sbFetch('przykrywka', '', {
-                                method: 'POST',
-                                body: JSON.stringify({
-                                    typ_materialu: prMat,
-                                    rozmiar_mm: prRozm,
-                                    kolor: prKol,
-                                    cena_netto: c
-                                })
-                            });
-                            pr = n;
-                        }
-                        pozycje.push({
-                            rodzaj_produktu: 'przykrywka',
-                            przykrywka_id: pr.id,
-                            ilosc: il,
-                            cena_jednostkowa: c
+                const prMat = div.querySelector('[data-field="pr_mat"]')?.value;
+                const prRozm = parseInt(div.querySelector('[data-field="pr_rozm"]')?.value);
+                const prKol = div.querySelector('[data-field="pr_kol"]')?.value;
+                try {
+                    let prs = await sbFetch('przykrywka', `?typ_materialu=eq.${prMat}&rozmiar_mm=eq.${prRozm}&kolor=eq.${prKol}`);
+                    let pr;
+                    if (prs.length > 0)
+                        pr = prs[0];
+                    else {
+                        const [nowy] = await sbFetch('przykrywka', '', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                typ_materialu: prMat,
+                                rozmiar_mm: prRozm,
+                                kolor: prKol,
+                                cena_netto: cena
+                            })
                         });
-                    } catch (e) {
-                        msg.className = 'f-msg err';
-                        msg.textContent = 'Błąd wieczka: ' + e.message;
-                        return;
+                        pr = nowy;
                     }
+                    pozycje.push({
+                        rodzaj_produktu: 'przykrywka',
+                        przykrywka_id: pr.id,
+                        ilosc,
+                        cena_jednostkowa: cena
+                    });
+                } catch (e) {
+                    msg.className = 'f-msg err';
+                    msg.textContent = 'Błąd przykrywki: ' + e.message;
+                    return;
                 }
             }
         }
@@ -5091,7 +5192,7 @@
       <div class="d-row"><span class="d-key">Prowizja term. naliczona</span><span class="d-val">${Number(a.prowizja_termiczne_naliczona || 0).toFixed(2)} zł (${a.termiczne_sprzedane} szt.)</span></div>
       <div class="d-row"><span class="d-key">Łącznie naliczone</span><span class="d-val">${Number(a.prowizje_naliczone || 0).toFixed(2)} zł</span></div>
       <div class="d-row"><span class="d-key">Wypłacono</span><span class="d-val">${Number(a.wyplacono_lacznie).toFixed(2)} zł</span></div>
-      <div class="d-row" style="font-weight:600;"><span class="d-key">Należne</span><span class="d-val acc">${Math.max(0, Number(a.prowizje_naliczone) - Number(a.wyplacono_historia || a.wyplacono_lacznie || 0)).toFixed(2)} zł</span></div>
+      <div class="d-row" style="font-weight:600;"><span class="d-key">Należne</span><span class="d-val acc">${Math.max(0, Number(a.nalezne_lacznie)).toFixed(2)} zł</span></div>
 
       <div class="d-section">Historia wypłat</div>
       <div id="wyplatyList">⏳</div>
@@ -5608,7 +5709,7 @@
             if (c) {
                 const ceEl = document.getElementById('nCena');
                 if (ceEl) {
-                    ceEl.value = Number(c.cena_netto).toFixed(2);
+                    ceEl.value = Number(c.cena_netto).toFixed(4);
                     ceEl.style.borderColor = 'var(--green)';
                     setTimeout(() => {
                         ceEl.style.borderColor = '';
@@ -6039,43 +6140,17 @@
 
     // ── DODAJ POZYCJE TERMICZNE ──
     async function dodajPozycjeTermiczne() {
-        const klientId = document.getElementById('zamKlient')?.value || '';
+        const klientId = document.getElementById('zamKlient')?.value;
         const id = ++pozycjeCounter;
         const wrap = document.getElementById('pozycjeZam');
         const div = document.createElement('div');
         div.id = `poz_${id}`;
         div.dataset.typ = 'termiczny';
         div.style.cssText = 'background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;position:relative;';
-        div.innerHTML = `
-    <button onclick="document.getElementById('poz_${id}').remove()" style="position:absolute;top:8px;right:8px;background:none;border:none;font-size:16px;cursor:pointer;color:var(--ink3);">✕</button>
-    <div style="font-size:10px;text-transform:uppercase;color:var(--ink3);letter-spacing:.08em;margin-bottom:10px;font-weight:600;">🌡 Kubki termiczne</div>
-    <div style="display:flex;gap:8px;margin-bottom:10px;">
-      <button onclick="setTermTypInline(${
 
-        id},'sprzedaz',this)" class="btn-status active" style="flex:1;font-size:12px;">💰 Sprzedaż</button>
-      <button onclick="setTermTypInline(${id},'komis',this)" class="btn-status" style="flex:1;font-size:12px;">🤝 Komis</button>
-    </div>
-    <div id="poz_term_typ_val_${
-        id}" data-val="sprzedaz" style="display:none;"></div>
-    <div id="poz_term_sprzedaz_${id}">
-      <div style="display:flex;gap:6px;margin-bottom:8px;">
-        <button onclick="setTermZrodloInline(${
-        id},'magazyn',this)" class="btn-status active" style="flex:1;font-size:11px;">Z magazynu</button>
-        <button onclick="setTermZrodloInline(${id},'komis',this)" class="btn-status" style="flex:1;font-size:11px;">Z komisu</button>
-      </div>
-      <div id="poz_term_zrodlo_val_${
-        id}" data-val="magazyn" style="display:none;"></div>
-      <div id="ptlm_${id}"><div style="color:var(--ink3);font-size:12px;padding:8px;">⏳ Ładowanie…</div></div>
-      <div id="ptlk_${id}" style="display:none;"><div style="color:var(--ink3);font-size:12px;padding:8px;">⏳ Ładowanie…</div></div>
-    </div>
-    <div id="poz_term_komis_${
-        id}" style="display:none;">
-      <div id="ptlw_${id}"><div style="color:var(--ink3);font-size:12px;padding:8px;">⏳ Ładowanie…</div></div>
-    </div>
-  `
-
-        ;
-        wrap.appendChild(div);
+        // Załaduj kubki termiczne
+        let kubkiTermHTML = '<option value="">— ładowanie —</option>';
+        let komisHTML = '<option value="">— ładowanie —</option>';
         try {
             const kt = await sbFetch('v_stan_termicznych', '?select=*');
             const map = {};
@@ -6085,81 +6160,212 @@
                         id: r.kubek_id,
                         grafika: r.grafika,
                         pojemnosc: r.pojemnosc_ml,
-                        kolor: r.kolor || '',
                         ilosc: 0,
                         cena: r.cena_netto,
-                        miniaturka: r.miniaturka_url
+                        miniaturka: r.miniaturka_url,
+                        kolor: r.kolor
                     };
                 map[r.kubek_id].ilosc += (r.ilosc_dostepna || 0);
             });
-            window['tl_mag_' + id] = Object.values(map).filter(k => k.ilosc > 0).sort((a, b) => a.pojemnosc - b.pojemnosc);
+            const ktList = Object.values(map).filter(k => k.ilosc > 0).sort((a, b) => a.pojemnosc - b.pojemnosc);
+            window['termPicker_' + id] = ktList;
+
+            // Komis dla danego klienta - tylko kubki które są w komisie u tego klienta
+            let komisList = [];
             if (klientId) {
-                const komis = await sbFetch('v_komis_aktywny', `?klient_id=eq.${klientId}&select=*`);
-                window['tl_kom_' + id] = komis.map(k => ({
+                const komis = await sbFetch('v_komis_aktywny', `?klient_id=eq.${klientId}&select=*&order=grafika.asc`);
+                komisList = komis.map(k => ({
                     id: k.kubek_id,
                     komis_id: k.id,
                     grafika: k.grafika,
                     pojemnosc: k.pojemnosc_ml,
-                    kolor: k.kolor || '',
+                    pojemnosc_ml: k.pojemnosc_ml,
+                    kolor: k.kolor,
                     ilosc: k.ilosc,
                     cena: k.cena_netto || 0,
-                    miniaturka: k.miniaturka_url
-                })).sort((a, b) => a.pojemnosc - b.pojemnosc);
-            } else
-                window['tl_kom_' + id] = [];
-            renderTermInline(id, 'mag');
-            renderTermInline(id, 'kom');
-            renderTermInline(id, 'wyslij');
+                    miniaturka: k.miniaturka_url,
+                }));
+            }
+            window['komisPicker_' + id] = komisList;
         } catch (e) {
             console.warn(e);
         }
-    }
 
-    function renderTermInline(id, tryb) {
-        const lista = tryb === 'kom' ? (window['tl_kom_' + id] || []) : (window['tl_mag_' + id] || []);
-        const wrapId = tryb === 'mag' ? `ptlm_${id}` : tryb === 'kom' ? `ptlk_${id}` : `ptlw_${id}`;
-        const wrap = document.getElementById(wrapId);
-        if (!wrap)
-            return;
-        if (!lista.length) {
-            wrap.innerHTML = `<div style="color:var(--ink3);font-size:12px;padding:8px;">${tryb === 'kom' ? 'Brak kubków w komisie.' : 'Brak kubków w magazynie.'}</div>`;
-            return;
-        }
-        wrap.innerHTML = lista.map(k => {
-            const rowId = `tr_${id}_${tryb}_${k.id}`;
-            const thumb = k.miniaturka ? `<img src="${k.miniaturka}" style="width:40px;height:40px;border-radius:6px;object-fit:cover;flex-shrink:0;">` : `<div style="width:40px;height:40px;border-radius:6px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🌡</div>`;
-            const dotCls = k.ilosc === 0 ? 'stock-empty' : k.ilosc < 5 ? 'stock-low' : 'stock-ok';
-            return `<div id="${rowId}" style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--bg2);" data-kubek-id="${k.id}" data-komis-id="${k.komis_id || ''}" data-cena="${k.cena || 0}">
-      ${thumb}
-      <div style="flex:1;min-width:0;">
-        <div style="font-size:13px;font-weight:600;">${
-            k.pojemnosc}ml <span style="font-weight:400;color:var(--ink3);font-size:11px;">${k.kolor}</span></div>
-        <div style="font-size:11px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${k.grafika || '—'}</div>
+        div.innerHTML = `
+    <button onclick="document.getElementById('poz_${id}').remove()" style="position:absolute;top:8px;right:8px;background:none;border:none;font-size:16px;cursor:pointer;color:var(--ink3);">✕</button>
+    <div style="font-size:10px;text-transform:uppercase;color:var(--ink3);margin-bottom:8px;">🌡 Kubek termiczny</div>
+    <div style="display:flex;gap:8px;margin-bottom:8px;">
+      <button onclick="setTermTyp(${
+
+        id},'sprzedaz',this)" class="btn-status active" style="flex:1;">💰 Sprzedaż</button>
+      <button onclick="setTermTyp(${id},'komis',this)" class="btn-status" style="flex:1;">🤝 Komis</button>
+    </div>
+    <div id="poz_term_sprzedaz_${
+        id}">
+      <div style="margin-bottom:6px;font-size:11px;color:var(--ink3);">Źródło:</div>
+      <div style="display:flex;gap:6px;margin-bottom:6px;">
+        <button onclick="setTermSprzedazTyp(${
+
+        id},'magazyn',this)" class="btn-status active" style="flex:1;font-size:11px;">Z magazynu</button>
+        <button onclick="setTermSprzedazTyp(${id},'komis',this)" class="btn-status" style="flex:1;font-size:11px;">Z komisu</button>
       </div>
-      <div style="text-align:right;flex-shrink:0;">
-        <div style="display:flex;align-items:center;gap:3px;justify-content:flex-end;">
-          <span class="stock-dot ${
+      <input type="hidden" id="poz_term_kub_${
+        id}" data-field="kubek_termiczny_id">
+      <div id="poz_term_picker_${id}" style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;"></div>
+      <div id="poz_term_komis_sel_${id}" style="display:none;">
+        <input type="hidden" id="poz_term_komis_kub_${id}">
+        <div id="poz_term_komis_picker_${id}" style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;"></div>
+      </div>
+    </div>
+    <div id="poz_term_komis_${
+
+        id}" style="display:none;">
+        <input type="hidden" id="poz_term_komis_wyslij_${id}" data-field="kubek_termiczny_komis_id">
+      <div id="poz_term_komis_wyslij_picker_${id}" style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;"></div>
+      <div class="f-group" style="margin-bottom:0;"><label class="f-label">Cena komisowa (zł/szt.)</label><input class="f-input" id="poz_term_cena_kom_${id}" type="number" step="0.01" placeholder="np. 45.00"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <div class="f-group" style="flex:1;margin-bottom:0;"><label class="f-label">Ilość</label><input class="f-input" id="poz_term_ilosc_${
+
+        id}" data-field="ilosc" type="number" min="1" value="1"></div>
+      <div class="f-group" style="flex:1;margin-bottom:0;">
+        <label class="f-label">Cena netto / brutto</label>
+        <div style="display:flex;gap:4px;align-items:center;">
+          <input class="f-input" id="poz_term_cena_${
 
 
-            dotCls}"></span>
-          <span style="font-size:13px;font-weight:600;">${k.ilosc}</span>
+        id}" data-field="cena" type="number" step="0.01" placeholder="netto" style="flex:1;" oninput="syncBruttoTerm(${id})">
+          <span style="font-size:10px;color:var(--ink3);flex-shrink:0;">/</span>
+          <input class="f-input" id="poz_term_brutto_${
+        id}" type="number" step="0.01" placeholder="brutto" style="flex:1;" oninput="syncNettoTerm(${id})">
         </div>
       </div>
-      <input type="number" min="0" value="" placeholder="0" id="tq_${
+    </div>
+    <input type="hidden" id="poz_term_typ_${
 
-            rowId}"
-        style="width:50px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:6px;font-size:14px;text-align:center;font-family:var(--fm);"
-        oninput="onTIloscChange(this,'${
-            rowId}','${k.cena || 0}')">
-      <div id="tprice_${rowId}" style="display:none;flex-direction:column;gap:2px;">
-        <input type="number" step="0.01" placeholder="netto" id="tn_${rowId}"
-          style="width:60px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:5px;font-size:12px;text-align:center;font-family:var(--fm);"
-          oninput="const b=document.getElementById('tb_${
-            rowId}');if(b)b.value=(parseFloat(this.value||0)*1.23).toFixed(2);">
-        <input type="number" step="0.01" placeholder="brutto" id="tb_${rowId}"
-          style="width:60px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:5px;font-size:12px;text-align:center;font-family:var(--fm);"
-          oninput="const n=document.getElementById('tn_${
-            rowId}');if(n)n.value=(parseFloat(this.value||0)/1.23).toFixed(2);">
+
+        id}" value="sprzedaz">
+    <input type="hidden" id="poz_term_zrodlo_${id}" value="magazyn">
+  `
+        ;
+        div.dataset.typTermiczny = 'sprzedaz';
+        wrap.appendChild(div);
+        // Render visual pickers
+        renderTermPicker(id, 'sprzedaz');
+        renderTermPicker(id, 'komis');
+    }
+
+    function setTermTyp(id, typ, btn) {
+        document.querySelectorAll(`#poz_${id} .btn-status`).forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(`poz_term_typ_${id}`).value = typ;
+        document.getElementById(`poz_term_sprzedaz_${id}`).style.display = typ === 'sprzedaz' ? 'block' : 'none';
+        document.getElementById(`poz_term_komis_${id}`).style.display = typ === 'komis' ? 'block' : 'none';
+        renderTermPicker(id, typ);
+    }
+
+    function setTermSprzedazTyp(id, zrodlo, btn) {
+        const btns = document.querySelectorAll(`#poz_term_sprzedaz_${id} .btn-status`);
+        btns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(`poz_term_zrodlo_${id}`).value = zrodlo;
+        document.getElementById(`poz_term_picker_${id}`).style.display = zrodlo === 'magazyn' ? 'flex' : 'none';
+        document.getElementById(`poz_term_komis_sel_${id}`).style.display = zrodlo === 'komis' ? 'block' : 'none';
+        renderTermPicker(id, 'sprzedaz');
+    }
+
+    function onTermKubekChange(id) {
+        const sel = document.getElementById(`poz_term_kub_${id}`);
+        const opt = sel?.options[sel.selectedIndex];
+        const cena = opt?.dataset?.cena;
+        if (cena)
+            document.getElementById(`poz_term_cena_${id}`).value = Number(cena).toFixed(2);
+    }
+
+    function onTermKomisChange(id) {
+        const sel = document.getElementById(`poz_term_komis_kub_${id}`);
+        const opt = sel?.options[sel.selectedIndex];
+        const cena = opt?.dataset?.cena;
+        if (cena)
+            document.getElementById(`poz_term_cena_${id}`).value = Number(cena).toFixed(2);
+    }
+
+    // ── USUŃ ZAMÓWIENIE ──
+    async function usunZamowienie(zamId) {
+        if (!confirm('Czy na pewno usunąć to zamówienie? Tej operacji nie można cofnąć.'))
+            return;
+        try {
+            await sbFetch('pozycja_zamowienia', `?zamowienie_id=eq.${zamId}`, {
+                method: 'DELETE'
+            });
+            await sbFetch('zamowienie', `?id=eq.${zamId}`, {
+                method: 'DELETE'
+            });
+            closeZamDrawer();
+            loadZamowienia();
+        } catch (e) {
+            alert('Błąd: ' + e.message);
+        }
+    }
+
+
+    function filterKubkiPicker(id) {
+        const mat = document.getElementById(`poz_mat_${id}`)?.value || '';
+        const pojSel = document.getElementById(`poz_poj_${id}`);
+        if (pojSel) {
+            const kubki = window['kubkiPicker_' + id] || allKubki.filter(k => !k.isPrzykrywka && k.ilosc_lacznie > 0);
+            const pojs = [...new Set(kubki.filter(k => !mat || k.typ_materialu === mat).map(k => k.pojemnosc_ml))].sort((a, b) => a - b);
+            const curPoj = pojSel.value;
+            pojSel.innerHTML = '<option value="">— pojemność —</option>' + pojs.map(p => `<option value="${p}" ${p == curPoj ? 'selected' : ''}>${p} ml</option>`).join('');
+        }
+        renderKubkiPicker(id);
+    }
+
+    function renderKubkiPicker(id) {
+        const mat = document.getElementById(`poz_mat_${id}`)?.value || '';
+        const poj = document.getElementById(`poz_poj_${id}`)?.value || '';
+        const sci = document.getElementById(`poz_sci_${id}`)?.value || '';
+        const mag = document.getElementById(`poz_mag_${id}`)?.value || '';
+        // Save selected mag
+        const magValEl = document.getElementById(`poz_mag_val_${id}`);
+        if (magValEl)
+            magValEl.value = mag;
+        const wrap = document.getElementById(`poz_picker_${id}`);
+        if (!wrap)
+            return;
+        let kubki = (window['kubkiPicker_' + id] || allKubki.filter(k => !k.isPrzykrywka && k.ilosc_lacznie > 0))
+        .filter(k => (!mat || k.typ_materialu === mat) && (!poj || String(k.pojemnosc_ml) === poj) && (!sci || (k.typ_scianki || '') === sci));
+        // Filter by magazine if selected
+        if (mag) {
+            kubki = kubki.filter(k => {
+                const s = k.stany.find(x => x.magazyn_id === mag);
+                return s && s.ilosc_dostepna > 0;
+            });
+        }
+        if (!kubki.length) {
+            wrap.innerHTML = '<div style="color:var(--ink3);font-size:12px;padding:8px;">Brak kubków spełniających kryteria.</div>';
+            return;
+        }
+        wrap.innerHTML = kubki.map(k => {
+            const thumb = k.miniaturka ? `<img src="${k.miniaturka}" style="width:44px;height:44px;border-radius:6px;object-fit:cover;">` : `<div style="width:44px;height:44px;border-radius:6px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:20px;">☕</div>`;
+            const stanWMag = mag ? (k.stany.find(s => s.magazyn_id === mag)?.ilosc_dostepna || 0) : k.ilosc_lacznie;
+            const dotCls = stanWMag === 0 ? 'stock-empty' : stanWMag < 500 ? 'stock-low' : 'stock-ok';
+            const magNazwa = mag ? (allMagazyny.find(m => m.id === mag)?.nazwa || '') : 'łącznie';
+            return `<div id="picker_item_${id}_${k.kubek_id}" onclick="selectKubkiPicker(${id},'${k.kubek_id}',${k.cena_netto || 0},'${mag}')"
+      style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;border:2px solid var(--border);cursor:pointer;background:var(--surface);">
+      ${
+            thumb}
+      <div style="flex:1;min-width:0;">
+        <div style="font-family:var(--fh);font-size:15px;font-weight:700;">${
+            k.pojemnosc_ml} ml <span style="font-size:11px;font-weight:400;color:var(--ink3);">${k.typ_materialu}</span></div>
+        <div style="font-size:11px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${k.grafika || '—'}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;">
+        <div style="display:flex;align-items:center;gap:5px;"><span class="stock-dot-big ${
+
+            dotCls}"></span><span style="font-size:14px;font-weight:600;">${stanWMag}</span></div>
+        <div style="font-size:10px;color:var(--ink3);">${magNazwa}</div>
+        <div style="font-size:11px;color:var(--accent);">${k.cena_netto != null ? Number(k.cena_netto).toFixed(2) + ' zł' : '—'}</div>
       </div>
     </div>`
 
@@ -6167,38 +6373,63 @@
         }).join('');
     }
 
-    function onTIloscChange(input, rowId, defaultCena) {
-        const val = parseInt(input.value) || 0;
-        const pd = document.getElementById('tprice_' + rowId);
-        if (!pd)
-            return;
-        if (val > 0) {
-            pd.style.display = 'flex';
-            const n = document.getElementById('tn_' + rowId);
-            if (n && !n.value && defaultCena) {
-                n.value = Number(defaultCena).toFixed(2);
-                const b = document.getElementById('tb_' + rowId);
-                if (b)
-                    b.value = (Number(defaultCena) * 1.23).toFixed(2);
+    function selectKubkiPicker(id, kubek_id, cena, mag) {
+        document.querySelectorAll(`[id^="picker_item_${id}_"]`).forEach(el => {
+            el.style.borderColor = 'var(--border)';
+            el.style.background = 'var(--surface)';
+        });
+        const el = document.getElementById(`picker_item_${id}_${kubek_id}`);
+        if (el) {
+            el.style.borderColor = 'var(--accent)';
+            el.style.background = '#FEF0EB';
+        }
+        document.getElementById(`poz_kub_${id}`).value = kubek_id;
+        if (mag) {
+            const mv = document.getElementById(`poz_mag_val_${id}`);
+            if (mv)
+                mv.value = mag;
+        }
+        const ceEl = document.getElementById(`poz_cena_${id}`);
+        if (ceEl && cena) {
+            ceEl.value = Number(cena).toFixed(2);
+            const bEl = document.getElementById('poz_brutto_' + id);
+            if (bEl)
+                bEl.value = (Number(cena) * 1.23).toFixed(2);
+        }
+    }
+
+
+    function renderPodsumowanieIlosci(pozycje) {
+        const kubki = {},
+            wieczka = {},
+            termiczne = {};
+        pozycje.forEach(p => {
+            if (p.rodzaj_produktu === 'kubek') {
+                const scianka = p.typ_scianki ? ` ${p.typ_scianki === 'dwuściankowy' ? 'dwu' : p.typ_scianki === 'jednościankowy' ? 'jedno' : p.typ_scianki}` : '';
+                const key = `${p.pojemnosc_ml}ml ${p.typ_materialu || ''}${scianka}`.trim();
+                kubki[key] = (kubki[key] || 0) + p.ilosc;
+            } else if (p.rodzaj_produktu === 'przykrywka') {
+                const key = `${p.pr_rozmiar}mm ${p.pr_typ || ''}`.trim();
+                wieczka[key] = (wieczka[key] || 0) + p.ilosc;
+            } else if (p.rodzaj_produktu === 'termiczny') {
+                const key = `${p.term_pojemnosc}ml`;
+                termiczne[key] = (termiczne[key] || 0) + p.ilosc;
             }
-        } else
-            pd.style.display = 'none';
-    }
-
-    function setTermTypInline(id, typ, btn) {
-        document.querySelectorAll(`#poz_${id} > div > .btn-status`).forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        document.getElementById(`poz_term_typ_val_${id}`).dataset.val = typ;
-        document.getElementById(`poz_term_sprzedaz_${id}`).style.display = typ === 'sprzedaz' ? 'block' : 'none';
-        document.getElementById(`poz_term_komis_${id}`).style.display = typ === 'komis' ? 'block' : 'none';
-    }
-
-    function setTermZrodloInline(id, zrodlo, btn) {
-        document.querySelectorAll(`#poz_term_sprzedaz_${id} > .btn-status`).forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        document.getElementById(`poz_term_zrodlo_val_${id}`).dataset.val = zrodlo;
-        document.getElementById(`ptlm_${id}`).style.display = zrodlo === 'magazyn' ? 'block' : 'none';
-        document.getElementById(`ptlk_${id}`).style.display = zrodlo === 'komis' ? 'block' : 'none';
+        });
+        let html = '';
+        const kubkiEntries = Object.entries(kubki).sort();
+        const wieczkaEntries = Object.entries(wieczka).sort();
+        const termiczneEntries = Object.entries(termiczne).sort();
+        if (kubkiEntries.length) {
+            html += kubkiEntries.map(([k, v]) => `<div class="d-row"><span class="d-key">☕ ${k}</span><span class="d-val" style="font-size:15px;font-weight:700;">${v} szt.</span></div>`).join('');
+        }
+        if (wieczkaEntries.length) {
+            html += wieczkaEntries.map(([k, v]) => `<div class="d-row"><span class="d-key">🫗 ${k}</span><span class="d-val" style="font-size:15px;font-weight:700;">${v} szt.</span></div>`).join('');
+        }
+        if (termiczneEntries.length) {
+            html += termiczneEntries.map(([k, v]) => `<div class="d-row"><span class="d-key">🌡 ${k}</span><span class="d-val" style="font-size:15px;font-weight:700;">${v} szt.</span></div>`).join('');
+        }
+        return html || '<div style="color:var(--ink3);font-size:12px;padding:8px 0;">Brak pozycji produktowych.</div>';
     }
 
 
@@ -6702,7 +6933,7 @@
         const b = parseFloat(document.getElementById('poz_brutto_' + id)?.value) || 0;
         const n = document.getElementById('poz_cena_' + id);
         if (n && b)
-            n.value = (b / 1.23).toFixed(2);
+            n.value = (b / 1.23).toFixed(4);
     }
     function syncBruttoTerm(id) {
         const n = parseFloat(document.getElementById('poz_term_cena_' + id)?.value) || 0;
@@ -6714,7 +6945,7 @@
         const b = parseFloat(document.getElementById('poz_term_brutto_' + id)?.value) || 0;
         const n = document.getElementById('poz_term_cena_' + id);
         if (n && b)
-            n.value = (b / 1.23).toFixed(2);
+            n.value = (b / 1.23).toFixed(4);
     }
 
     function dodajPozycjeEdit(typ) {
@@ -7093,7 +7324,7 @@
                 const ceEl = document.getElementById(`wl_cena_${id}`);
                 const bEl = document.getElementById(`wl_brutto_${id}`);
                 if (ceEl)
-                    ceEl.value = Number(c.cena_netto).toFixed(2);
+                    ceEl.value = Number(c.cena_netto).toFixed(4);
                 if (bEl)
                     bEl.value = (Number(c.cena_netto) * 1.23).toFixed(2);
             }
@@ -7122,7 +7353,7 @@
         const b = parseFloat(document.getElementById(`wl_brutto_${id}`)?.value) || 0;
         const n = document.getElementById(`wl_cena_${id}`);
         if (n && b)
-            n.value = (b / 1.23).toFixed(2);
+            n.value = (b / 1.23).toFixed(4);
     }
 
 
@@ -7171,45 +7402,6 @@
             alert('Błąd: ' + e.message);
         }
     }
-
-    function renderPodsumowanieIlosci(pozycje) {
-        const kubki = {},
-            termiczne = {},
-            wieczka = {},
-            wysylki = [];
-        for (const p of (pozycje || [])) {
-            if (p.rodzaj_produktu === 'kubek') {
-                const scianka = p.typ_scianki ? ` ${p.typ_scianki === 'dwuściankowy' ? 'dwu' : p.typ_scianki === 'jednościankowy' ? 'jedno' : p.typ_scianki}` : '';
-                const key = `${p.pojemnosc_ml}ml ${p.typ_materialu || ''}${scianka}`.trim();
-                kubki[key] = (kubki[key] || 0) + p.ilosc;
-            } else if (p.rodzaj_produktu === 'termiczny') {
-                const key = `${p.term_pojemnosc || p.pojemnosc_ml || ''}ml`;
-                termiczne[key] = (termiczne[key] || 0) + p.ilosc;
-            } else if (p.rodzaj_produktu === 'przykrywka') {
-                const key = `${p.pr_rozmiar || ''}mm ${p.pr_kolor || ''}`.trim();
-                wieczka[key] = (wieczka[key] || 0) + p.ilosc;
-            } else if (p.rodzaj_produktu === 'wysylka') {
-                wysylki.push(p.nazwa_wysylki || p.typ_wysylki || 'Wysyłka');
-            }
-        }
-        let html = '';
-        const kubkiEntries = Object.entries(kubki);
-        const termiczneEntries = Object.entries(termiczne);
-        const wieczkaEntries = Object.entries(wieczka);
-        if (kubkiEntries.length) {
-            html += kubkiEntries.map(([k, v]) => `<div class="d-row"><span class="d-key">☕ Kubek pap. ${k}</span><span class="d-val" style="font-size:15px;font-weight:700;">${v} szt.</span></div>`).join('');
-        }
-        if (wieczkaEntries.length) {
-            html += wieczkaEntries.map(([k, v]) => `<div class="d-row"><span class="d-key">🫗 Wieczko ${k}</span><span class="d-val" style="font-size:15px;font-weight:700;">${v} szt.</span></div>`).join('');
-        }
-        if (termiczneEntries.length) {
-            html += termiczneEntries.map(([k, v]) => `<div class="d-row"><span class="d-key">🌡 Kubek term. ${k}</span><span class="d-val" style="font-size:15px;font-weight:700;">${v} szt.</span></div>`).join('');
-        }
-        if (wysylki.length) {
-            html += wysylki.map(w => `<div class="d-row"><span class="d-key">📦 ${w}</span></div>`).join('');
-        }
-        return html || '<div style="color:var(--ink3);font-size:12px;">Brak pozycji.</div>';
-    }
     // ── INIT ──
     window.addEventListener('load', async () => {
         const {url, key} = getCfg();
@@ -7224,6 +7416,5 @@
         }
     });
     </script>
-    <button onclick="openNoweZamowienie()" id="fabNowe" style="position:fixed;bottom:24px;right:16px;width:56px;height:56px;border-radius:50%;background:#2E7D32;color:white;border:none;font-size:28px;cursor:pointer;z-index:500;box-shadow:0 4px 16px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;">+</button>
 </body>
 </html>
