@@ -1377,14 +1377,7 @@
                         <option value="zrealizowane">Zrealizowane</option>
                     </select>
                 </div>
-                <div class="filter-group">
-                    <span class="filter-label">Płatność</span>
-                    <select class="dark-select" id="wfPlatnosc" onchange="applyFilters('zamowienia')">
-                        <option value="">Wszystkie</option>
-                        <option value="nieoplacona">Nieopłacone</option>
-                        <option value="oplacona">Opłacone</option>
-                    </select>
-                </div>
+
                 <div class="filter-group">
                     <span class="filter-label">Faktura</span>
                     <select class="dark-select" id="wfFaktura" onchange="applyFilters('zamowienia')">
@@ -1871,22 +1864,31 @@
                     zleceniaByKubek[z.kubek_id] = [];
                 zleceniaByKubek[z.kubek_id].push(z);
             });
-            return kubki.map(k => ({
-                kubek_id: k.kubek_id,
-                pojemnosc_ml: k.pojemnosc_ml,
-                typ_materialu: k.typ_materialu,
-                typ_scianki: k.typ_scianki,
-                sztuk_w_opakowaniu: k.sztuk_w_opakowaniu,
-                cena_netto: k.cena_netto,
-                ilosc_zlecona: k.ilosc_w_produkcji || 0,
-                data_zlecenia: k.data_najwczesniejszego_zlecenia,
-                data_planowanej_dostawy: k.data_najwczesniejszej_dostawy,
-                logo: k.logo,
-                grafika: k.grafika,
-                artysta: k.artysta,
-                miniaturka: k.miniaturka,
-                zlecenia: zleceniaByKubek[k.kubek_id] || [],
-            }));
+            // v_stan_kubkow ma wiersze per (kubek, magazyn) - musimy zdeduplikować
+            const seen = new Set();
+            const result = [];
+            for (const k of kubki) {
+                if (seen.has(k.kubek_id))
+                    continue;
+                seen.add(k.kubek_id);
+                result.push({
+                    kubek_id: k.kubek_id,
+                    pojemnosc_ml: k.pojemnosc_ml,
+                    typ_materialu: k.typ_materialu,
+                    typ_scianki: k.typ_scianki,
+                    sztuk_w_opakowaniu: k.sztuk_w_opakowaniu,
+                    cena_netto: k.cena_netto,
+                    ilosc_zlecona: k.ilosc_w_produkcji || 0,
+                    data_zlecenia: k.data_najwczesniejszego_zlecenia,
+                    data_planowanej_dostawy: k.data_najwczesniejszej_dostawy,
+                    logo: k.logo,
+                    grafika: k.grafika,
+                    artysta: k.artysta,
+                    miniaturka: k.miniaturka_url,
+                    zlecenia: zleceniaByKubek[k.kubek_id] || [],
+                });
+            }
+            return result;
         } catch (e) {
             console.warn('ladujZlecone:', e);
             return [];
@@ -3293,7 +3295,6 @@
     function applyFiltersZamowienia() {
         const klientId = document.getElementById('zamSearchKlient')?.dataset?.klientId || '';
         const status = document.getElementById('wfStatus').value;
-        const platnosc = document.getElementById('wfPlatnosc').value;
         const faktura = document.getElementById('wfFaktura').value;
         const rok = document.getElementById('wfRok')?.value || '';
         const miesiac = document.getElementById('wfMiesiac')?.value || '';
@@ -3301,8 +3302,6 @@
             if (klientId && z.klient_id !== klientId)
                 return false;
             if (status && z.status_realizacji !== status)
-                return false;
-            if (platnosc && z.status_platnosci !== platnosc)
                 return false;
             if (faktura && z.status_faktury !== faktura)
                 return false;
@@ -3335,7 +3334,18 @@
             list.innerHTML = `<div class="state-msg"><span class="big">📦</span>Brak zamówień.</div>`;
             return;
         }
-        zamowienia = [...zamowienia].sort((a, b) => (b.data_zamowienia || '').localeCompare(a.data_zamowienia || ''));
+        zamowienia = [...zamowienia].sort((a, b) => {
+            const order = {
+                w_produkcji: 1,
+                wyslane: 2,
+                zrealizowane: 3
+            };
+            const ra = order[a.status_realizacji] || 4;
+            const rb = order[b.status_realizacji] || 4;
+            if (ra !== rb)
+                return ra - rb;
+            return (b.data_zamowienia || '').localeCompare(a.data_zamowienia || '');
+        });
         list.innerHTML = zamowienia.map(z => {
             const isWL = z.typ_zamowienia === 'wlasne_logo';
             const wlBg = isWL ? 'background:#FFFBEB;border-left:3px solid #F59E0B;' : '';
@@ -3349,10 +3359,10 @@
       <div style="font-size:11px;color:var(--ink3);margin-bottom:6px;cursor:pointer;" onclick="openZamowienieDrawer('${
             z.id}')">${z.data_zamowienia}${dostawaDate ? ' · dost. ' + dostawaDate : ''} · ${z.zrodlo || '—'} · ${z.liczba_pozycji} poz.</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
-        <span class="tag" style="background:#F0F4FB;border-color:#B5C4F4;color:#1840A5;">${
-            STATUS_LABELS[z.status_realizacji] || z.status_realizacji}</span>
+        <span class="tag" style="background:${
+            z.status_realizacji === 'zrealizowane' ? '#EAF3DE' : z.status_realizacji === 'wyslane' ? '#FFF0E0' : '#FBE9E9'};border-color:${z.status_realizacji === 'zrealizowane' ? '#C0DD97' : z.status_realizacji === 'wyslane' ? '#F5C480' : '#F4B5B5'};color:${z.status_realizacji === 'zrealizowane' ? '#3B6D11' : z.status_realizacji === 'wyslane' ? '#9C5810' : '#A32D2D'};">${STATUS_LABELS[z.status_realizacji] || z.status_realizacji}</span>
         <span class="tag" style="background:${z.status_platnosci === 'oplacona' ? '#EAF3DE' : '#FBE9E9'};border-color:${z.status_platnosci === 'oplacona' ? '#C0DD97' : '#F4B5B5'};color:${z.status_platnosci === 'oplacona' ? '#3B6D11' : '#A32D2D'};">${PLATNOSC_LABELS[z.status_platnosci] || z.status_platnosci}</span>
-        <span class="tag" style="background:#FBF3EA;border-color:#F0C8A8;color:#7A3D0F;">${FAKTURA_LABELS[z.status_faktury] || z.status_faktury}</span>
+        ${z.status_faktury === 'wystawiona' || z.status_faktury === 'wyslana' || z.numer_faktury ? `<span class="tag" style="background:#EAF3DE;border-color:#C0DD97;color:#3B6D11;font-weight:600;">🧾 FV</span>` : ''}
       </div>
       
     </div>`
@@ -3417,12 +3427,13 @@
 
 
             zamId}')" style="flex:1;background:#185FA5;color:white;border:none;border-radius:10px;padding:11px 8px;font-family:var(--fm);font-size:12px;cursor:pointer;">📄 Faktura</button>
-        <button onclick="wylijWysylke('${zamId}')" style="flex:1;background:#3B6D11;color:white;border:none;border-radius:10px;padding:11px 8px;font-family:var(--fm);font-size:12px;cursor:pointer;">🚚 Wyślij</button>
+        
       </div>
       <div class="d-section">Zmień status</div>
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px;">
         <div style="display:flex;gap:6px;">
           <button onclick="zmienStatus('${
+
 
 
 
