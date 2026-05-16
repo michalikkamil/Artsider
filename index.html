@@ -4448,7 +4448,7 @@
     </div>
     <div id="poz_term_typ_val_${
         id}" data-val="sprzedaz" style="display:none;"></div>
-    <div id="poz_term_sprzedaz_${id}">
+    <div id="poz_term_zrodlo_wrap_${id}">
       <div style="display:flex;gap:6px;margin-bottom:8px;">
         <button onclick="setTermZrodloInline(${
         id},'magazyn',this)" class="btn-status active" style="flex:1;font-size:11px;">Z magazynu</button>
@@ -4456,15 +4456,10 @@
       </div>
       <div id="poz_term_zrodlo_val_${
         id}" data-val="magazyn" style="display:none;"></div>
-      <div id="ptlm_${id}"><div style="color:var(--ink3);font-size:12px;padding:8px;">⏳ Ładowanie…</div></div>
-      <div id="ptlk_${id}" style="display:none;"><div style="color:var(--ink3);font-size:12px;padding:8px;">⏳ Ładowanie…</div></div>
     </div>
-    <div id="poz_term_komis_${
-        id}" style="display:none;">
-      <div id="ptlw_${id}"><div style="color:var(--ink3);font-size:12px;padding:8px;">⏳ Ładowanie…</div></div>
-    </div>
+    <div id="termlist_${
+        id}"><div style="color:var(--ink3);font-size:12px;padding:8px;">⏳ Ładowanie…</div></div>
   `
-
         ;
         wrap.appendChild(div);
         try {
@@ -4483,7 +4478,15 @@
                     };
                 map[r.kubek_id].ilosc += (r.ilosc_dostepna || 0);
             });
-            window['tl_mag_' + id] = Object.values(map).filter(k => k.ilosc > 0).sort((a, b) => a.pojemnosc - b.pojemnosc);
+            window['tl_mag_' + id] = Object.values(map).filter(k => k.ilosc > 0).sort((a, b) => {
+                if (a.pojemnosc !== b.pojemnosc)
+                    return a.pojemnosc - b.pojemnosc;
+                const ga = (a.grafika || '').toLowerCase(),
+                    gb = (b.grafika || '').toLowerCase();
+                if (ga !== gb)
+                    return ga.localeCompare(gb, 'pl');
+                return b.ilosc - a.ilosc;
+            });
             if (klientId) {
                 const komis = await sbFetch('v_komis_aktywny', `?klient_id=eq.${klientId}&select=*`);
                 window['tl_kom_' + id] = komis.map(k => ({
@@ -4495,16 +4498,79 @@
                     ilosc: k.ilosc,
                     cena: k.cena_netto || 0,
                     miniaturka: k.miniaturka_url
-                })).sort((a, b) => a.pojemnosc - b.pojemnosc);
+                })).sort((a, b) => {
+                    if (a.pojemnosc !== b.pojemnosc)
+                        return a.pojemnosc - b.pojemnosc;
+                    const ga = (a.grafika || '').toLowerCase(),
+                        gb = (b.grafika || '').toLowerCase();
+                    if (ga !== gb)
+                        return ga.localeCompare(gb, 'pl');
+                    return b.ilosc - a.ilosc;
+                });
             } else
                 window['tl_kom_' + id] = [];
-            renderTermInline(id, 'mag');
-            renderTermInline(id, 'kom');
-            renderTermInline(id, 'wyslij');
+            renderTermInline(id);
         } catch (e) {
-            console.warn(e);
+            console.warn('dodajPozycjeTermiczne:', e);
+            document.getElementById('termlist_' + id).innerHTML = '<div style="color:#A32D2D;font-size:12px;padding:8px;">Błąd: ' + e.message + '</div>';
         }
     }
+
+    function setTermTypInline(id, val, btn) {
+        document.getElementById(`poz_term_typ_val_${id}`).dataset.val = val;
+        btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const zw = document.getElementById(`poz_term_zrodlo_wrap_${id}`);
+        if (zw)
+            zw.style.display = val === 'komis' ? 'none' : 'block';
+        renderTermInline(id);
+    }
+
+    function setTermZrodloInline(id, val, btn) {
+        document.getElementById(`poz_term_zrodlo_val_${id}`).dataset.val = val;
+        btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderTermInline(id);
+    }
+
+    function renderTermInline(id) {
+        const typ = document.getElementById(`poz_term_typ_val_${id}`)?.dataset?.val || 'sprzedaz';
+        const zrodlo = document.getElementById(`poz_term_zrodlo_val_${id}`)?.dataset?.val || 'magazyn';
+        const useKomis = typ === 'sprzedaz' && zrodlo === 'komis';
+        const lista = useKomis ? (window['tl_kom_' + id] || []) : (window['tl_mag_' + id] || []);
+        const wrap = document.getElementById(`termlist_${id}`);
+        if (!wrap)
+            return;
+        if (!lista.length) {
+            wrap.innerHTML = '<div style="color:var(--ink3);font-size:12px;padding:8px;">' + (useKomis ? 'Brak kubków w komisie u tego klienta' : 'Brak dostępnych kubków termicznych') + '</div>';
+            return;
+        }
+        wrap.innerHTML = lista.map(k => {
+            const rowId = `tr_${id}_${k.id}`;
+            const dotCls = k.ilosc === 0 ? 'stock-empty' : k.ilosc < 10 ? 'stock-low' : 'stock-ok';
+            const thumb = k.miniaturka ? `<img src="${k.miniaturka}" style="width:40px;height:40px;border-radius:6px;object-fit:cover;flex-shrink:0;">` : `<div style="width:40px;height:40px;border-radius:6px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🌡</div>`;
+            const showPrice = typ === 'sprzedaz';
+            return `<div id="${rowId}" data-kubek-id="${k.id}"${k.komis_id ? ` data-komis-id="${k.komis_id}"` : ''} style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--bg2);">
+      ${thumb}
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;">${
+            k.pojemnosc}ml <span style="font-weight:400;color:var(--ink3);font-size:11px;">${k.kolor || ''}</span></div>
+        <div style="font-size:11px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${k.grafika || '—'}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;">
+        <div style="display:flex;align-items:center;gap:3px;justify-content:flex-end;"><span class="stock-dot ${
+
+            dotCls}"></span><span style="font-size:13px;font-weight:600;">${k.ilosc}</span></div>
+        ${k.cena ? `<div style="font-size:10px;color:var(--accent);">${Number(k.cena).toFixed(2)} zł</div>` : ''}
+      </div>
+      <input type="number" min="0" max="${
+            k.ilosc}" value="" placeholder="0" id="tq_${rowId}" style="width:50px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:6px;font-size:14px;text-align:center;font-family:var(--fm);">
+      ${showPrice ? `<input type="number" step="0.01" placeholder="cena" value="${k.cena || ''}" id="tn_${rowId}" style="width:65px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:6px;font-size:12px;text-align:center;font-family:var(--fm);">` : `<div style="width:65px;"></div>`}
+    </div>`
+            ;
+        }).join('');
+    }
+
 
     async function zapiszZamowienie() {
         console.log('=== zapiszZamowienie START ===');
@@ -4646,11 +4712,10 @@
                     });
                 }
             } else if (typ2 === 'termiczny') {
-                const termTyp = div.querySelector('[id^="poz_term_typ_val_"]')?.dataset?.val || 'sprzedaz';
-                const termZrodlo = div.querySelector('[id^="poz_term_zrodlo_val_"]')?.dataset?.val || 'magazyn';
+                const termTyp = div.querySelector(`[id^="poz_term_typ_val_"]`)?.dataset?.val || 'sprzedaz';
+                const termZrodlo = div.querySelector(`[id^="poz_term_zrodlo_val_"]`)?.dataset?.val || 'magazyn';
                 const sid = div.id.replace('poz_', '');
-                const tryb = termTyp === 'komis' ? 'wyslij' : termZrodlo === 'komis' ? 'kom' : 'mag';
-                const lWrap = document.getElementById(`ptl${tryb === 'wyslij' ? 'w' : tryb === 'kom' ? 'k' : 'm'}_${sid}`);
+                const lWrap = document.getElementById(`termlist_${sid}`);
                 if (!lWrap)
                     continue;
                 for (const row of lWrap.querySelectorAll('[data-kubek-id]')) {
