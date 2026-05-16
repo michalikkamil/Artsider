@@ -1676,6 +1676,24 @@
         key: localStorage.getItem('sb_key')
     });
 
+    // ═══ HELPERY UI ═══
+    function renderThumb(url, emoji, size) {
+        size = size || 40;
+        if (url)
+            return `<img src="${url}" style="width:${size}px;height:${size}px;border-radius:6px;object-fit:cover;flex-shrink:0;">`;
+        return `<div style="width:${size}px;height:${size}px;border-radius:6px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:${Math.round(size * 0.45)}px;flex-shrink:0;">${emoji || '☕'}</div>`;
+    }
+
+    function renderStockBadge(ilosc, threshold) {
+        threshold = threshold || 500;
+        const dotCls = ilosc === 0 ? 'stock-empty' : ilosc < threshold ? 'stock-low' : 'stock-ok';
+        return `<div style="display:flex;align-items:center;gap:3px;justify-content:flex-end;"><span class="stock-dot ${dotCls}"></span><span style="font-size:13px;font-weight:600;">${(ilosc || 0).toLocaleString('pl')}</span></div>`;
+    }
+
+    function closeBtnHtml(handler) {
+        return `<button onclick="${handler}" style="position:absolute;top:8px;right:8px;background:none;border:none;font-size:16px;cursor:pointer;color:var(--ink3);">✕</button>`;
+    }
+
     async function sbFetch(path, params='', opts={}) {
         const {url, key} = getCfg();
         const headers = {
@@ -2141,12 +2159,6 @@
             }
         }
         applyFilters(scope);
-    }
-
-    function updateStatsKubki(f) {
-        document.getElementById('skModeli').textContent = f.length || '—';
-        document.getElementById('skSztuk').textContent = '—';
-        document.getElementById('skDrodze').textContent = '—';
     }
 
     function renderKomisInTermiczne() {
@@ -4344,7 +4356,7 @@
             const totalIlosc = k.ilosc_lacznie || 0;
             const rowId = `kr_${id}_${k.kubek_id}`;
             const dotCls = ilosc === 0 ? 'stock-empty' : ilosc < 500 ? 'stock-low' : 'stock-ok';
-            const thumb = k.miniaturka ? `<img src="${k.miniaturka}" style="width:40px;height:40px;border-radius:6px;object-fit:cover;flex-shrink:0;">` : `<div style="width:40px;height:40px;border-radius:6px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">☕</div>`;
+            const thumb = renderThumb(k.miniaturka, '☕', 40);
             return `<div id="${rowId}" style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--bg2);" data-kubek-id="${k.kubek_id}" data-mag-id="${magId}" data-cena="${k.cena_netto || 0}">
       ${thumb}
       <div style="flex:1;min-width:0;">
@@ -4480,12 +4492,12 @@
 
 
 
-    async function dodajPozycjeTermiczneEdit() {
-        const klientId = document.getElementById('eZamKlient')?.value || '';
+    async function _dodajPozycjeTermicznaImpl(klientInputId, wrapId) {
+        const klientId = document.getElementById(klientInputId)?.value || '';
         const id = ++pozycjeCounter;
-        const wrap = document.getElementById('ePozycjeZam');
+        const wrap = document.getElementById(wrapId);
         if (!wrap) {
-            console.warn('ePozycjeZam not found');
+            console.warn(wrapId + ' not found');
             return;
         }
         const div = document.createElement('div');
@@ -4533,7 +4545,7 @@
                     };
                 map[r.kubek_id].ilosc += (r.ilosc_dostepna || 0);
             });
-            window['tl_mag_' + id] = Object.values(map).filter(k => k.ilosc > 0).sort((a, b) => {
+            const sortCmp = (a, b) => {
                 if (a.pojemnosc !== b.pojemnosc)
                     return a.pojemnosc - b.pojemnosc;
                 const ga = (a.grafika || '').toLowerCase(),
@@ -4541,7 +4553,8 @@
                 if (ga !== gb)
                     return ga.localeCompare(gb, 'pl');
                 return b.ilosc - a.ilosc;
-            });
+            };
+            window['tl_mag_' + id] = Object.values(map).filter(k => k.ilosc > 0).sort(sortCmp);
             if (klientId) {
                 const komis = await sbFetch('v_komis_aktywny', `?klient_id=eq.${klientId}&select=*`);
                 window['tl_kom_' + id] = komis.map(k => ({
@@ -4553,111 +4566,27 @@
                     ilosc: k.ilosc,
                     cena: k.cena_netto || 0,
                     miniaturka: k.miniaturka_url
-                })).sort((a, b) => {
-                    if (a.pojemnosc !== b.pojemnosc)
-                        return a.pojemnosc - b.pojemnosc;
-                    const ga = (a.grafika || '').toLowerCase(),
-                        gb = (b.grafika || '').toLowerCase();
-                    if (ga !== gb)
-                        return ga.localeCompare(gb, 'pl');
-                    return b.ilosc - a.ilosc;
-                });
+                })).sort(sortCmp);
             } else
                 window['tl_kom_' + id] = [];
             renderTermInline(id);
         } catch (e) {
-            console.warn('dodajPozycjeTermiczneEdit:', e);
-            document.getElementById('termlist_' + id).innerHTML = '<div style="color:#A32D2D;font-size:12px;padding:8px;">Błąd: ' + e.message + '</div>';
+            console.warn('dodajPozycjeTermicznaImpl:', e);
+            const tl = document.getElementById('termlist_' + id);
+            if (tl)
+                tl.innerHTML = '<div style="color:#A32D2D;font-size:12px;padding:8px;">Błąd: ' + e.message + '</div>';
         }
+    }
+
+    async function dodajPozycjeTermiczne() {
+        return _dodajPozycjeTermicznaImpl('zamKlient', 'pozycjeZam');
+    }
+
+    async function dodajPozycjeTermiczneEdit() {
+        return _dodajPozycjeTermicznaImpl('eZamKlient', 'ePozycjeZam');
     }
 
     // ── DODAJ POZYCJE TERMICZNE ──
-    async function dodajPozycjeTermiczne() {
-        const klientId = document.getElementById('zamKlient')?.value || '';
-        const id = ++pozycjeCounter;
-        const wrap = document.getElementById('pozycjeZam');
-        const div = document.createElement('div');
-        div.id = `poz_${id}`;
-        div.dataset.typ = 'termiczny';
-        div.style.cssText = 'background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;position:relative;';
-        div.innerHTML = `
-    <button onclick="document.getElementById('poz_${id}').remove()" style="position:absolute;top:8px;right:8px;background:none;border:none;font-size:16px;cursor:pointer;color:var(--ink3);">✕</button>
-    <div style="font-size:10px;text-transform:uppercase;color:var(--ink3);letter-spacing:.08em;margin-bottom:10px;font-weight:600;">🌡 Kubki termiczne</div>
-    <div style="display:flex;gap:8px;margin-bottom:10px;">
-      <button onclick="setTermTypInline(${
-
-        id},'sprzedaz',this)" class="btn-status active" style="flex:1;font-size:12px;">💰 Sprzedaż</button>
-      <button onclick="setTermTypInline(${id},'komis',this)" class="btn-status" style="flex:1;font-size:12px;">🤝 Komis</button>
-    </div>
-    <div id="poz_term_typ_val_${
-        id}" data-val="sprzedaz" style="display:none;"></div>
-    <div id="poz_term_zrodlo_wrap_${id}">
-      <div style="display:flex;gap:6px;margin-bottom:8px;">
-        <button onclick="setTermZrodloInline(${
-        id},'magazyn',this)" class="btn-status active" style="flex:1;font-size:11px;">Z magazynu</button>
-        <button onclick="setTermZrodloInline(${id},'komis',this)" class="btn-status" style="flex:1;font-size:11px;">Z komisu</button>
-      </div>
-      <div id="poz_term_zrodlo_val_${
-        id}" data-val="magazyn" style="display:none;"></div>
-    </div>
-    <div id="termlist_${
-        id}"><div style="color:var(--ink3);font-size:12px;padding:8px;">⏳ Ładowanie…</div></div>
-  `
-        ;
-        wrap.appendChild(div);
-        try {
-            const kt = await sbFetch('v_stan_termicznych', '?select=*');
-            const map = {};
-            kt.forEach(r => {
-                if (!map[r.kubek_id])
-                    map[r.kubek_id] = {
-                        id: r.kubek_id,
-                        grafika: r.grafika,
-                        pojemnosc: r.pojemnosc_ml,
-                        kolor: r.kolor || '',
-                        ilosc: 0,
-                        cena: r.cena_netto,
-                        miniaturka: r.miniaturka_url
-                    };
-                map[r.kubek_id].ilosc += (r.ilosc_dostepna || 0);
-            });
-            window['tl_mag_' + id] = Object.values(map).filter(k => k.ilosc > 0).sort((a, b) => {
-                if (a.pojemnosc !== b.pojemnosc)
-                    return a.pojemnosc - b.pojemnosc;
-                const ga = (a.grafika || '').toLowerCase(),
-                    gb = (b.grafika || '').toLowerCase();
-                if (ga !== gb)
-                    return ga.localeCompare(gb, 'pl');
-                return b.ilosc - a.ilosc;
-            });
-            if (klientId) {
-                const komis = await sbFetch('v_komis_aktywny', `?klient_id=eq.${klientId}&select=*`);
-                window['tl_kom_' + id] = komis.map(k => ({
-                    id: k.kubek_id,
-                    komis_id: k.id,
-                    grafika: k.grafika,
-                    pojemnosc: k.pojemnosc_ml,
-                    kolor: k.kolor || '',
-                    ilosc: k.ilosc,
-                    cena: k.cena_netto || 0,
-                    miniaturka: k.miniaturka_url
-                })).sort((a, b) => {
-                    if (a.pojemnosc !== b.pojemnosc)
-                        return a.pojemnosc - b.pojemnosc;
-                    const ga = (a.grafika || '').toLowerCase(),
-                        gb = (b.grafika || '').toLowerCase();
-                    if (ga !== gb)
-                        return ga.localeCompare(gb, 'pl');
-                    return b.ilosc - a.ilosc;
-                });
-            } else
-                window['tl_kom_' + id] = [];
-            renderTermInline(id);
-        } catch (e) {
-            console.warn('dodajPozycjeTermiczne:', e);
-            document.getElementById('termlist_' + id).innerHTML = '<div style="color:#A32D2D;font-size:12px;padding:8px;">Błąd: ' + e.message + '</div>';
-        }
-    }
 
     function setTermTypInline(id, val, btn) {
         document.getElementById(`poz_term_typ_val_${id}`).dataset.val = val;
@@ -4691,7 +4620,7 @@
         wrap.innerHTML = lista.map(k => {
             const rowId = `tr_${id}_${k.id}`;
             const dotCls = k.ilosc === 0 ? 'stock-empty' : k.ilosc < 10 ? 'stock-low' : 'stock-ok';
-            const thumb = k.miniaturka ? `<img src="${k.miniaturka}" style="width:40px;height:40px;border-radius:6px;object-fit:cover;flex-shrink:0;">` : `<div style="width:40px;height:40px;border-radius:6px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🌡</div>`;
+            const thumb = renderThumb(k.miniaturka, '🌡', 40);
             const showPrice = typ === 'sprzedaz';
             return `<div id="${rowId}" data-kubek-id="${k.id}"${k.komis_id ? ` data-komis-id="${k.komis_id}"` : ''} style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--bg2);">
       ${thumb}
@@ -5145,22 +5074,6 @@
         }
     }
 
-    async function wylijWysylke(zamId) {
-        try {
-            await sbFetch('zamowienie', `?id=eq.${zamId}`, {
-                method: 'PATCH',
-                body: JSON.stringify({
-                    status_realizacji: 'wyslane'
-                })
-            });
-            alert('✓ Status zmieniony na: Wysłane');
-            loadZamowienia();
-            closeZamDrawer();
-        } catch (e) {
-            alert('Błąd: ' + e.message);
-        }
-    }
-
     // ── EDYTUJ ZAMÓWIENIE ──
     async function openEdytujZamowienie(zamId) {
         try {
@@ -5478,25 +5391,6 @@
     }
 
     // ── AUTOCOMPLETE KLIENT ──
-    function autocompleteKlient(q) {
-        const list = document.getElementById('zamKlientList');
-        const hidden = document.getElementById('zamKlient');
-        if (!q || q.length < 1) {
-            list.classList.remove('open');
-            return;
-        }
-        const filtered = allKlienci.filter(k => k.nazwa_wlasna.toLowerCase().includes(q.toLowerCase()));
-        if (!filtered.length) {
-            list.classList.remove('open');
-            return;
-        }
-        list.innerHTML = filtered.slice(0, 8).map(k => {
-            const hl = k.nazwa_wlasna.replace(new RegExp(`(${q})`, 'gi'), '<strong>$1</strong>');
-            return `<div class="autocomplete-item" onclick="selectKlient('${k.id}','${k.nazwa_wlasna.replace(/'/g, "\\'")}')"><span>${hl}</span></div>`;
-        }).join('');
-        list.classList.add('open');
-    }
-
     function selectKlient(id, nazwa) {
         document.getElementById('zamKlient').value = id;
         document.getElementById('zamKlientInput').value = nazwa;
@@ -5999,25 +5893,6 @@
         }
     }
 
-    function applyFiltersArchiwum() {
-        const poj = document.getElementById('afPoj').value;
-        const mat = document.getElementById('afMat').value;
-        const art = document.getElementById('afArt').value;
-        const q = document.getElementById('searchArchiwum').value.toLowerCase();
-        const f = allArchiwum.filter(k => {
-            if (poj && String(k.pojemnosc_ml) !== poj)
-                return false;
-            if (mat && k.typ_materialu !== mat)
-                return false;
-            if (art && k.artysta !== art)
-                return false;
-            if (q && !k.grafika?.toLowerCase().includes(q) && !k.artysta?.toLowerCase().includes(q))
-                return false;
-            return true;
-        });
-        renderKubki(f, 'listArchiwum', '', false);
-    }
-
     // ── KARTA ARTYSTY ──
     async function openKartaArtysty(artId) {
         try {
@@ -6025,8 +5900,7 @@
             const kubki = await sbFetch('v_kubki_artysty', `?artysta_id=eq.${artId}&order=pojemnosc_ml.asc`);
 
             const kubkiHTML = kubki.map(k => {
-                const thumb = k.miniaturka_url ? `<img src="${k.miniaturka_url}" style="width:48px;height:48px;border-radius:6px;object-fit:cover;flex-shrink:0;">`
-                : `<div style="width:48px;height:48px;border-radius:6px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">☕</div>`;
+                const thumb = renderThumb(k.miniaturka_url, '☕', 48);
                 const inProd = (k.ilosc_w_produkcji || 0) > 0;
                 const inStock = (k.ilosc_w_magazynie || 0) > 0;
                 const statusColor = inStock ? 'var(--green)' : inProd ? '#BA7517' : 'var(--ink3)';
@@ -6943,48 +6817,6 @@
         }
     }
 
-    function updateWysylkaNazwa(id) {
-        const typ = document.getElementById('poz_wtyp_' + id)?.value || '';
-        const el = document.getElementById('poz_wnazwa_' + id);
-        if (el && typ !== 'inny')
-            el.value = 'Wysyłka ' + typ;
-    }
-
-    function setTermTyp(id, typ, btn) {
-        document.querySelectorAll(`#poz_${id} .btn-status`).forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        document.getElementById(`poz_term_typ_${id}`).value = typ;
-        document.getElementById(`poz_term_sprzedaz_${id}`).style.display = typ === 'sprzedaz' ? 'block' : 'none';
-        document.getElementById(`poz_term_komis_${id}`).style.display = typ === 'komis' ? 'block' : 'none';
-        renderTermPicker(id, typ);
-    }
-
-    function setTermSprzedazTyp(id, zrodlo, btn) {
-        const btns = document.querySelectorAll(`#poz_term_sprzedaz_${id} .btn-status`);
-        btns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        document.getElementById(`poz_term_zrodlo_${id}`).value = zrodlo;
-        document.getElementById(`poz_term_picker_${id}`).style.display = zrodlo === 'magazyn' ? 'flex' : 'none';
-        document.getElementById(`poz_term_komis_sel_${id}`).style.display = zrodlo === 'komis' ? 'block' : 'none';
-        renderTermPicker(id, 'sprzedaz');
-    }
-
-    function onTermKubekChange(id) {
-        const sel = document.getElementById(`poz_term_kub_${id}`);
-        const opt = sel?.options[sel.selectedIndex];
-        const cena = opt?.dataset?.cena;
-        if (cena)
-            document.getElementById(`poz_term_cena_${id}`).value = Number(cena).toFixed(2);
-    }
-
-    function onTermKomisChange(id) {
-        const sel = document.getElementById(`poz_term_komis_kub_${id}`);
-        const opt = sel?.options[sel.selectedIndex];
-        const cena = opt?.dataset?.cena;
-        if (cena)
-            document.getElementById(`poz_term_cena_${id}`).value = Number(cena).toFixed(2);
-    }
-
     // ── USUŃ ZAMÓWIENIE ──
     async function usunZamowienie(zamId) {
         if (!confirm('Czy na pewno usunąć to zamówienie? Tej operacji nie można cofnąć.'))
@@ -7125,85 +6957,6 @@
             html += termiczneEntries.map(([k, v]) => `<div class="d-row"><span class="d-key">🌡 ${k}</span><span class="d-val" style="font-size:15px;font-weight:700;">${v} szt.</span></div>`).join('');
         }
         return html || '<div style="color:var(--ink3);font-size:12px;padding:8px 0;">Brak pozycji produktowych.</div>';
-    }
-
-
-    function renderTermPickerCard(item, id, field, pickerId, hidden) {
-        const thumb = item.miniaturka
-        ? `<img src="${item.miniaturka}" style="width:44px;height:44px;border-radius:6px;object-fit:cover;flex-shrink:0;">`
-        : `<div style="width:44px;height:44px;border-radius:6px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">🌡</div>`;
-        const ilosc = item.ilosc || 0;
-        const dotCls = ilosc === 0 ? 'stock-empty' : ilosc < 5 ? 'stock-low' : 'stock-ok';
-        return `<div id="tpick_${pickerId}_${item.id}" onclick="selectTermPicker('${id}','${item.id}',${item.cena || 0},'${field}','${pickerId}','${hidden}')"
-    style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;border:2px solid var(--border);cursor:pointer;background:var(--surface);">
-    ${
-        thumb}
-    <div style="flex:1;min-width:0;">
-      <div style="font-family:var(--fh);font-size:15px;font-weight:700;">${
-        item.pojemnosc || item.pojemnosc_ml}ml <span style="font-size:11px;color:var(--ink3);">${item.kolor || ''}</span></div>
-      <div style="font-size:11px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${item.grafika || '—'}</div>
-    </div>
-    <div style="text-align:right;flex-shrink:0;">
-      <div style="display:flex;align-items:center;gap:4px;"><span class="stock-dot-big ${
-
-        dotCls}"></span><span style="font-size:14px;font-weight:600;">${ilosc}</span></div>
-      <div style="font-size:11px;color:var(--accent);">${item.cena ? Number(item.cena).toFixed(2) + ' zł' : '—'}</div>
-    </div>
-  </div>`
-
-        ;
-    }
-
-    function renderTermPicker(id, typ) {
-        if (typ === 'sprzedaz') {
-            const zrodlo = document.getElementById(`poz_term_zrodlo_${id}`)?.value || 'magazyn';
-            if (zrodlo === 'magazyn') {
-                const wrap = document.getElementById(`poz_term_picker_${id}`);
-                if (!wrap)
-                    return;
-                const list = window['termPicker_' + id] || [];
-                wrap.innerHTML = list.length
-                ? list.map(k => renderTermPickerCard(k, id, 'poz_term_kub_' + id, 'poz_term_picker_' + id, 'poz_term_kub_' + id)).join('')
-                : '<div style="color:var(--ink3);font-size:12px;padding:8px;">Brak kubków termicznych w magazynie.</div>';
-            } else {
-                const wrap = document.getElementById(`poz_term_komis_picker_${id}`);
-                if (!wrap)
-                    return;
-                // komisPicker items already have correct fields
-                const list = (window['komisPicker_' + id] || []);
-                wrap.innerHTML = list.length
-                ? list.map(k => renderTermPickerCard(k, id, 'poz_term_komis_kub_' + id, 'poz_term_komis_picker_' + id, 'poz_term_komis_kub_' + id)).join('')
-                : '<div style="color:var(--ink3);font-size:12px;padding:8px;">Brak kubków w komisie u tego klienta.</div>';
-            }
-        } else if (typ === 'komis') {
-            const wrap = document.getElementById(`poz_term_komis_wyslij_picker_${id}`);
-            if (!wrap)
-                return;
-            const list = window['termPicker_' + id] || [];
-            wrap.innerHTML = list.length
-            ? list.map(k => renderTermPickerCard(k, id, 'poz_term_komis_wyslij_' + id, 'poz_term_komis_wyslij_picker_' + id, 'poz_term_komis_wyslij_' + id)).join('')
-            : '<div style="color:var(--ink3);font-size:12px;padding:8px;">Brak kubków termicznych w magazynie.</div>';
-        }
-    }
-
-    function selectTermPicker(id, kubek_id, cena, field, pickerId, hidden) {
-        document.querySelectorAll(`[id^="tpick_${pickerId}_"]`).forEach(el => {
-            el.style.borderColor = 'var(--border)';
-            el.style.background = 'var(--surface)';
-        });
-        const el = document.getElementById(`tpick_${pickerId}_${kubek_id}`);
-        if (el) {
-            el.style.borderColor = 'var(--accent)';
-            el.style.background = '#FEF0EB';
-        }
-        document.getElementById(hidden).value = kubek_id;
-        const ceEl = document.getElementById(`poz_term_cena_${id}`);
-        if (ceEl && cena) {
-            ceEl.value = Number(cena).toFixed(2);
-            const bEl = document.getElementById('poz_term_brutto_' + id);
-            if (bEl)
-                bEl.value = (Number(cena) * 1.23).toFixed(2);
-        }
     }
 
     // ── TERMICZNE: PRZENIEŚ I ZMIEŃ ILOŚĆ ──
@@ -7592,8 +7345,12 @@
             });
             msg.className = 'f-msg ok';
             msg.textContent = `✓ Dodano wypłatę ${kwota.toFixed(2)} zł`;
-            document.getElementById('wyplataKwota').value = '';
-            document.getElementById('wyplataNotatka').value = '';
+            const k = document.getElementById('wyplataKwota');
+            if (k)
+                k.value = '';
+            const n = document.getElementById('wyplataNotatka');
+            if (n)
+                n.value = '';
             zaladujWyplaty(artId);
             loadArtysci();
         } catch (e) {
@@ -7637,89 +7394,11 @@
         if (n && b)
             n.value = (b / 1.23).toFixed(4);
     }
-    function syncBruttoTerm(id) {
-        const n = parseFloat(document.getElementById('poz_term_cena_' + id)?.value) || 0;
-        const b = document.getElementById('poz_term_brutto_' + id);
-        if (b && n)
-            b.value = (n * 1.23).toFixed(2);
-    }
     function syncNettoTerm(id) {
         const b = parseFloat(document.getElementById('poz_term_brutto_' + id)?.value) || 0;
         const n = document.getElementById('poz_term_cena_' + id);
         if (n && b)
             n.value = (b / 1.23).toFixed(4);
-    }
-
-    function dodajPozycjeEdit(typ) {
-        const wrap = document.getElementById('ePozycjeNowe');
-        if (!wrap)
-            return;
-        const id = ++pozycjeCounter;
-        const div = document.createElement('div');
-        div.id = `poz_${id}`;
-        div.dataset.typ = typ;
-        div.style.cssText = 'background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;position:relative;';
-
-        let selectHTML = '';
-        if (typ === 'kubek') {
-            const kubkiDostepne = allKubki.filter(k => !k.isPrzykrywka && k.ilosc_lacznie > 0).sort((a, b) => a.pojemnosc_ml - b.pojemnosc_ml);
-            const maty = [...new Set(kubkiDostepne.map(k => k.typ_materialu).filter(Boolean))].sort();
-            window['kubkiPicker_' + id] = kubkiDostepne;
-            selectHTML = `
-      <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
-        <select class="f-select" id="poz_mat_${
-            id}" onchange="filterKubkiPicker(${id})" style="flex:1;min-width:80px;"><option value="">— materiał —</option>${maty.map(m => `<option value="${m}">${m}</option>`).join('')}</select>
-        <select class="f-select" id="poz_poj_${id}" onchange="filterKubkiPicker(${id})" style="flex:1;min-width:80px;"><option value="">— pojemność —</option></select>
-        <select class="f-select" id="poz_sci_${id}" onchange="filterKubkiPicker(${id})" style="flex:1;min-width:80px;"><option value="">— ścianka —</option><option value="jednościankowy">Jedno</option><option value="dwuściankowy">Dwu</option></select>
-      </div>
-      <input type="hidden" id="poz_kub_${
-            id}" data-field="kubek_id">
-      <div id="poz_picker_${id}" style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;"></div>`;
-        } else if (typ === 'przykrywka') {
-            selectHTML = `<div style="display:flex;gap:6px;margin-bottom:6px;">
-      <select class="f-select" data-field="pr_mat" style="flex:1;"><option value="papierowa">Papierowa</option><option value="plastikowa">Plastikowa</option></select>
-      <select class="f-select" data-field="pr_rozm" style="flex:1;"><option value="80">80mm</option><option value="90">90mm</option><option value="72">72mm</option></select>
-      <select class="f-select" data-field="pr_kol" style="flex:1;"><option value="biały">Biały</option><option value="czarny">Czarny</option></select>
-    </div>`
-
-
-
-            ;
-        } else if (typ === 'wysylka') {
-            selectHTML = `<div style="display:flex;gap:6px;margin-bottom:6px;">
-      <select class="f-select" id="poz_wtyp_${id}" data-field="wysylka_typ" onchange="updateWysylkaNazwa(${id})" style="flex:1;"><option value="DPD">DPD</option><option value="InPost">InPost</option><option value="Orlen">Orlen</option><option value="inny">Inny</option></select>
-      <input class="f-input" id="poz_wnazwa_${id}" data-field="wysylka_nazwa" value="Wysyłka DPD" style="flex:1;">
-    </div>`
-            ;
-        }
-
-        const isWysylka = typ === 'wysylka';
-        div.innerHTML = `
-    <button onclick="document.getElementById('poz_${id}').remove()" style="position:absolute;top:8px;right:8px;background:none;border:none;font-size:16px;cursor:pointer;color:var(--ink3);">✕</button>
-    <div style="font-size:10px;text-transform:uppercase;color:var(--ink3);margin-bottom:8px;">${typ === 'kubek' ? 'Kubek papierowy' : typ === 'przykrywka' ? 'Wieczko' : '📦 Wysyłka'}</div>
-    ${selectHTML}
-    <div style="display:flex;gap:8px;">
-      ${
-        isWysylka ? '' : `<div class="f-group" style="flex:1;margin-bottom:0;"><label class="f-label">Ilość</label><input class="f-input" data-field="ilosc" type="number" min="1" value="1"></div>`}
-      <div class="f-group" style="flex:1;margin-bottom:0;">
-        <label class="f-label">Netto / brutto</label>
-        <div style="display:flex;gap:4px;">
-          <input class="f-input" id="poz_cena_${
-
-
-        id}" data-field="cena" type="number" step="0.01" placeholder="netto" style="flex:1;" oninput="syncBrutto(${id})">
-          <span style="font-size:10px;color:var(--ink3);align-self:center;">/</span>
-          <input class="f-input" id="poz_brutto_${
-        id}" type="number" step="0.01" placeholder="brutto" style="flex:1;" oninput="syncNetto(${id})">
-        </div>
-      </div>
-    </div>`
-
-
-        ;
-        wrap.appendChild(div);
-        if (typ === 'kubek')
-            setTimeout(() => renderKubkiPicker(id), 50);
     }
 
     // ── WYSZUKIWARKA KLIENTÓW W ZAMÓWIENIACH ──
