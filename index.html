@@ -1338,6 +1338,14 @@
                         <option value="">Wszyscy</option>
                     </select>
                 </div>
+                <div class="filter-group">
+                    <span class="filter-label">Data</span>
+                    <select class="dark-select" id="tfData" onchange="applyFilters('termiczne')">
+                        <option value="">Domyślnie</option>
+                        <option value="newest">Od najnowszych</option>
+                        <option value="oldest">Od najstarszych</option>
+                    </select>
+                </div>
             </div>
 
             <div class="mag-tabs" id="magTabsTermiczne">
@@ -1747,14 +1755,32 @@
     // ── LOAD ALL ──
     async function loadAll() {
         try {
-            const [stanKubki, stanTerm, stanPrzykrywki, magazyny, artysci, klienci] = await Promise.all([
+            const [stanKubki, stanTerm, stanPrzykrywki, magazyny, artysci, klienci, sprzTerm, komisAll] = await Promise.all([
             sbFetch('v_stan_kubkow', '?select=*'),
             sbFetch('v_stan_termicznych', '?select=*'),
             sbFetch('v_stan_kubkow_przykrywki', '?select=*').catch(() => []),
             sbFetch('magazyn', '?select=*&order=nazwa.asc'),
             sbFetch('artysta', '?select=id,imie_nazwisko&order=imie_nazwisko.asc'),
             sbFetch('klient', '?select=id,nazwa_wlasna&order=nazwa_wlasna.asc'),
+            sbFetch('sprzedaz_termicznych', '?select=kubek_id,data_sprzedazy,created_at').catch(() => []),
+            sbFetch('komis', '?select=kubek_id,data_przekazania,data_zwrotu,created_at').catch(() => []),
             ]);
+            // Oblicz dat ostatniej zmiany stanu per kubek termiczny
+            const termZmiany = {};
+            function updMax(kid, d) {
+                if (!d)
+                    return;
+                const cur = termZmiany[kid];
+                if (!cur || d > cur)
+                    termZmiany[kid] = d;
+            }
+            sprzTerm.forEach(s => {
+                updMax(s.kubek_id, s.data_sprzedazy || s.created_at?.slice(0, 10));
+            });
+            komisAll.forEach(k => {
+                updMax(k.kubek_id, k.data_zwrotu || k.data_przekazania || k.created_at?.slice(0, 10));
+            });
+            window.termZmiany = termZmiany;
             allMagazyny = magazyny;
             allArtysci = artysci;
             allKlienci = klienci;
@@ -2043,16 +2069,6 @@
                 selectMag(this, scope);
             };
             wrap.appendChild(btnAT);
-            // Komis
-            const btnK = document.createElement('button');
-            btnK.className = 'mag-tab';
-            btnK.dataset.mag = 'komis';
-            btnK.dataset.typ = 'komis';
-            btnK.textContent = '🤝 Komis';
-            btnK.onclick = function() {
-                selectMag(this, scope);
-            };
-            wrap.appendChild(btnK);
         } else {
             wrap.innerHTML = `<button class="mag-tab active" data-mag="" onclick="selectMag(this,'${scope}')">Wszystkie</button>`;
             magazyny.forEach(m => {
@@ -2392,29 +2408,47 @@
             });
             document.body.removeChild(tmpDiv);
 
-            const imgData = canvas.toDataURL('image/jpeg', 0.92);
             const {jsPDF} = window.jspdf;
             const pdf = new jsPDF('p', 'mm', 'a4');
-            const pdfW = pdf.internal.pageSize.getWidth();
-            const pdfH = pdf.internal.pageSize.getHeight();
-            const imgW = pdfW - 20;
-            const imgH = canvas.height * imgW / canvas.width;
-            let posY = 10;
-            let remaining = imgH;
-            let srcY = 0;
-            if (imgH <= pdfH - 20) {
-                pdf.addImage(imgData, 'JPEG', 10, 10, imgW, imgH);
+            const pdfW = pdf.internal.pageSize.getWidth(); // 210mm
+            const pdfH = pdf.internal.pageSize.getHeight(); // 297mm
+            const marginX = 8,
+                marginY = 7;
+            const imgW = pdfW - 2 * marginX;
+            const pageContentH = pdfH - 2 * marginY; // dostępna wysokość na stronie (mm)
+
+            // Wysokość całego obrazu na stronie PDF (w mm)
+            const fullImgH = canvas.height * imgW / canvas.width;
+
+            if (fullImgH <= pageContentH) {
+                // mieści się na jednej stronie
+                const imgData = canvas.toDataURL('image/jpeg', 0.92);
+                pdf.addImage(imgData, 'JPEG', marginX, marginY, imgW, fullImgH);
             } else {
-                // wielostronicowo
+                // wielostronicowo - tnij canvas na kawałki
+                // sliceH (mm) = pageContentH na każdą stronę
+                // tłumaczymy mm -> px w canvas: pxPerMm = canvas.width / imgW
+                const pxPerMm = canvas.width / imgW;
+                const sliceHpx = Math.floor(pageContentH * pxPerMm);
+                let yOffset = 0;
                 let pageNum = 0;
-                while (remaining > 0) {
+                while (yOffset < canvas.height) {
+                    const remainingPx = canvas.height - yOffset;
+                    const thisSliceHpx = Math.min(sliceHpx, remainingPx);
+                    // Stwórz tymczasowy canvas dla tego kawałka
+                    const sliceCanvas = document.createElement('canvas');
+                    sliceCanvas.width = canvas.width;
+                    sliceCanvas.height = thisSliceHpx;
+                    const ctx = sliceCanvas.getContext('2d');
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+                    ctx.drawImage(canvas, 0, yOffset, canvas.width, thisSliceHpx, 0, 0, canvas.width, thisSliceHpx);
+                    const sliceData = sliceCanvas.toDataURL('image/jpeg', 0.92);
+                    const sliceHmm = thisSliceHpx / pxPerMm;
                     if (pageNum > 0)
                         pdf.addPage();
-                    const sliceH = Math.min(pdfH - 20, remaining);
-                    pdf.addImage(imgData, 'JPEG', 10, 10 - srcY, imgW, imgH);
-                    // Maska na resztę - dodaj białe prostokąty góra/dół
-                    // To uproszczone podejście; lepsze podejście to canvas per strona
-                    remaining = 0; // dla MVP - jedna duża strona
+                    pdf.addImage(sliceData, 'JPEG', marginX, marginY, imgW, sliceHmm);
+                    yOffset += thisSliceHpx;
                     pageNum++;
                 }
             }
@@ -2541,7 +2575,7 @@
         const sumaKomisuSzt = komisAkt.reduce((s, p) => s + (p.ilosc || 0), 0);
 
         const wiersz = (p) => {
-            const thumb = p.miniaturka_url ? `<img src="${p.miniaturka_url}" style="width:50px;height:50px;border-radius:6px;object-fit:cover;" crossorigin="anonymous">` : `<div style="width:50px;height:50px;border-radius:6px;background:#eee;display:inline-block;"></div>`;
+            const thumb = p.miniaturka_url ? `<img src="${p.miniaturka_url}" style="width:42px;height:42px;border-radius:6px;object-fit:cover;" crossorigin="anonymous">` : `<div style="width:42px;height:42px;border-radius:6px;background:#eee;display:inline-block;"></div>`;
             const cena = Number(p.cena_netto || 0).toFixed(0);
             const brutto = (Number(p.cena_netto || 0) * 1.23).toFixed(2);
             const wyprzedany = p.teraz === 0 && p.sprz > 0;
@@ -2554,7 +2588,7 @@
             if (p.sprz > 0)
                 zmiany.push(`<span style="color:#A32D2D;font-size:10px;font-weight:600;">−${p.sprz} sprzedano</span>`);
             return `<tr style="border-bottom:1px solid #eee;${wyprzedany ? 'background:#FFF9E6;' : ''}">
-      <td style="padding:8px 6px;vertical-align:top;">
+      <td style="padding:5px 6px;vertical-align:top;">
         <div style="font-weight:700;font-size:14px;">${
             p.teraz} × ${p.pojemnosc_ml}ml ${p.grafika || ''}${p.kolor ? ` (${p.kolor})` : ''}</div>
         <div style="font-size:10px;color:#888;margin-top:2px;">
@@ -2562,21 +2596,21 @@
             p.przed > 0 ? `Poprzedni stan: ${p.przed} szt. · ` : ''}${zmiany.join(' · ')}
         </div>
       </td>
-      <td style="padding:8px 6px;text-align:center;vertical-align:top;">${
+      <td style="padding:5px 6px;text-align:center;vertical-align:top;">${
 
             thumb}</td>
-      <td style="padding:8px 6px;text-align:right;font-weight:600;color:#1A1714;font-size:13px;white-space:nowrap;vertical-align:top;">
+      <td style="padding:5px 6px;text-align:right;font-weight:600;color:#1A1714;font-size:13px;white-space:nowrap;vertical-align:top;">
         ${
             cena} PLN<br><span style="color:#3B6D11;font-size:11px;font-weight:400;">${brutto} brutto</span>
       </td>
-      <td style="padding:8px 6px;text-align:center;font-weight:700;color:#3B6D11;font-size:14px;vertical-align:top;">${
+      <td style="padding:5px 6px;text-align:center;font-weight:700;color:#3B6D11;font-size:14px;vertical-align:top;">${
             p.sprz || ''}</td>
     </tr>`
             ;
         };
 
-        return `<div style="font-family:Arial,sans-serif;padding:20px;color:#1A1714;width:800px;background:white;">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;border-bottom:2px solid #C8502A;padding-bottom:12px;">
+        return `<div style="font-family:Arial,sans-serif;padding:14px 16px;color:#1A1714;width:800px;background:white;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;border-bottom:2px solid #C8502A;padding-bottom:10px;">
       <div>
         <div style="font-family:Georgia,serif;font-size:28px;color:#C8502A;font-weight:300;">Art<i>sider</i></div>
         <div style="font-size:11px;color:#666;margin-top:4px;">www.artsider.pl</div>
@@ -2588,8 +2622,8 @@
         artsider@artsider.pl
       </div>
     </div>
-    <div style="text-align:center;margin-bottom:20px;">
-      <div style="font-size:20px;font-weight:bold;margin-bottom:6px;">Nazwa: ${
+    <div style="text-align:center;margin-bottom:12px;">
+      <div style="font-size:18px;font-weight:bold;margin-bottom:4px;">Nazwa: ${
 
 
 
@@ -2603,16 +2637,16 @@
 
 
         klientNazwa}</div>
-      <div style="font-size:16px;">Potwierdzenie stanu kubków termicznych na dzień ${dataDo}</div>
+      <div style="font-size:14px;">Potwierdzenie stanu kubków termicznych na dzień ${dataDo}</div>
       <div style="font-size:11px;color:#888;margin-top:4px;">Zmiany od: ${dataOd}</div>
     </div>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+    <table style="width:100%;border-collapse:collapse;margin-bottom:14px;">
       <thead>
         <tr style="background:#F5F0E8;border-bottom:2px solid #C8502A;">
-          <th style="padding:8px 6px;text-align:left;font-size:12px;">Pozycja / Zmiany w okresie</th>
-          <th style="padding:8px 6px;text-align:center;font-size:12px;">Miniatura</th>
-          <th style="padding:8px 6px;text-align:right;font-size:12px;">Cena</th>
-          <th style="padding:8px 6px;text-align:center;font-size:12px;color:#3B6D11;">Sprzedano</th>
+          <th style="padding:6px 6px;text-align:left;font-size:12px;">Pozycja / Zmiany w okresie</th>
+          <th style="padding:6px 6px;text-align:center;font-size:12px;">Miniatura</th>
+          <th style="padding:6px 6px;text-align:right;font-size:12px;">Cena</th>
+          <th style="padding:6px 6px;text-align:center;font-size:12px;color:#3B6D11;">Sprzedano</th>
         </tr>
       </thead>
       <tbody>
@@ -2633,7 +2667,7 @@
     ${
 
         sprzedane.length > 0 ? `
-    <div style="background:#F5F0E8;border-radius:8px;padding:14px;margin-top:20px;">
+    <div style="background:#F5F0E8;border-radius:8px;padding:10px;margin-top:14px;">
       <div style="font-weight:bold;font-size:14px;margin-bottom:8px;">📊 Podsumowanie sprzedaży (${
         dataOd} → ${dataDo})</div>
       <div style="display:flex;justify-content:space-between;font-size:13px;">
@@ -2644,7 +2678,7 @@
       </div>
     </div>`
         : ''}
-    <div style="margin-top:24px;font-size:11px;color:#888;text-align:center;border-top:1px solid #eee;padding-top:12px;">
+    <div style="margin-top:16px;font-size:11px;color:#888;text-align:center;border-top:1px solid #eee;padding-top:10px;">
       Aktualnie w komisie: ${
         sumaKomisuSzt} szt. · Raport wygenerowany ${dataDo} z systemu Artsider
     </div>
@@ -2919,18 +2953,30 @@
             // Pokaż łączną liczbę w komisie
             const totalKomis = allKomis.reduce((s, k) => s + (k.ilosc || 0), 0);
             document.getElementById('stKomis').textContent = totalKomis || '—';
-            // Sortowanie: pojemność ASC, grafika ASC, ilość DESC
-            f.sort((a, b) => {
-                if (a.pojemnosc_ml !== b.pojemnosc_ml)
-                    return a.pojemnosc_ml - b.pojemnosc_ml;
-                const ga = (a.grafika || '').toLowerCase();
-                const gb = (b.grafika || '').toLowerCase();
-                if (ga !== gb)
-                    return ga.localeCompare(gb, 'pl');
-                const ia = activeMagTermiczne ? (a.stany.find(x => x.magazyn_id === activeMagTermiczne)?.ilosc_dostepna || 0) : a.ilosc_lacznie;
-                const ib = activeMagTermiczne ? (b.stany.find(x => x.magazyn_id === activeMagTermiczne)?.ilosc_dostepna || 0) : b.ilosc_lacznie;
-                return ib - ia;
-            });
+            // Sortowanie - jeśli wybrana data, sortuj po dacie ostatniej zmiany stanu
+            const dataMode = document.getElementById('tfData')?.value || '';
+            const zmiany = window.termZmiany || {};
+            if (dataMode === 'newest' || dataMode === 'oldest') {
+                f.sort((a, b) => {
+                    const da = zmiany[a.kubek_id] || '';
+                    const db = zmiany[b.kubek_id] || '';
+                    if (da === db)
+                        return (a.grafika || '').localeCompare(b.grafika || '', 'pl');
+                    return dataMode === 'newest' ? db.localeCompare(da) : da.localeCompare(db);
+                });
+            } else {
+                f.sort((a, b) => {
+                    if (a.pojemnosc_ml !== b.pojemnosc_ml)
+                        return a.pojemnosc_ml - b.pojemnosc_ml;
+                    const ga = (a.grafika || '').toLowerCase();
+                    const gb = (b.grafika || '').toLowerCase();
+                    if (ga !== gb)
+                        return ga.localeCompare(gb, 'pl');
+                    const ia = activeMagTermiczne ? (a.stany.find(x => x.magazyn_id === activeMagTermiczne)?.ilosc_dostepna || 0) : a.ilosc_lacznie;
+                    const ib = activeMagTermiczne ? (b.stany.find(x => x.magazyn_id === activeMagTermiczne)?.ilosc_dostepna || 0) : b.ilosc_lacznie;
+                    return ib - ia;
+                });
+            }
             renderKubki(f, 'listTermiczne', activeMagTermiczne, false, 'termiczny');
         }
         else if (scope === 'zamowienia') {
@@ -4974,6 +5020,27 @@
                         data_przekazania: new Date().toISOString().slice(0, 10),
                     })
                 });
+                // Odejmij ze stanu magazynowego termicznych
+                try {
+                    const stany = await sbFetch('stan_magazynowy_termiczne', `?kubek_id=eq.${k.kubek_id}&order=ilosc_dostepna.desc`);
+                    let pozostalo = k.ilosc;
+                    for (const s of stany) {
+                        if (pozostalo <= 0)
+                            break;
+                        const odejmij = Math.min(pozostalo, s.ilosc_dostepna || 0);
+                        if (odejmij > 0) {
+                            await sbFetch('stan_magazynowy_termiczne', `?kubek_id=eq.${k.kubek_id}&magazyn_id=eq.${s.magazyn_id}`, {
+                                method: 'PATCH',
+                                body: JSON.stringify({
+                                    ilosc_dostepna: Math.max(0, s.ilosc_dostepna - odejmij)
+                                })
+                            });
+                            pozostalo -= odejmij;
+                        }
+                    }
+                } catch (e) {
+                    console.warn('komis stock decrement:', e);
+                }
             }
 
             // Zapisz zamówienie tylko jeśli są pozycje sprzedażowe
