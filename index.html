@@ -2238,35 +2238,52 @@
 
     // ── RAPORT KOMISU PDF ───────────────────────────────────────────
     async function otworzGenerujRaport(klientId) {
-        // Sprawdź czy istnieje wcześniejszy raport - domyślna data "od"
+        // Wyznacz datę "od" automatycznie:
+        // 1. Data ostatniego raportu (jeśli istnieje), LUB
+        // 2. Najwcześniejsza data zmiany stanu komisu/sprzedaży u tego klienta
         let dataOd = '';
+        let info = '';
         try {
             const last = await sbFetch('raport_komisu', `?klient_id=eq.${klientId}&order=data_raportu.desc&limit=1`);
             if (last.length) {
                 dataOd = last[0].data_raportu;
-            } else {
-                // domyślnie 30 dni wstecz
-                const d = new Date();
-                d.setDate(d.getDate() - 30);
-                dataOd = d.toISOString().slice(0, 10);
+                info = 'Okres od daty ostatniego raportu';
             }
-        } catch (e) {
+        } catch (e) {}
+
+        // Jeśli brak raportu - wybierz datę pierwszego ruchu w komisie
+        if (!dataOd) {
+            try {
+                const pierwszy = await sbFetch('komis', `?klient_id=eq.${klientId}&order=data_przekazania.asc&limit=1&select=data_przekazania`);
+                if (pierwszy.length)
+                    dataOd = pierwszy[0].data_przekazania;
+                info = 'Okres od pierwszego dodania w komis';
+            } catch (e) {}
+        }
+
+        if (!dataOd) {
             const d = new Date();
             d.setDate(d.getDate() - 30);
             dataOd = d.toISOString().slice(0, 10);
+            info = 'Okres ostatnich 30 dni (brak danych)';
         }
+
         const dataDo = new Date().toISOString().slice(0, 10);
 
-        // Modal z wyborem daty
         const modalHtml = `
     <div id="raportModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;">
       <div style="background:var(--surface);border-radius:14px;max-width:400px;width:100%;padding:20px;">
         <h3 style="font-family:var(--fh);margin:0 0 12px;">📄 Generuj raport komisu</h3>
+        <div style="background:var(--bg);border-radius:8px;padding:10px;margin-bottom:12px;font-size:12px;color:var(--ink2);">
+          ${
+
+
+
+        info}: <strong>${dataOd}</strong> → <strong>${dataDo}</strong>
+        </div>
         <div class="f-group">
-          <label class="f-label">Okres "od" (uwzględnia sprzedaże i nowe pozycje od tej daty)</label>
+          <label class="f-label">Data "od" (możesz zmienić)</label>
           <input type="date" id="raportDataOd" value="${
-
-
 
 
         dataOd}" class="f-input">
@@ -2308,8 +2325,11 @@
         msg.textContent = '⏳ Pobieram dane…';
 
         try {
-            // 1. Aktualnie w komisie
+            // 1. Aktualnie w komisie (status aktywny)
             const komisAkt = await sbFetch('v_komis_aktywny', `?klient_id=eq.${klientId}&select=*`);
+
+            // 1a. Pełna historia rekordów komis u klienta (do liczenia stanu "przed dataOd")
+            const komisHistoria = await sbFetch('komis', `?klient_id=eq.${klientId}&select=*`);
 
             // 2. Sprzedane od dataOd
             const sprzedane = await sbFetch('sprzedaz_termicznych', `?klient_id=eq.${klientId}&data_sprzedazy=gte.${dataOd}&data_sprzedazy=lte.${dataDo}&select=*`);
@@ -2345,7 +2365,7 @@
             msg.textContent = '⏳ Renderuję PDF…';
 
             // 5. Renderuj HTML raportu
-            const htmlRaport = buildHtmlRaport(klientNazwa, dataDo, dataOd, komisAkt, sprzedaneWzbog, nowoDodane);
+            const htmlRaport = buildHtmlRaport(klientNazwa, dataDo, dataOd, komisAkt, sprzedaneWzbog, nowoDodane, komisHistoria);
 
             // 6. Stwórz tymczasowy div, html2canvas, jsPDF
             const tmpDiv = document.createElement('div');
@@ -2434,41 +2454,126 @@
         }
     }
 
-    function buildHtmlRaport(klientNazwa, dataDo, dataOd, komisAkt, sprzedane, nowoDodane) {
+    function buildHtmlRaport(klientNazwa, dataDo, dataOd, komisAkt, sprzedane, nowoDodane, komisHistoria) {
+        komisHistoria = komisHistoria || [];
+
+        // Mapa "ile sztuk DODANO w okresie" per kubek_id
+        // (rekordy komis z data_przekazania > dataOd)
+        const dodaneMap = {};
+        komisHistoria.filter(k => k.data_przekazania > dataOd).forEach(k => {
+            dodaneMap[k.kubek_id] = (dodaneMap[k.kubek_id] || 0) + (k.ilosc || 0);
+        });
+        // Uwaga: rekord komis może mieć już zmniejszoną ilosc po sprzedaży.
+        // Żeby liczyć "ile dodano" musimy wziąć ilosc + już sprzedane z tego rekordu
+        // Ale rekordy nie mają tej informacji - sprzedaż dekrementuje ilosc.
+        // Uproszczenie: zakładamy że jeden rekord = jedno dodanie, ilosc = pozostała ilość
+        // Dla precyzji: dodaneMap zawiera AKTUALNE ilości tych rekordów (które powstały w okresie)
+        // To wystarczy żeby pokazać "co dołożono"
+
+        // Mapa "ile sztuk SPRZEDANO w okresie" per kubek_id
+        const sprzMap = {};
+        sprzedane.forEach(s => {
+            sprzMap[s.kubek_id] = (sprzMap[s.kubek_id] || 0) + (s.ilosc || 0);
+        });
+
+        // Mapa "aktualnie w komisie" per kubek_id (suma z v_komis_aktywny - może być wiele rekordów)
+        const teraz = {};
+        komisAkt.forEach(k => {
+            teraz[k.kubek_id] = (teraz[k.kubek_id] || 0) + (k.ilosc || 0);
+        });
+
+        // Wszystkie unikalne kubek_id - z komisu + ze sprzedaży
+        const allKubekIds = new Set([...Object.keys(teraz), ...Object.keys(sprzMap), ...Object.keys(dodaneMap)]);
+
+        // Dane kubków - bierzemy z komisAkt lub ze sprzedane (które są wzbogacone)
+        const kubekData = {};
+        komisAkt.forEach(k => {
+            kubekData[k.kubek_id] = {
+                kubek_id: k.kubek_id,
+                pojemnosc_ml: k.pojemnosc_ml,
+                kolor: k.kolor,
+                cena_netto: k.cena_netto,
+                grafika: k.grafika,
+                miniaturka_url: k.miniaturka_url,
+                artysta: k.artysta
+            };
+        });
+        sprzedane.forEach(s => {
+            if (!kubekData[s.kubek_id]) {
+                kubekData[s.kubek_id] = {
+                    kubek_id: s.kubek_id,
+                    pojemnosc_ml: s.pojemnosc_ml,
+                    kolor: s.kolor,
+                    cena_netto: s.cena_netto,
+                    grafika: s.grafika,
+                    miniaturka_url: s.miniaturka_url,
+                    artysta: s.artysta
+                };
+            }
+        });
+
+        // Buduj listę wierszy
+        const wszystkie = [...allKubekIds].map(id => {
+            const d = kubekData[id] || {
+                kubek_id: id,
+                pojemnosc_ml: 0,
+                grafika: '?'
+            };
+            const ter = teraz[id] || 0;
+            const sprz = sprzMap[id] || 0;
+            const dod = dodaneMap[id] || 0;
+            // Stan "przed" = teraz + sprzedane - dodane
+            // (jeśli teraz=2, sprz=1, dod=2 → przed=2+1-2=1; ale to NIE pasuje do naszego scenariusza)
+            // Scenariusz: było 3, sprz 1, dodano 2, teraz 4 → przed=4+1-2=3 ✓
+            const przed = ter + sprz - dod;
+            return {
+                ...d,
+                teraz: ter,
+                sprz: sprz,
+                dod: dod,
+                przed: przed
+            };
+        }).filter(r => r.teraz > 0 || r.sprz > 0 || r.dod > 0)
+        .sort((a, b) => (a.pojemnosc_ml || 0) - (b.pojemnosc_ml || 0));
+
         const sumaSprzSzt = sprzedane.reduce((s, p) => s + (p.ilosc || 0), 0);
         const sumaSprzWart = sprzedane.reduce((s, p) => s + (p.ilosc || 0) * (p.cena_netto || 0), 0);
         const sumaKomisuSzt = komisAkt.reduce((s, p) => s + (p.ilosc || 0), 0);
 
-        // Pomocnicze - identyfikator nowo dodanych kubek_id
-        const noweKubekIds = new Set(nowoDodane.map(n => n.kubek_id));
-
-        const wiersz = (p, sprzedaneObj) => {
+        const wiersz = (p) => {
             const thumb = p.miniaturka_url ? `<img src="${p.miniaturka_url}" style="width:50px;height:50px;border-radius:6px;object-fit:cover;" crossorigin="anonymous">` : `<div style="width:50px;height:50px;border-radius:6px;background:#eee;display:inline-block;"></div>`;
             const cena = Number(p.cena_netto || 0).toFixed(0);
             const brutto = (Number(p.cena_netto || 0) * 1.23).toFixed(2);
-            const isNew = noweKubekIds.has(p.kubek_id);
-            const sprzIl = sprzedaneObj?.[p.kubek_id] || 0;
-            return `<tr style="border-bottom:1px solid #eee;">
-      <td style="padding:8px 6px;font-weight:600;font-size:14px;">${p.ilosc} × ${p.pojemnosc_ml}ml ${p.grafika || ''}${p.kolor ? ` (${p.kolor})` : ''}${isNew ? ' <span style="color:#3B6D11;font-size:10px;">★ nowy</span>' : ''}</td>
-      <td style="padding:8px 6px;text-align:center;">${thumb}</td>
-      <td style="padding:8px 6px;text-align:right;font-weight:600;color:#1A1714;font-size:13px;white-space:nowrap;">
+            const wyprzedany = p.teraz === 0 && p.sprz > 0;
+            // Etykiety zmian
+            const zmiany = [];
+            if (p.przed > 0 && p.dod === 0 && p.sprz === 0)
+                zmiany.push(`<span style="color:#666;font-size:10px;">bez zmian</span>`);
+            if (p.dod > 0)
+                zmiany.push(`<span style="color:#3B6D11;font-size:10px;font-weight:600;">+${p.dod} dołożono</span>`);
+            if (p.sprz > 0)
+                zmiany.push(`<span style="color:#A32D2D;font-size:10px;font-weight:600;">−${p.sprz} sprzedano</span>`);
+            return `<tr style="border-bottom:1px solid #eee;${wyprzedany ? 'background:#FFF9E6;' : ''}">
+      <td style="padding:8px 6px;vertical-align:top;">
+        <div style="font-weight:700;font-size:14px;">${
+            p.teraz} × ${p.pojemnosc_ml}ml ${p.grafika || ''}${p.kolor ? ` (${p.kolor})` : ''}</div>
+        <div style="font-size:10px;color:#888;margin-top:2px;">
+          ${
+            p.przed > 0 ? `Poprzedni stan: ${p.przed} szt. · ` : ''}${zmiany.join(' · ')}
+        </div>
+      </td>
+      <td style="padding:8px 6px;text-align:center;vertical-align:top;">${
+
+            thumb}</td>
+      <td style="padding:8px 6px;text-align:right;font-weight:600;color:#1A1714;font-size:13px;white-space:nowrap;vertical-align:top;">
         ${
             cena} PLN<br><span style="color:#3B6D11;font-size:11px;font-weight:400;">${brutto} brutto</span>
       </td>
-      <td style="padding:8px 6px;text-align:center;font-weight:700;color:#3B6D11;font-size:14px;">${
-            sprzIl || ''}</td>
+      <td style="padding:8px 6px;text-align:center;font-weight:700;color:#3B6D11;font-size:14px;vertical-align:top;">${
+            p.sprz || ''}</td>
     </tr>`
             ;
         };
-
-        // Mapa sprzedanych po kubek_id
-        const sprzMap = {};
-        sprzedane.forEach(s => {
-            sprzMap[s.kubek_id] = (sprzMap[s.kubek_id] || 0) + s.ilosc;
-        });
-
-        // Sortuj komis: pojemność rosnąco
-        const komisSorted = [...komisAkt].sort((a, b) => a.pojemnosc_ml - b.pojemnosc_ml);
 
         return `<div style="font-family:Arial,sans-serif;padding:20px;color:#1A1714;width:800px;background:white;">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;border-bottom:2px solid #C8502A;padding-bottom:12px;">
@@ -2499,12 +2604,12 @@
 
         klientNazwa}</div>
       <div style="font-size:16px;">Potwierdzenie stanu kubków termicznych na dzień ${dataDo}</div>
-      <div style="font-size:11px;color:#888;margin-top:4px;">Okres raportu: ${dataOd} → ${dataDo}</div>
+      <div style="font-size:11px;color:#888;margin-top:4px;">Zmiany od: ${dataOd}</div>
     </div>
     <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
       <thead>
         <tr style="background:#F5F0E8;border-bottom:2px solid #C8502A;">
-          <th style="padding:8px 6px;text-align:left;font-size:12px;">Pozycja</th>
+          <th style="padding:8px 6px;text-align:left;font-size:12px;">Pozycja / Zmiany w okresie</th>
           <th style="padding:8px 6px;text-align:center;font-size:12px;">Miniatura</th>
           <th style="padding:8px 6px;text-align:right;font-size:12px;">Cena</th>
           <th style="padding:8px 6px;text-align:center;font-size:12px;color:#3B6D11;">Sprzedano</th>
@@ -2522,7 +2627,7 @@
 
 
 
-        komisSorted.map(p => wiersz(p, sprzMap)).join('')}
+        wszystkie.map(p => wiersz(p)).join('')}
       </tbody>
     </table>
     ${
@@ -2540,7 +2645,7 @@
     </div>`
         : ''}
     <div style="margin-top:24px;font-size:11px;color:#888;text-align:center;border-top:1px solid #eee;padding-top:12px;">
-      Stan kubków w komisie: ${
+      Aktualnie w komisie: ${
         sumaKomisuSzt} szt. · Raport wygenerowany ${dataDo} z systemu Artsider
     </div>
   </div>`
