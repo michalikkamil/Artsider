@@ -1966,10 +1966,38 @@
                             thumbMap[k.id] = k.grafika.miniaturka_url;
                     });
                 } catch (e) {}
-                hist.forEach(h => {
-                    if (h.kubek_termiczny_id)
-                        h.miniaturka_url = thumbMap[h.kubek_termiczny_id] || null;
-                });
+                // Dociągnij aktualny stan mag+kom per kubek termiczny
+                try {
+                    const stany = await sbFetch('v_stan_termicznych', '?select=kubek_id,ilosc_dostepna,magazyn_id');
+                    const komisAkt = await sbFetch('komis', '?status=eq.aktywny&select=kubek_id,ilosc');
+                    // Agreguj mag per kubek
+                    const magMap = {};
+                    stany.forEach(s => {
+                        magMap[s.kubek_id] = (magMap[s.kubek_id] || 0) + (s.ilosc_dostepna || 0);
+                    });
+                    const komMap = {};
+                    komisAkt.forEach(k => {
+                        komMap[k.kubek_id] = (komMap[k.kubek_id] || 0) + (k.ilosc || 0);
+                    });
+                    // Przelicz sprzedano na żywo
+                    hist.forEach(h => {
+                        if (h.kubek_termiczny_id) {
+                            h.miniaturka_url = thumbMap[h.kubek_termiczny_id] || null;
+                            const mag = magMap[h.kubek_termiczny_id] || 0;
+                            const kom = komMap[h.kubek_termiczny_id] || 0;
+                            // Korekta zamówiono jeśli < mag+kom
+                            if ((h.zamowiono_lacznie || 0) < mag + kom)
+                                h.zamowiono_lacznie = mag + kom;
+                            h.sprzedano_lacznie = Math.max(0, (h.zamowiono_lacznie || 0) - mag - kom);
+                        }
+                    });
+                } catch (e) {
+                    // Fallback - użyj danych z importu
+                    hist.forEach(h => {
+                        if (h.kubek_termiczny_id)
+                            h.miniaturka_url = thumbMap[h.kubek_termiczny_id] || null;
+                    });
+                }
             }
 
             // Pobierz dane o aktualnym stanie (zlecone + magazyn) do korekty
@@ -1988,6 +2016,19 @@
             ? await sbFetch('cennik_papierowe', '?select=*')
             : await sbFetch('cennik_termiczne', '?select=*');
 
+            // Dla termicznych: ceny per kubek (dokładniejsze niż cennik)
+            let termCenaMap = null;
+            if (typ === 'termiczne') {
+                try {
+                    const kt = await sbFetch('kubek_termiczny', '?select=id,cena_netto');
+                    termCenaMap = {};
+                    kt.forEach(k => {
+                        if (k.cena_netto)
+                            termCenaMap[k.id] = k.cena_netto;
+                    });
+                } catch (e) {}
+            }
+
             // Mapa cennikowa
             const cenaMap = {};
             cennik.forEach(c => {
@@ -2005,15 +2046,22 @@
                 if (typ === 'papierowe') {
                     cena = cenaMap[`${h.pojemnosc_ml}_${h.typ_materialu}_${h.typ_scianki}`] || 0;
                 } else {
-                    cena = cenaMap[h.pojemnosc_ml] || 0;
+                    // Termiczne: spróbuj cenę z kubka, fallback na cennik
+                    if (h.kubek_termiczny_id && termCenaMap && termCenaMap[h.kubek_termiczny_id]) {
+                        cena = termCenaMap[h.kubek_termiczny_id];
+                    } else {
+                        cena = cenaMap[h.pojemnosc_ml] || 0;
+                    }
                 }
                 return {
                     ...h,
                     cena_netto: cena,
                     przychod_zamow: (h.zamowiono_lacznie || 0) * cena,
                     przychod_sprzed: (h.sprzedano_lacznie || 0) * cena,
+
                 };
             });
+            // Dla termicznych: kubek_termiczny ma cena_netto bezpośrednio
 
             // Unikalne wartości do filtrów
             const artysci = [...new Set(data.map(d => d.artysta).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pl'));
