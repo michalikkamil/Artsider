@@ -1204,7 +1204,6 @@
             <button class="nav-tab active" onclick="showPage('kubki',this)">☕ Kubki</button>
             <button class="nav-tab" onclick="showPage('przykrywki',this)">🫗 Wieczka</button>
             <button class="nav-tab" onclick="showPage('termiczne',this)">🌡 Termiczne</button>
-            <button class="nav-tab" onclick="showPage('zamowienia',this)">📦 Zamówienia</button>
             <button class="nav-tab" onclick="showPage('cennik',this)">💰 Cennik</button>
             <button class="nav-tab" onclick="showPage('artysci',this)">🎨 Artyści</button>
             <button class="nav-tab" onclick="showPage('dodaj',this)">+ Dodaj</button>
@@ -1973,6 +1972,17 @@
                 });
             }
 
+            // Pobierz dane o aktualnym stanie (zlecone + magazyn) do korekty
+            let korekta_zlecone = 0,
+                korekta_magazyn = 0;
+            if (typ === 'papierowe') {
+                try {
+                    const artysci = await sbFetch('v_artysta', '?select=papierowe_zlecone,papierowe_w_magazynie');
+                    korekta_zlecone = artysci.reduce((s, a) => s + (a.papierowe_zlecone || 0), 0);
+                    korekta_magazyn = artysci.reduce((s, a) => s + (a.papierowe_w_magazynie || 0), 0);
+                } catch (e) {}
+            }
+
             // Pobierz cennik
             const cennik = typ === 'papierowe'
             ? await sbFetch('cennik_papierowe', '?select=*')
@@ -2020,6 +2030,15 @@
       
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
         <select id="${
+
+            sfx}FY" onchange="applyStatsFilter('${typ}','${listId}')" class="dark-select" style="flex:0 0 80px;">
+          <option value="">Rok</option>
+          <option value="2025">2025</option>
+          <option value="2026">2026</option>
+        </select>
+        <select id="${
+
+
 
             sfx}FA" onchange="applyStatsFilter('${typ}','${listId}')" class="dark-select" style="flex:1;min-width:100px;">
           <option value="">Wszyscy artyści</option>
@@ -2072,6 +2091,10 @@
 
             // Zapisz dane w window dla filtrowania
             window['_statsData_' + typ] = data;
+            window['_statsKorekta_' + typ] = {
+                zlecone: korekta_zlecone,
+                magazyn: korekta_magazyn
+            };
 
             // Pierwsze renderowanie
             applyStatsFilter(typ, listId);
@@ -2108,10 +2131,19 @@
                 filtered = filtered.filter(d => d.grafika === fG);
         }
 
-        // Sumy
-        const sumZamow = filtered.reduce((s, d) => s + (d.zamowiono_lacznie || 0), 0);
-        const sumSprzed = filtered.reduce((s, d) => s + (d.sprzedano_lacznie || 0), 0);
-        const sumPrzychod = filtered.reduce((s, d) => s + (d.przychod_sprzed || 0), 0);
+        // Sumy z korektą dla papierowych
+        const kor = window['_statsKorekta_' + typ] || {
+            zlecone: 0,
+            magazyn: 0
+        };
+        const rawZamow = filtered.reduce((s, d) => s + (d.zamowiono_lacznie || 0), 0);
+        const rawSprzed = filtered.reduce((s, d) => s + (d.sprzedano_lacznie || 0), 0);
+        const rawPrzychod = filtered.reduce((s, d) => s + (d.przychod_sprzed || 0), 0);
+        // Dla papierowych: zamówiono = raw - zlecone (bo CSV zawiera zlecone), sprzedano = zamówiono - magazyn
+        const isAllFilters = !fA && !fP && (typ !== 'papierowe' || (!document.getElementById('spFM')?.value && !document.getElementById('spFS')?.value)) && (typ !== 'termiczne' || !document.getElementById('stFG')?.value);
+        const sumZamow = typ === 'papierowe' && isAllFilters ? rawZamow - kor.zlecone : rawZamow;
+        const sumSprzed = typ === 'papierowe' && isAllFilters ? Math.max(0, rawZamow - kor.zlecone - kor.magazyn) : rawSprzed;
+        const sumPrzychod = rawPrzychod;
 
         // Kafelki
         document.getElementById(sfx + 'Summary').innerHTML = `
