@@ -1957,6 +1957,22 @@
             // Pobierz dane historyczne
             const hist = await sbFetch('statystyki_historyczne', `?typ=eq.${typ}&select=*`);
 
+            // Dla termicznych: dociągnij miniaturki z kubek_termiczny
+            let thumbMap = {};
+            if (typ === 'termiczne') {
+                try {
+                    const kt = await sbFetch('kubek_termiczny', '?select=id,grafika(miniaturka_url)');
+                    kt.forEach(k => {
+                        if (k.grafika?.miniaturka_url)
+                            thumbMap[k.id] = k.grafika.miniaturka_url;
+                    });
+                } catch (e) {}
+                hist.forEach(h => {
+                    if (h.kubek_termiczny_id)
+                        h.miniaturka_url = thumbMap[h.kubek_termiczny_id] || null;
+                });
+            }
+
             // Pobierz cennik
             const cennik = typ === 'papierowe'
             ? await sbFetch('cennik_papierowe', '?select=*')
@@ -2153,7 +2169,7 @@
 
 
 
-        rows.map(d => {const typLabel = isPap ? ((d.typ_scianki === 'dwuściankowy' ? 'DW' : d.typ_scianki === 'jednościankowy' ? 'SW' : '?') + ' ' + (d.typ_materialu || '')) : (d.grafika || '—') + (d.kolor ? ' (' + d.kolor + ')' : '');return '<tr style="border-bottom:1px solid var(--bg2);">' + '<td style="padding:5px 6px;">' + d.artysta + '</td>' + '<td style="padding:5px 6px;">' + typLabel + '</td>' + '<td style="padding:5px 6px;text-align:right;">' + d.pojemnosc_ml + 'ml</td>' + '<td style="padding:5px 6px;text-align:right;">' + (d.zamowiono_lacznie || 0).toLocaleString('pl') + '</td>' + '<td style="padding:5px 6px;text-align:right;color:#9C2F50;font-weight:600;">' + (d.sprzedano_lacznie || 0).toLocaleString('pl') + '</td>' + '<td style="padding:5px 6px;text-align:right;color:#3B6D11;">' + (d.przychod_sprzed || 0).toLocaleString('pl', {minimumFractionDigits: 0,maximumFractionDigits: 0}) + ' zł</td>' + '</tr>';}).join('')}
+        rows.map(d => {const typLabel = isPap ? ((d.typ_scianki === 'dwuściankowy' ? 'DW' : d.typ_scianki === 'jednościankowy' ? 'SW' : '?') + ' ' + (d.typ_materialu || '')) : (d.grafika || '—') + (d.kolor ? ' (' + d.kolor + ')' : '');const thumb = d.miniaturka_url ? '<img src="' + d.miniaturka_url + '" style="width:28px;height:28px;border-radius:4px;object-fit:cover;vertical-align:middle;margin-right:4px;">' : '';return '<tr style="border-bottom:1px solid var(--bg2);">' + '<td style="padding:5px 6px;">' + d.artysta + '</td>' + '<td style="padding:5px 6px;">' + thumb + typLabel + '</td>' + '<td style="padding:5px 6px;text-align:right;">' + d.pojemnosc_ml + 'ml</td>' + '<td style="padding:5px 6px;text-align:right;">' + (d.zamowiono_lacznie || 0).toLocaleString('pl') + '</td>' + '<td style="padding:5px 6px;text-align:right;color:#9C2F50;font-weight:600;">' + (d.sprzedano_lacznie || 0).toLocaleString('pl') + '</td>' + '<td style="padding:5px 6px;text-align:right;color:#3B6D11;">' + (d.przychod_sprzed || 0).toLocaleString('pl', {minimumFractionDigits: 0,maximumFractionDigits: 0}) + ' zł</td>' + '</tr>';}).join('')}
       </tbody>
     </table>
     <div style="font-size:11px;color:var(--ink3);margin-top:6px;">${
@@ -2219,6 +2235,15 @@
                 selectMag(this, scope);
             };
             wrap.appendChild(btnW);
+            const btnSK = document.createElement('button');
+            btnSK.className = 'mag-tab';
+            btnSK.dataset.mag = 'stats';
+            btnSK.dataset.typ = 'stats';
+            btnSK.textContent = '📊 Stats';
+            btnSK.onclick = function() {
+                selectMag(this, scope);
+            };
+            wrap.appendChild(btnSK);
         } else if (scope === 'przykrywki') {
             wrap.innerHTML = '';
             const kolejnoscP = ['Kraków', 'Sącz', 'Biecz'];
