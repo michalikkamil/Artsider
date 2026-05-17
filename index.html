@@ -873,6 +873,24 @@
         letter-spacing: .04em;
     }
 
+    .astat-mini {
+        padding: 4px 6px !important;
+    }
+
+    .astat-val-mini {
+        font-family: var(--fh);
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .astat-lbl-mini {
+        font-size: 8px;
+        color: var(--ink3);
+        text-transform: uppercase;
+        letter-spacing: .03em;
+        margin-top: 1px;
+    }
+
     .astat.highlight {
         background: #FEF0EB;
     }/* KOMIS CARDS */
@@ -3449,38 +3467,59 @@
             list.innerHTML = `<div class="state-msg"><span class="big">🎨</span>Brak artystów.</div>`;
             return;
         }
-        list.innerHTML = artysci.map(a => `
+        list.innerHTML = artysci.map(a => {
+            const wyplacono = Number(a.wyplacono_historia || a.wyplacono_lacznie || 0);
+            const naliczone = Number(a.prowizje_naliczone || 0);
+            const nalezne = naliczone - wyplacono;
+            const nalezneColor = nalezne < 0 ? '#A32D2D' : 'var(--accent)';
+            return `
     <div class="artysta-card" onclick="openKartaArtysty('${a.id}')" style="cursor:pointer;">
       <div class="artysta-top">
         <div>
           <div class="artysta-name">${
 
-        a.imie_nazwisko}</div>
-          <div class="artysta-meta">Pap: ${Number(a.prowizja_papierowe || 0).toFixed(3)} zł · Term: ${Number(a.prowizja_termiczne || 0).toFixed(2)} zł</div>
-          <div class="artysta-meta">Wypłacono: ${Number(a.wyplacono_lacznie).toFixed(2)} zł</div>
+            a.imie_nazwisko}</div>
+          <div class="artysta-meta">Wypłacono: ${wyplacono.toFixed(2)} zł</div>
         </div>
         <div>
-          <div class="artysta-nalezne">${
+          <div class="artysta-nalezne" style="color:${
 
-        Math.max(0, Number(a.prowizje_naliczone) - Number(a.wyplacono_historia || a.wyplacono_lacznie || 0)).toFixed(2)} zł</div>
+            nalezneColor};">${nalezne.toFixed(2)} zł</div>
           <div class="artysta-nalezne-lbl">należne</div>
         </div>
       </div>
-      <div class="artysta-stats">
-        <div class="astat"><div class="astat-val">${
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <div style="flex:1;background:#FBE9EE;border:1px solid #F0B5C8;border-radius:8px;padding:8px 10px;text-align:center;">
+          <div style="font-family:var(--fh);font-size:20px;font-weight:700;color:#9C2F50;">${
 
 
 
-        Number(a.papierowe_w_magazynie).toLocaleString('pl')}</div><div class="astat-lbl">Pap. w mag.</div></div>
-        <div class="astat"><div class="astat-val">${Number(a.papierowe_zlecone).toLocaleString('pl')}</div><div class="astat-lbl">Pap. zlecone</div></div>
-        <div class="astat"><div class="astat-val">${Number(a.papierowe_sprzedane).toLocaleString('pl')}</div><div class="astat-lbl">Pap. sprzedane</div></div>
-        <div class="astat highlight"><div class="astat-val">${Number(a.termiczne_w_magazynie).toLocaleString('pl')}</div><div class="astat-lbl">Term. w mag.</div></div>
-        <div class="astat highlight"><div class="astat-val">${Number(a.termiczne_w_komisie).toLocaleString('pl')}</div><div class="astat-lbl">Term. komis</div></div>
-        <div class="astat highlight"><div class="astat-val">${Number(a.termiczne_sprzedane).toLocaleString('pl')}</div><div class="astat-lbl">Term. sprzed.</div></div>
+
+            Number(a.papierowe_sprzedane || 0).toLocaleString('pl')}</div>
+          <div style="font-size:10px;color:#9C2F50;text-transform:uppercase;letter-spacing:.04em;font-weight:600;">Pap. sprzedane</div>
+        </div>
+        <div style="flex:1;background:#FBE9EE;border:1px solid #F0B5C8;border-radius:8px;padding:8px 10px;text-align:center;">
+          <div style="font-family:var(--fh);font-size:20px;font-weight:700;color:#9C2F50;">${
+
+
+            Number(a.termiczne_sprzedane || 0).toLocaleString('pl')}</div>
+          <div style="font-size:10px;color:#9C2F50;text-transform:uppercase;letter-spacing:.04em;font-weight:600;">Term. sprzedane</div>
+        </div>
+      </div>
+      <div class="artysta-stats" style="margin-top:6px;">
+        <div class="astat astat-mini"><div class="astat-val-mini">${
+
+
+
+            Number(a.papierowe_w_magazynie || 0).toLocaleString('pl')}</div><div class="astat-lbl-mini">Pap. mag.</div></div>
+        <div class="astat astat-mini"><div class="astat-val-mini">${Number(a.papierowe_zlecone || 0).toLocaleString('pl')}</div><div class="astat-lbl-mini">Pap. zlec.</div></div>
+        <div class="astat astat-mini"><div class="astat-val-mini">${Number(a.termiczne_w_magazynie || 0).toLocaleString('pl')}</div><div class="astat-lbl-mini">Term. mag.</div></div>
+        <div class="astat astat-mini"><div class="astat-val-mini">${Number(a.termiczne_w_komisie || 0).toLocaleString('pl')}</div><div class="astat-lbl-mini">Term. kom.</div></div>
       </div>
     </div>`
 
-        ).join('');
+            ;
+        }).join('');
     }
 
     async function dodajArtyste() {
@@ -5925,7 +5964,8 @@
 
             const wyplaconoH = Number(a.wyplacono_historia || 0);
             const naliczone = Number(a.prowizje_naliczone || 0);
-            const nalezneCalc = Math.max(0, naliczone - wyplaconoH);
+            const nalezneCalc = naliczone - wyplaconoH;
+            const nalezneColor = nalezneCalc < 0 ? '#A32D2D' : 'var(--accent)';
             document.getElementById('drawerContent').innerHTML = `
       <div class="drawer-handle"></div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;">
@@ -5947,12 +5987,12 @@
       <div class="d-row"><span class="d-key">Prowizja term. naliczona</span><span class="d-val">${Number(a.prowizja_termiczne_naliczona || 0).toFixed(2)} zł (${a.termiczne_sprzedane} szt.)</span></div>
       <div class="d-row"><span class="d-key">Łącznie naliczone</span><span class="d-val">${naliczone.toFixed(2)} zł</span></div>
       <div class="d-row"><span class="d-key">Wypłacono</span><span class="d-val">${wyplaconoH.toFixed(2)} zł</span></div>
-      <div class="d-row" style="font-weight:600;"><span class="d-key">Należne</span><span class="d-val acc">${nalezneCalc.toFixed(2)} zł</span></div>
+      <div class="d-row" style="font-weight:600;"><span class="d-key">Należne</span><span class="d-val" style="color:${nalezneColor};font-weight:600;">${nalezneCalc.toFixed(2)} zł</span></div>
 
       <div class="d-section">Historia wypłat</div>
       <div id="wyplatyList">⏳</div>
       <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
-        <div class="f-group" style="flex:1;min-width:100px;margin-bottom:0;"><label class="f-label">Kwota (zł)</label><input class="f-input" id="wyplataKwota" type="number" step="0.01" min="0" placeholder="np. 150.00"></div>
+        <div class="f-group" style="flex:1;min-width:100px;margin-bottom:0;"><label class="f-label">Kwota (zł)</label><input class="f-input" id="wyplataKwota" type="number" step="0.01" placeholder="np. 150.00 lub -50.00"></div>
         <div class="f-group" style="flex:1;min-width:100px;margin-bottom:0;"><label class="f-label">Data</label><input class="f-input" id="wyplataData" type="date" value="${
 
 
@@ -5973,9 +6013,9 @@
     `
             ;
             document.getElementById('overlay').classList.add('open');
-            // Załaduj historię wypłat
-            zaladujWyplaty('${a.id}');
             document.getElementById('drawer').classList.add('open');
+            // Załaduj historię wypłat
+            zaladujWyplaty(artId);
         } catch (e) {
             alert('Błąd: ' + e.message);
         }
@@ -5989,11 +6029,11 @@
         artId}')">← Wróć</button>
     <div class="drawer-title">Edytuj artystę</div>
     <div class="f-group"><label class="f-label">Imię i nazwisko</label><input class="f-input" id="eaImie" value="${
-        a.imie_nazwisko || ''}"></div>
-    <div class="f-row">
-      <div class="f-group"><label class="f-label">Prowizja papierowe (zł/szt.)</label><input class="f-input" id="eaProw" type="number" step="0.001" value="${
-        a.prowizja_papierowe || 0.008}"></div>
-      <div class="f-group"><label class="f-label">Prowizja termiczne (zł/szt.)</label><input class="f-input" id="eaProwTerm" type="number" step="0.01" value="${a.prowizja_termiczne || 0.80}"></div>
+        a.imie_nazwisko || ''}" style="font-size:16px;"></div>
+    <div style="display:flex;gap:8px;align-items:flex-end;">
+      <div class="f-group" style="flex:0 0 110px;margin-bottom:0;"><label class="f-label" style="font-size:10px;">Prow. pap. zł/szt.</label><input class="f-input" id="eaProw" type="number" step="0.001" value="${
+        a.prowizja_papierowe || 0.008}" style="font-size:12px;padding:6px;"></div>
+      <div class="f-group" style="flex:0 0 110px;margin-bottom:0;"><label class="f-label" style="font-size:10px;">Prow. term. zł/szt.</label><input class="f-input" id="eaProwTerm" type="number" step="0.01" value="${a.prowizja_termiczne || 0.80}" style="font-size:12px;padding:6px;"></div>
     </div>
     <div class="d-section">Korekty sprzedaży (dane historyczne)</div>
     <div class="f-row">
@@ -7300,29 +7340,30 @@
                 wrap.innerHTML = '<div style="color:var(--ink3);font-size:12px;padding:6px 0;">Brak historii wypłat.</div>';
                 return;
             }
-            wrap.innerHTML = wyplaty.map(w => `
-      <div class="d-row">
-        <span class="d-key">${
-            w.data}${w.notatka ? ' · ' + w.notatka : ''}</span>
-        <span class="d-val acc">${Number(w.kwota).toFixed(2)} zł
+            wrap.innerHTML = wyplaty.map(w => {
+                const kw = Number(w.kwota);
+                const kolor = kw < 0 ? '#A32D2D' : 'var(--accent)';
+                return `<div class="d-row">
+        <span class="d-key">${w.data}${w.notatka ? ' · ' + w.notatka : ''}</span>
+        <span class="d-val" style="color:${kolor};font-weight:600;">${kw.toFixed(2)} zł
           <button onclick="usunWyplate('${artId}','${w.id}')" style="background:none;border:none;cursor:pointer;color:var(--ink3);font-size:11px;margin-left:8px;">✕</button>
         </span>
       </div>`
 
-            ).join('');
+                ;
+            }).join('');
         } catch (e) {
             wrap.innerHTML = '<div style="color:var(--ink3);font-size:12px;padding:6px 0;">Brak historii wypłat.</div>';
         }
     }
 
     async function dodajWyplate(artId) {
-        const kwota = parseFloat(document.getElementById('wyplataKwota')?.value) || 0;
+        const kwota = parseFloat(document.getElementById('wyplataKwota')?.value);
         const data = document.getElementById('wyplataData')?.value || new Date().toISOString().slice(0, 10);
-        const notatka = null;
         const msg = document.getElementById('wyplataMsg');
-        if (kwota <= 0) {
+        if (!kwota || isNaN(kwota)) {
             msg.className = 'f-msg err';
-            msg.textContent = 'Wpisz kwotę wypłaty.';
+            msg.textContent = 'Wpisz kwotę wypłaty (dodatnią lub ujemną).';
             return;
         }
         try {
@@ -7332,7 +7373,7 @@
                     artysta_id: artId,
                     kwota,
                     data,
-                    notatka
+                    notatka: null
                 })
             });
             // Aktualizuj wyplacono_lacznie w artysta
@@ -7344,17 +7385,14 @@
                 })
             });
             msg.className = 'f-msg ok';
-            msg.textContent = `✓ Dodano wypłatę ${kwota.toFixed(2)} zł`;
-            const k = document.getElementById('wyplataKwota');
-            if (k)
-                k.value = '';
-            const n = document.getElementById('wyplataNotatka');
-            if (n)
-                n.value = '';
-            zaladujWyplaty(artId);
-            loadArtysci();
+            msg.textContent = `✓ Dodano ${kwota.toFixed(2)} zł`;
+            // Odśwież cały drawer (zaktualizuje sumę i historię)
+            setTimeout(() => {
+                openKartaArtysty(artId);
+                loadArtysci();
+            }, 400);
         } catch (e) {
-            console.error('zapiszZamowienie:', e);
+            console.error('dodajWyplate:', e);
             msg.className = 'f-msg err';
             msg.textContent = 'Błąd zapisu: ' + (e.message || e);
         }
@@ -7372,10 +7410,10 @@
             await sbFetch('artysta', `?id=eq.${artId}`, {
                 method: 'PATCH',
                 body: JSON.stringify({
-                    wyplacono_lacznie: Math.max(0, (a.wyplacono_lacznie || 0) - w.kwota)
+                    wyplacono_lacznie: (a.wyplacono_lacznie || 0) - w.kwota
                 })
             });
-            zaladujWyplaty(artId);
+            openKartaArtysty(artId);
             loadArtysci();
         } catch (e) {
             alert('Błąd: ' + e.message);
