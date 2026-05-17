@@ -1951,223 +1951,101 @@
     // ── STATYSTYKI ──────────────────────────────────────────────────
     async function renderStats(typ, listId) {
         const list = document.getElementById(listId);
-        list.innerHTML = '<div style="padding:16px;"><div style="color:var(--ink3);font-size:12px;">⏳ Ładowanie statystyk…</div></div>';
+        list.innerHTML = '<div style="padding:16px;color:var(--ink3);font-size:12px;">⏳ Ładowanie statystyk…</div>';
 
         try {
-            // Historyczne
+            // Pobierz dane historyczne
             const hist = await sbFetch('statystyki_historyczne', `?typ=eq.${typ}&select=*`);
 
-            // Live data - sprzedaż z zamówień (papierowe) lub sprzedaz_termicznych (termiczne)
-            let live = [];
-            if (typ === 'papierowe') {
-                try {
-                    const poz = await sbFetch('v_pozycje_zamowienia', '?rodzaj_produktu=eq.kubek&select=ilosc,pojemnosc_ml,typ_materialu,typ_scianki,artysta,wartosc');
-                    live = poz.map(p => ({
-                        artysta: p.artysta || '—',
-                        pojemnosc_ml: p.pojemnosc_ml,
-                        typ_materialu: p.typ_materialu,
-                        typ_scianki: p.typ_scianki,
-                        ilosc: p.ilosc || 0,
-                        wartosc: p.wartosc || 0
-                    }));
-                } catch (e) {}
-            } else {
-                try {
-                    const sp = await sbFetch('sprzedaz_termicznych', '?select=kubek_id,ilosc,cena_netto,data_sprzedazy');
-                    // Wzbogać o dane kubków
-                    const ids = [...new Set(sp.map(s => s.kubek_id))];
-                    let kubekMap = {};
-                    if (ids.length) {
-                        const kubki = await sbFetch('kubek_termiczny', `?id=in.(${ids.map(i => '"' + i + '"').join(',')}')&select=id,pojemnosc_ml,kolor,grafika(nazwa,artysta(imie_nazwisko))`);
-                        kubki.forEach(k => {
-                            kubekMap[k.id] = {
-                                grafika: k.grafika?.nazwa,
-                                artysta: k.grafika?.artysta?.imie_nazwisko,
-                                pojemnosc_ml: k.pojemnosc_ml,
-                                kolor: k.kolor
-                            };
-                        });
-                    }
-                    live = sp.map(s => ({
-                        ...kubekMap[s.kubek_id] || {},
-                        ilosc: s.ilosc || 0,
-                        wartosc: (s.ilosc || 0) * (s.cena_netto || 0),
-                        data: s.data_sprzedazy
-                    }));
-                } catch (e) {}
-            }
+            // Pobierz cennik
+            const cennik = typ === 'papierowe'
+            ? await sbFetch('cennik_papierowe', '?select=*')
+            : await sbFetch('cennik_termiczne', '?select=*');
 
-            // Agregacja: hist + live per artysta
-            const byArtysta = {};
-            const byPojemnosc = {};
-            let totalZamow = 0,
-                totalSprzed = 0,
-                totalLiveIl = 0,
-                totalLiveWart = 0;
-
-            hist.forEach(h => {
-                const a = h.artysta || '—';
-                if (!byArtysta[a])
-                    byArtysta[a] = {
-                        zamow: 0,
-                        sprzed: 0,
-                        liveIl: 0,
-                        liveWart: 0
-                    };
-                byArtysta[a].zamow += (h.zamowiono_lacznie || 0);
-                byArtysta[a].sprzed += (h.sprzedano_lacznie || 0);
-                totalZamow += (h.zamowiono_lacznie || 0);
-                totalSprzed += (h.sprzedano_lacznie || 0);
-                const p = h.pojemnosc_ml || 0;
-                if (p) {
-                    if (!byPojemnosc[p])
-                        byPojemnosc[p] = {
-                            zamow: 0,
-                            sprzed: 0,
-                            liveIl: 0,
-                            liveWart: 0
-                        };
-                    byPojemnosc[p].zamow += (h.zamowiono_lacznie || 0);
-                    byPojemnosc[p].sprzed += (h.sprzedano_lacznie || 0);
+            // Mapa cennikowa
+            const cenaMap = {};
+            cennik.forEach(c => {
+                if (typ === 'papierowe') {
+                    const key = `${c.pojemnosc_ml}_${c.typ_materialu}_${c.typ_scianki}`;
+                    cenaMap[key] = c.cena_netto;
+                } else {
+                    cenaMap[c.pojemnosc_ml] = c.cena_netto;
                 }
             });
 
-            live.forEach(l => {
-                const a = l.artysta || '—';
-                if (!byArtysta[a])
-                    byArtysta[a] = {
-                        zamow: 0,
-                        sprzed: 0,
-                        liveIl: 0,
-                        liveWart: 0
-                    };
-                byArtysta[a].liveIl += (l.ilosc || 0);
-                byArtysta[a].liveWart += (l.wartosc || 0);
-                totalLiveIl += (l.ilosc || 0);
-                totalLiveWart += (l.wartosc || 0);
-                const p = l.pojemnosc_ml || 0;
-                if (p) {
-                    if (!byPojemnosc[p])
-                        byPojemnosc[p] = {
-                            zamow: 0,
-                            sprzed: 0,
-                            liveIl: 0,
-                            liveWart: 0
-                        };
-                    byPojemnosc[p].liveIl += (l.ilosc || 0);
-                    byPojemnosc[p].liveWart += (l.wartosc || 0);
+            // Oblicz przychód szacunkowy per pozycja
+            const data = hist.map(h => {
+                let cena = 0;
+                if (typ === 'papierowe') {
+                    cena = cenaMap[`${h.pojemnosc_ml}_${h.typ_materialu}_${h.typ_scianki}`] || 0;
+                } else {
+                    cena = cenaMap[h.pojemnosc_ml] || 0;
                 }
+                return {
+                    ...h,
+                    cena_netto: cena,
+                    przychod_zamow: (h.zamowiono_lacznie || 0) * cena,
+                    przychod_sprzed: (h.sprzedano_lacznie || 0) * cena,
+                };
             });
 
-            const typLabel = typ === 'papierowe' ? '☕ Kubki papierowe' : '🌡 Kubki termiczne';
+            // Unikalne wartości do filtrów
+            const artysci = [...new Set(data.map(d => d.artysta).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pl'));
+            const pojemnosci = [...new Set(data.map(d => d.pojemnosc_ml).filter(Boolean))].sort((a, b) => a - b);
+            const materialy = typ === 'papierowe' ? [...new Set(data.map(d => d.typ_materialu).filter(Boolean))].sort() : [];
+            const scianki = typ === 'papierowe' ? [...new Set(data.map(d => d.typ_scianki).filter(Boolean))].sort() : [];
+            const grafiki = typ === 'termiczne' ? [...new Set(data.map(d => d.grafika).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pl')) : [];
 
-            // Render
+            const sfx = typ === 'papierowe' ? 'sp' : 'st';
+
+            // Render filtrów + tabeli
             let html = `<div style="padding:12px 16px;">
-      <div style="font-family:var(--fh);font-size:18px;font-weight:700;margin-bottom:12px;">${typLabel} — Statystyki</div>
+      <div style="font-family:var(--fh);font-size:18px;font-weight:700;margin-bottom:10px;">${typ === 'papierowe' ? '☕ Kubki papierowe' : '🌡 Kubki termiczne'} — Statystyki</div>
       
-      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
-        <div style="flex:1;min-width:100px;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;padding:10px;text-align:center;">
-          <div style="font-family:var(--fh);font-size:22px;font-weight:700;">${
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
+        <select id="${
 
-
-            (totalZamow).toLocaleString('pl')}</div>
-          <div style="font-size:10px;color:var(--ink3);text-transform:uppercase;">Zamówiono łącznie</div>
-        </div>
-        <div style="flex:1;min-width:100px;background:#FBE9EE;border:1.5px solid #F0B5C8;border-radius:10px;padding:10px;text-align:center;">
-          <div style="font-family:var(--fh);font-size:22px;font-weight:700;color:#9C2F50;">${
-
-
-            (totalSprzed + totalLiveIl).toLocaleString('pl')}</div>
-          <div style="font-size:10px;color:#9C2F50;text-transform:uppercase;">Sprzedano łącznie</div>
-        </div>
-        <div style="flex:1;min-width:100px;background:#EAF3DE;border:1.5px solid #C0DD97;border-radius:10px;padding:10px;text-align:center;">
-          <div style="font-family:var(--fh);font-size:22px;font-weight:700;color:#3B6D11;">${
-
-
-            totalLiveWart.toLocaleString('pl', {minimumFractionDigits: 2})} zł</div>
-          <div style="font-size:10px;color:#3B6D11;text-transform:uppercase;">Przychód (z apki)</div>
-        </div>
+            sfx}FA" onchange="applyStatsFilter('${typ}','${listId}')" class="dark-select" style="flex:1;min-width:100px;">
+          <option value="">Wszyscy artyści</option>
+          ${
+            artysci.map(a => '<option value="' + a + '">' + a + '</option>').join('')}
+        </select>
+        <select id="${
+            sfx}FP" onchange="applyStatsFilter('${typ}','${listId}')" class="dark-select" style="flex:0 0 90px;">
+          <option value="">Pojemność</option>
+          ${
+            pojemnosci.map(p => '<option value="' + p + '">' + p + ' ml</option>').join('')}
+        </select>
+        ${
+            typ === 'papierowe' ? `
+        <select id="${sfx}FM" onchange="applyStatsFilter('${typ}','${listId}')" class="dark-select" style="flex:0 0 70px;">
+          <option value="">Materiał</option>
+          ${
+            materialy.map(m => '<option value="' + m + '">' + m + '</option>').join('')}
+        </select>
+        <select id="${
+            sfx}FS" onchange="applyStatsFilter('${typ}','${listId}')" class="dark-select" style="flex:0 0 90px;">
+          <option value="">Ścianka</option>
+          ${
+            scianki.map(s => '<option value="' + s + '">' + (s === 'dwuściankowy' ? 'Dwu' : s === 'jednościankowy' ? 'Jedno' : s) + '</option>').join('')}
+        </select>` : `
+        <select id="${sfx}FG" onchange="applyStatsFilter('${typ}','${listId}')" class="dark-select" style="flex:1;min-width:100px;">
+          <option value="">Wszystkie grafiki</option>
+          ${
+            grafiki.map(g => '<option value="' + g + '">' + g + '</option>').join('')}
+        </select>`
+            }
       </div>
-
-      <div style="font-family:var(--fh);font-size:14px;font-weight:600;margin-bottom:8px;">Per artysta</div>
-      <table style="width:100%;border-collapse:collapse;margin-bottom:16px;font-size:12px;">
-        <thead>
-          <tr style="background:var(--bg2);border-bottom:2px solid var(--border);">
-            <th style="padding:6px 8px;text-align:left;">Artysta</th>
-            <th style="padding:6px 8px;text-align:right;">Zamów.</th>
-            <th style="padding:6px 8px;text-align:right;color:#9C2F50;">Sprzed.</th>
-            <th style="padding:6px 8px;text-align:right;color:#3B6D11;">Przychód</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-            Object.entries(byArtysta).sort((a, b) => (b[1].sprzed + b[1].liveIl) - (a[1].sprzed + a[1].liveIl)).map(([a, d]) => `
-            <tr style="border-bottom:1px solid var(--bg2);">
-              <td style="padding:5px 8px;font-weight:500;">${
-            a}</td>
-              <td style="padding:5px 8px;text-align:right;">${d.zamow.toLocaleString('pl')}</td>
-              <td style="padding:5px 8px;text-align:right;color:#9C2F50;font-weight:600;">${(d.sprzed + d.liveIl).toLocaleString('pl')}</td>
-              <td style="padding:5px 8px;text-align:right;color:#3B6D11;">${d.liveWart > 0 ? d.liveWart.toFixed(2) + ' zł' : '—'}</td>
-            </tr>`).join('')}
-        </tbody>
-      </table>
-
-      <div style="font-family:var(--fh);font-size:14px;font-weight:600;margin-bottom:8px;">Per pojemność</div>
-      <table style="width:100%;border-collapse:collapse;font-size:12px;">
-        <thead>
-          <tr style="background:var(--bg2);border-bottom:2px solid var(--border);">
-            <th style="padding:6px 8px;text-align:left;">Pojemność</th>
-            <th style="padding:6px 8px;text-align:right;">Zamów.</th>
-            <th style="padding:6px 8px;text-align:right;color:#9C2F50;">Sprzed.</th>
-            <th style="padding:6px 8px;text-align:right;color:#3B6D11;">Przychód</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${
-
-
-
-
-
-
-
-
-
-
-
-
-
-            Object.entries(byPojemnosc).sort((a, b) => Number(a[0]) - Number(b[0])).map(([p, d]) => `
-            <tr style="border-bottom:1px solid var(--bg2);">
-              <td style="padding:5px 8px;font-weight:500;">${
-            p} ml</td>
-              <td style="padding:5px 8px;text-align:right;">${d.zamow.toLocaleString('pl')}</td>
-              <td style="padding:5px 8px;text-align:right;color:#9C2F50;font-weight:600;">${(d.sprzed + d.liveIl).toLocaleString('pl')}</td>
-              <td style="padding:5px 8px;text-align:right;color:#3B6D11;">${d.liveWart > 0 ? d.liveWart.toFixed(2) + ' zł' : '—'}</td>
-            </tr>`).join('')}
-        </tbody>
-      </table>
       
-      <div style="font-size:10px;color:var(--ink3);margin-top:16px;text-align:center;">
-        Dane historyczne z importu + bieżące z zamówień w aplikacji
+      <div id="${
+
+            sfx}Summary"></div>
+      <div id="${sfx}Table"></div>
+      
+      <div style="font-size:10px;color:var(--ink3);margin-top:12px;text-align:center;">
+        Dane historyczne z importu · Przychód szacunkowy wg cennika
       </div>
     </div>`
-
-
 
 
 
@@ -2175,11 +2053,114 @@
             ;
 
             list.innerHTML = html;
+
+            // Zapisz dane w window dla filtrowania
+            window['_statsData_' + typ] = data;
+
+            // Pierwsze renderowanie
+            applyStatsFilter(typ, listId);
+
         } catch (e) {
             console.error('renderStats:', e);
-            list.innerHTML = `<div style="padding:16px;color:#A32D2D;">Błąd: ${e.message}</div>`;
+            list.innerHTML = '<div style="padding:16px;color:#A32D2D;">Błąd: ' + e.message + '</div>';
         }
     }
+
+    function applyStatsFilter(typ, listId) {
+        const data = window['_statsData_' + typ] || [];
+        const sfx = typ === 'papierowe' ? 'sp' : 'st';
+
+        const fA = document.getElementById(sfx + 'FA')?.value || '';
+        const fP = document.getElementById(sfx + 'FP')?.value || '';
+
+        let filtered = data;
+        if (fA)
+            filtered = filtered.filter(d => d.artysta === fA);
+        if (fP)
+            filtered = filtered.filter(d => String(d.pojemnosc_ml) === fP);
+
+        if (typ === 'papierowe') {
+            const fM = document.getElementById(sfx + 'FM')?.value || '';
+            const fS = document.getElementById(sfx + 'FS')?.value || '';
+            if (fM)
+                filtered = filtered.filter(d => d.typ_materialu === fM);
+            if (fS)
+                filtered = filtered.filter(d => d.typ_scianki === fS);
+        } else {
+            const fG = document.getElementById(sfx + 'FG')?.value || '';
+            if (fG)
+                filtered = filtered.filter(d => d.grafika === fG);
+        }
+
+        // Sumy
+        const sumZamow = filtered.reduce((s, d) => s + (d.zamowiono_lacznie || 0), 0);
+        const sumSprzed = filtered.reduce((s, d) => s + (d.sprzedano_lacznie || 0), 0);
+        const sumPrzychod = filtered.reduce((s, d) => s + (d.przychod_sprzed || 0), 0);
+
+        // Kafelki
+        document.getElementById(sfx + 'Summary').innerHTML = `
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:90px;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;padding:8px;text-align:center;">
+        <div style="font-family:var(--fh);font-size:20px;font-weight:700;">${
+
+        sumZamow.toLocaleString('pl')}</div>
+        <div style="font-size:9px;color:var(--ink3);text-transform:uppercase;">Zamówiono</div>
+      </div>
+      <div style="flex:1;min-width:90px;background:#FBE9EE;border:1.5px solid #F0B5C8;border-radius:10px;padding:8px;text-align:center;">
+        <div style="font-family:var(--fh);font-size:20px;font-weight:700;color:#9C2F50;">${
+
+
+        sumSprzed.toLocaleString('pl')}</div>
+        <div style="font-size:9px;color:#9C2F50;text-transform:uppercase;">Sprzedano</div>
+      </div>
+      <div style="flex:1;min-width:90px;background:#EAF3DE;border:1.5px solid #C0DD97;border-radius:10px;padding:8px;text-align:center;">
+        <div style="font-family:var(--fh);font-size:20px;font-weight:700;color:#3B6D11;">${
+
+
+        sumPrzychod.toLocaleString('pl', {minimumFractionDigits: 0,maximumFractionDigits: 0})} zł</div>
+        <div style="font-size:9px;color:#3B6D11;text-transform:uppercase;">Przychód szac.</div>
+      </div>
+    </div>`
+
+
+        ;
+
+        // Tabela
+        const isPap = typ === 'papierowe';
+        const rows = filtered.sort((a, b) => (b.sprzedano_lacznie || 0) - (a.sprzedano_lacznie || 0));
+
+        document.getElementById(sfx + 'Table').innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead>
+        <tr style="background:var(--bg2);border-bottom:2px solid var(--border);">
+          <th style="padding:6px;text-align:left;">Artysta</th>
+          ${
+
+
+
+        isPap ? '<th style="padding:6px;text-align:left;">Typ</th>' : '<th style="padding:6px;text-align:left;">Grafika</th>'}
+          <th style="padding:6px;text-align:right;">Poj.</th>
+          <th style="padding:6px;text-align:right;">Zamów.</th>
+          <th style="padding:6px;text-align:right;color:#9C2F50;">Sprzed.</th>
+          <th style="padding:6px;text-align:right;color:#3B6D11;">Przychód</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${
+
+
+
+
+
+
+        rows.map(d => {const typLabel = isPap ? ((d.typ_scianki === 'dwuściankowy' ? 'DW' : d.typ_scianki === 'jednościankowy' ? 'SW' : '?') + ' ' + (d.typ_materialu || '')) : (d.grafika || '—') + (d.kolor ? ' (' + d.kolor + ')' : '');return '<tr style="border-bottom:1px solid var(--bg2);">' + '<td style="padding:5px 6px;">' + d.artysta + '</td>' + '<td style="padding:5px 6px;">' + typLabel + '</td>' + '<td style="padding:5px 6px;text-align:right;">' + d.pojemnosc_ml + 'ml</td>' + '<td style="padding:5px 6px;text-align:right;">' + (d.zamowiono_lacznie || 0).toLocaleString('pl') + '</td>' + '<td style="padding:5px 6px;text-align:right;color:#9C2F50;font-weight:600;">' + (d.sprzedano_lacznie || 0).toLocaleString('pl') + '</td>' + '<td style="padding:5px 6px;text-align:right;color:#3B6D11;">' + (d.przychod_sprzed || 0).toLocaleString('pl', {minimumFractionDigits: 0,maximumFractionDigits: 0}) + ' zł</td>' + '</tr>';}).join('')}
+      </tbody>
+    </table>
+    <div style="font-size:11px;color:var(--ink3);margin-top:6px;">${
+
+        rows.length} pozycji</div>`;
+    }
+
 
     function buildMagTabs(magazyny, elId, scope) {
         const wrap = document.getElementById(elId);
