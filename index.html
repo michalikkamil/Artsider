@@ -3393,6 +3393,25 @@
                     status: 'zrealizowane'
                 })
             });
+            // Inkrementuj wyprodukowano_lacznie u artysty
+            try {
+                const [kub] = await sbFetch('kubek', `?id=eq.${kubek_id}&select=grafika_id`);
+                if (kub?.grafika_id) {
+                    const [graf] = await sbFetch('grafika', `?id=eq.${kub.grafika_id}&select=artysta_id`);
+                    if (graf?.artysta_id) {
+                        const totalIl = stany.reduce((s, x) => s + (x.ilosc_dostepna || 0), 0);
+                        const [art] = await sbFetch('artysta', `?id=eq.${graf.artysta_id}&select=wyprodukowano_lacznie`);
+                        await sbFetch('artysta', `?id=eq.${graf.artysta_id}`, {
+                            method: 'PATCH',
+                            body: JSON.stringify({
+                                wyprodukowano_lacznie: (art?.wyprodukowano_lacznie || 0) + totalIl
+                            })
+                        });
+                    }
+                }
+            } catch (e) {
+                console.warn('wyprodukowano increment:', e);
+            }
             msg.className = 'f-msg ok';
             msg.textContent = '✓ Kubek przyjęty do magazynu!';
             setTimeout(() => {
@@ -5933,6 +5952,13 @@
     async function openKartaArtysty(artId) {
         try {
             const [a] = await sbFetch('v_artysta', `?id=eq.${artId}`);
+            // Dociągnij wyprodukowano_lacznie z tabeli artysta
+            try {
+                const [ar] = await sbFetch('artysta', `?id=eq.${artId}&select=wyprodukowano_lacznie`);
+                a.wyprodukowano_lacznie = ar?.wyprodukowano_lacznie || 0;
+            } catch (e) {
+                a.wyprodukowano_lacznie = 0;
+            }
             const kubki = await sbFetch('v_kubki_artysty', `?artysta_id=eq.${artId}&order=pojemnosc_ml.asc`);
 
             const kubkiHTML = kubki.map(k => {
@@ -5965,51 +5991,73 @@
             const naliczone = Number(a.prowizje_naliczone || 0);
             const nalezneCalc = naliczone - wyplaconoH;
             const nalezneColor = nalezneCalc < 0 ? '#A32D2D' : 'var(--accent)';
+            // Podsumowania kubków
+            const sumaZlecone = kubki.reduce((s, k) => s + (k.ilosc_w_produkcji || 0), 0);
+            const sumaMagazyn = kubki.reduce((s, k) => s + (k.ilosc_w_magazynie || k.ilosc_lacznie || 0), 0);
+
             document.getElementById('drawerContent').innerHTML = `
-      <div class="drawer-handle"></div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;">
         <button onclick="closeDrawer()" style="background:var(--bg2);border:1.5px solid var(--border);border-radius:8px;padding:6px 10px;font-family:var(--fm);font-size:12px;cursor:pointer;flex-shrink:0;">← Wstecz</button>
         <div class="drawer-title" style="margin-bottom:0;flex:1;text-align:center;">${
-
 
             a.imie_nazwisko}</div>
         <button onclick="openEdytujArtyste('${artId}')" style="background:var(--bg2);border:1.5px solid var(--border);border-radius:8px;padding:6px 12px;font-family:var(--fm);font-size:11px;cursor:pointer;flex-shrink:0;">✏️</button>
       </div>
 
-      <div class="d-section">Rozliczenia</div>
-      <div class="d-row"><span class="d-key">Prowizja papierowe</span><span class="d-val">${
+      <div class="d-row"><span class="d-key">Prowizja</span><span class="d-val" style="font-size:11px;">pap: ${
 
-
-            Number(a.prowizja_papierowe || 0).toFixed(3)} zł/szt.</span></div>
-      <div class="d-row"><span class="d-key">Prowizja termiczne</span><span class="d-val">${Number(a.prowizja_termiczne || 0).toFixed(2)} zł/szt.</span></div>
-      <div class="d-row"><span class="d-key">Prowizja pap. naliczona</span><span class="d-val">${Number(a.prowizja_papierowe_naliczona || 0).toFixed(2)} zł (${a.papierowe_sprzedane} szt.)</span></div>
-      <div class="d-row"><span class="d-key">Prowizja term. naliczona</span><span class="d-val">${Number(a.prowizja_termiczne_naliczona || 0).toFixed(2)} zł (${a.termiczne_sprzedane} szt.)</span></div>
-      <div class="d-row"><span class="d-key">Łącznie naliczone</span><span class="d-val">${naliczone.toFixed(2)} zł</span></div>
-      <div class="d-row"><span class="d-key">Wypłacono</span><span class="d-val">${wyplaconoH.toFixed(2)} zł</span></div>
-      <div class="d-row" style="font-weight:600;"><span class="d-key">Należne</span><span class="d-val" style="color:${nalezneColor};font-weight:600;">${nalezneCalc.toFixed(2)} zł</span></div>
+            Number(a.prowizja_papierowe || 0).toFixed(3)} zł · term: ${Number(a.prowizja_termiczne || 0).toFixed(2)} zł</span></div>
+      <div class="d-row"><span class="d-key" style="font-size:11px;">Pap. naliczona</span><span class="d-val" style="font-size:11px;">${Number(a.prowizja_papierowe_naliczona || 0).toFixed(2)} zł (${a.papierowe_sprzedane} szt.)</span></div>
+      <div class="d-row"><span class="d-key" style="font-size:11px;">Term. naliczona</span><span class="d-val" style="font-size:11px;">${Number(a.prowizja_termiczne_naliczona || 0).toFixed(2)} zł (${a.termiczne_sprzedane} szt.)</span></div>
+      <div class="d-row" style="font-weight:700;"><span class="d-key">Łącznie naliczone</span><span class="d-val" style="font-weight:700;">${naliczone.toFixed(2)} zł</span></div>
+      <div class="d-row"><span class="d-key" style="color:#3B6D11;">Wypłacono</span><span class="d-val" style="color:#3B6D11;">${wyplaconoH.toFixed(2)} zł</span></div>
+      <div class="d-row" style="font-weight:700;"><span class="d-key">Należne</span><span class="d-val" style="color:${nalezneColor};font-weight:700;">${nalezneCalc.toFixed(2)} zł</span></div>
 
       <div class="d-section">Historia wypłat</div>
       <div id="wyplatyList">⏳</div>
-      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
-        <div class="f-group" style="flex:1;min-width:100px;margin-bottom:0;"><label class="f-label">Kwota (zł)</label><input class="f-input" id="wyplataKwota" type="number" step="0.01" placeholder="np. 150.00 lub -50.00"></div>
-        <div class="f-group" style="flex:1;min-width:100px;margin-bottom:0;"><label class="f-label">Data</label><input class="f-input" id="wyplataData" type="date" value="${
+      <div style="display:flex;gap:6px;margin-top:8px;align-items:flex-end;">
+        <div class="f-group" style="flex:1;margin-bottom:0;"><label class="f-label">Kwota</label><input class="f-input" id="wyplataKwota" type="number" step="0.01" placeholder="150 lub -50"></div>
+        <div class="f-group" style="flex:0 0 120px;margin-bottom:0;"><label class="f-label">Data</label><input class="f-input" id="wyplataData" type="date" value="${
 
 
 
 
-            new Date().toISOString().slice(0, 10)}"></div>
-
+            new Date().toISOString().slice(0, 10)}" style="font-size:12px;padding:6px 4px;"></div>
+        <button onclick="dodajWyplate('${a.id}')" style="background:var(--accent);color:white;border:none;border-radius:8px;padding:6px 12px;font-family:var(--fm);font-size:11px;cursor:pointer;white-space:nowrap;height:32px;">+ Wypłata</button>
       </div>
-      <button class="btn-primary" onclick="dodajWyplate('${
-
-            a.id}')" style="margin-top:8px;">+ Dodaj wypłatę</button>
       <div class="f-msg" id="wyplataMsg"></div>
 
       <div class="d-section">Kubki (${
 
+
             kubki.length})</div>
       ${kubkiHTML || '<div style="color:var(--ink3);font-size:12px;padding:8px 0;">Brak kubków</div>'}
+      <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;">
+        <div style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:6px 8px;text-align:center;">
+          <div style="font-family:var(--fh);font-size:16px;font-weight:700;">${
+
+            sumaZlecone}</div>
+          <div style="font-size:9px;color:var(--ink3);text-transform:uppercase;">Zlecono</div>
+        </div>
+        <div style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:6px 8px;text-align:center;">
+          <div style="font-family:var(--fh);font-size:16px;font-weight:700;">${
+
+
+            sumaMagazyn}</div>
+          <div style="font-size:9px;color:var(--ink3);text-transform:uppercase;">W magazynie</div>
+        </div>
+        <div style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:6px 8px;text-align:center;">
+          <div style="font-family:var(--fh);font-size:16px;font-weight:700;">${
+
+
+            Number(a.wyprodukowano_lacznie || 0).toLocaleString('pl')}</div>
+          <div style="font-size:9px;color:var(--ink3);text-transform:uppercase;">Wyprodukowano</div>
+        </div>
+      </div>
     `
+
+
+
             ;
             document.getElementById('overlay').classList.add('open');
             document.getElementById('drawer').classList.add('open');
