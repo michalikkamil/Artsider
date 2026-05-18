@@ -2000,6 +2000,25 @@
                 }
             }
 
+            // Dla papierowych: dociągnij miniaturki z kubek → grafika
+            if (typ === 'papierowe') {
+                try {
+                    const kubki = await sbFetch('kubek', '?select=pojemnosc_ml,typ_materialu,typ_scianki,grafika(nazwa,miniaturka_url,artysta(imie_nazwisko))');
+                    // Mapa: artysta_pojemnosc_mat_sci → first miniaturka
+                    const papThumbMap = {};
+                    kubki.forEach(k => {
+                        const a = k.grafika?.artysta?.imie_nazwisko || '';
+                        const key = `${a}_${k.pojemnosc_ml}_${k.typ_materialu}_${k.typ_scianki}`;
+                        if (!papThumbMap[key] && k.grafika?.miniaturka_url)
+                            papThumbMap[key] = k.grafika.miniaturka_url;
+                    });
+                    hist.forEach(h => {
+                        const key = `${h.artysta || ''}_${h.pojemnosc_ml}_${h.typ_materialu}_${h.typ_scianki}`;
+                        h.miniaturka_url = papThumbMap[key] || null;
+                    });
+                } catch (e) {}
+            }
+
             // Pobierz dane o aktualnym stanie (zlecone + magazyn) do korekty
             let korekta_zlecone = 0,
                 korekta_magazyn = 0;
