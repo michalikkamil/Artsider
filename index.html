@@ -6333,22 +6333,24 @@
 
     async function loadArchiwum() {
         try {
-            // Archiwum = wszystkie kubki z sumą stanu = 0 (niezależnie od statusu)
+            // Archiwum = kubki z sumą stanu = 0 I BEZ aktywnych zleceń produkcyjnych
             const kubki = await sbFetch('kubek', '?select=*,grafika(nazwa,miniaturka_url,artysta(imie_nazwisko))');
             const stany = await sbFetch('stan_magazynowy', '?select=kubek_id,ilosc_dostepna');
+            const zlecenia = await sbFetch('zlecenie_produkcyjne', '?status=eq.w_produkcji&select=kubek_id');
             const sumy = {};
             stany.forEach(s => {
                 sumy[s.kubek_id] = (sumy[s.kubek_id] || 0) + s.ilosc_dostepna;
             });
+            const wProdukcji = new Set(zlecenia.map(z => z.kubek_id));
             allArchiwum = kubki
-            .filter(k => (sumy[k.id] || 0) === 0)
+            .filter(k => (sumy[k.id] || 0) === 0 && !wProdukcji.has(k.id))
             .map(k => ({
                 kubek_id: k.id,
                 pojemnosc_ml: k.pojemnosc_ml,
                 typ_materialu: k.typ_materialu,
                 typ_scianki: k.typ_scianki,
                 cena_netto: k.cena_netto,
-                ilosc_w_produkcji: k.ilosc_w_produkcji || 0,
+                ilosc_w_produkcji: 0,
                 grafika: k.grafika?.nazwa,
                 artysta: k.grafika?.artysta?.imie_nazwisko,
                 miniaturka: k.grafika?.miniaturka_url,
