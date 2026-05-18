@@ -3534,6 +3534,51 @@
         return html;
     }
 
+    // ── AKTUALIZACJA STATYSTYK PRZY ZLECENIU PRODUKCJI ──
+    async function incrStatZamowiono(kubekId, ilosc) {
+        try {
+            // Pobierz dane kubka
+            const [k] = await sbFetch('kubek', `?id=eq.${kubekId}&select=pojemnosc_ml,typ_materialu,typ_scianki,logo,grafika(nazwa,artysta(imie_nazwisko))`);
+            if (!k)
+                return;
+            const artysta = k.grafika?.artysta?.imie_nazwisko || 'własne logo';
+            const poj = k.pojemnosc_ml;
+            const mat = k.typ_materialu;
+            const sci = k.typ_scianki;
+
+            // Szukaj istniejącego rekordu w statystyki_historyczne
+            const existing = await sbFetch('statystyki_historyczne',
+            `?typ=eq.papierowe&artysta=eq.${encodeURIComponent(artysta)}&pojemnosc_ml=eq.${poj}&typ_materialu=eq.${mat}&typ_scianki=eq.${sci}&limit=1`);
+
+            if (existing.length) {
+                // Inkrementuj zamowiono_lacznie
+                await sbFetch('statystyki_historyczne', `?id=eq.${existing[0].id}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({
+                        zamowiono_lacznie: (existing[0].zamowiono_lacznie || 0) + ilosc
+                    })
+                });
+            } else {
+                // Stwórz nowy rekord (np. nowy typ kubka lub własne logo)
+                await sbFetch('statystyki_historyczne', '', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        typ: 'papierowe',
+                        artysta: artysta,
+                        pojemnosc_ml: poj,
+                        typ_materialu: mat,
+                        typ_scianki: sci,
+                        zamowiono_lacznie: ilosc,
+                        sprzedano_lacznie: 0,
+                        uwagi: k.logo === 'klienta' ? 'własne logo' : 'dodane z aplikacji'
+                    })
+                });
+            }
+        } catch (e) {
+            console.warn('incrStatZamowiono:', e);
+        }
+    }
+
     async function dodajZlecenie(kubekId) {
         const il = parseInt(document.getElementById('noweZlec_ilosc_' + kubekId)?.value) || 0;
         const dz = document.getElementById('noweZlec_data_' + kubekId)?.value || new Date().toISOString().slice(0, 10);
@@ -3555,6 +3600,8 @@
                     status: 'w_produkcji'
                 })
             });
+            // Aktualizuj statystyki zamówionych
+            await incrStatZamowiono(kubekId, il);
             msg.className = 'f-msg ok';
             msg.textContent = '✓ Zlecenie dodane';
             setTimeout(() => {
@@ -5158,6 +5205,8 @@
                             status: 'w_produkcji'
                         })
                     });
+                    // Aktualizuj statystyki
+                    await incrStatZamowiono(nowyKubek.id, wlIlosc);
                     // Utwórz stany magazynowe (0 szt.)
                     const stanyWl = allMagazyny.map(m => ({
                         kubek_id: nowyKubek.id,
