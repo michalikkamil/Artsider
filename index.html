@@ -5258,10 +5258,14 @@
                 const lWrap = document.getElementById(`termlist_${sid}`);
                 if (!lWrap)
                     continue;
-                for (const row of lWrap.querySelectorAll('[data-kubek-id]')) {
+                const termRows = lWrap.querySelectorAll('[data-kubek-id]');
+                console.log('termiczne rows found:', termRows.length, 'typ:', termTyp, 'zrodlo:', termZrodlo);
+                for (const row of termRows) {
                     const kubId = row.dataset.kubekId;
                     const rowId = row.id;
-                    const il = parseInt(document.getElementById('tq_' + rowId)?.value) || 0;
+                    const qInput = document.getElementById('tq_' + rowId);
+                    const il = parseInt(qInput?.value) || 0;
+                    console.log('  row:', rowId, 'kubId:', kubId, 'il:', il, 'inputFound:', !!qInput);
                     if (il <= 0)
                         continue;
                     const cn = parseFloat(document.getElementById('tn_' + rowId)?.value) || 0;
@@ -5275,84 +5279,74 @@
                         pozycje.push({
                             rodzaj_produktu: 'termiczny',
                             kubek_termiczny_id: kubId,
-                            typ_termiczny: 'sprzedaz',
+                            typ_termiczny: termZrodlo === 'komis' ? 'sprzedaz_komis' : 'sprzedaz',
                             ilosc: il,
                             cena_jednostkowa: cn
                         });
+                        // Sprzedaż z komisu: zarejestruj w sprzedaz_termicznych + zmniejsz komis
                         if (termZrodlo === 'komis' && row.dataset.komisId) {
-                            const kl = window['tl_kom_' + sid] || [];
-                            const ki = kl.find(k => k.id === kubId);
-                            const ni = (ki?.ilosc || 0) - il;
-                            if (ni <= 0)
-                                await sbFetch('komis', `?id=eq.${row.dataset.komisId}`, {
-                                    method: 'PATCH',
+                            try {
+                                await sbFetch('sprzedaz_termicznych', '', {
+                                    method: 'POST',
                                     body: JSON.stringify({
-                                        status: 'sprzedany',
-                                        ilosc: 0
+                                        komis_id: row.dataset.komisId,
+                                        kubek_id: kubId,
+                                        klient_id: klientId,
+                                        ilosc: il,
+                                        cena_netto: cn,
+                                        data_sprzedazy: new Date().toISOString().slice(0, 10),
+                                        status_faktury: 'nie_wystawiona',
+                                        status_platnosci: 'nieoplacona'
                                     })
                                 });
-                            else
-                                await sbFetch('komis', `?id=eq.${row.dataset.komisId}`, {
-                                    method: 'PATCH',
-                                    body: JSON.stringify({
-                                        ilosc: ni
-                                    })
-                                });
+                                const kl = window['tl_kom_' + sid] || [];
+                                const ki = kl.find(k => k.id === kubId);
+                                const ni = (ki?.ilosc || 0) - il;
+                                if (ni <= 0)
+                                    await sbFetch('komis', `?id=eq.${row.dataset.komisId}`, {
+                                        method: 'PATCH',
+                                        body: JSON.stringify({
+                                            status: 'sprzedany',
+                                            ilosc: 0
+                                        })
+                                    });
+                                else
+                                    await sbFetch('komis', `?id=eq.${row.dataset.komisId}`, {
+                                        method: 'PATCH',
+                                        body: JSON.stringify({
+                                            ilosc: ni
+                                        })
+                                    });
+                            } catch (e) {
+                                console.warn('komis sale:', e);
+                            }
+                        }
+                        // Sprzedaż z magazynu: zmniejsz stan
+                        if (termZrodlo === 'magazyn') {
+                            try {
+                                const stany = await sbFetch('stan_magazynowy_termiczne', `?kubek_id=eq.${kubId}&order=ilosc_dostepna.desc`);
+                                let rem = il;
+                                for (const s of stany) {
+                                    if (rem <= 0)
+                                        break;
+                                    const odj = Math.min(rem, s.ilosc_dostepna || 0);
+                                    if (odj > 0) {
+                                        await sbFetch('stan_magazynowy_termiczne', `?kubek_id=eq.${kubId}&magazyn_id=eq.${s.magazyn_id}`, {
+                                            method: 'PATCH',
+                                            body: JSON.stringify({
+                                                ilosc_dostepna: Math.max(0, s.ilosc_dostepna - odj)
+                                            })
+                                        });
+                                        rem -= odj;
+                                    }
+                                }
+                            } catch (e) {
+                                console.warn('term stock decrement:', e);
+                            }
                         }
                     }
                 }
                 continue;
-                if (termTyp === 'komis') {
-                    const kubId = div.querySelector('[data-field="kubek_termiczny_komis_id"]')?.value;
-                    if (!kubId)
-                        continue;
-                    const cenKom = parseFloat(div.querySelector('[id^="poz_term_cena_kom_"]')?.value) || 0;
-                    komisDoUtworzenia.push({
-                        kubek_id: kubId,
-                        ilosc: termIlosc,
-                        cena_komisowa: cenKom || null
-                    });
-                } else {
-                    // sprzedaz
-                    let kubId;
-                    if (termZrodlo === 'komis') {
-                        kubId = div.querySelector('[id^="poz_term_komis_kub_"]')?.value;
-                    } else {
-                        kubId = div.querySelector('[data-field="kubek_termiczny_id"]')?.value;
-                    }
-                    if (!kubId)
-                        continue;
-                    // Extract id from div.id = 'poz_N'
-                    const divNum = div.id.replace('poz_', '');
-                    const komisKubek = termZrodlo === 'komis' ? (window['komisPicker_' + divNum] || []).find(k => k.id === kubId) : null;
-                    pozycje.push({
-                        rodzaj_produktu: 'termiczny',
-                        kubek_termiczny_id: kubId,
-                        typ_termiczny: 'sprzedaz',
-                        ilosc: termIlosc,
-                        cena_jednostkowa: termCena
-                    });
-                    // Jeśli sprzedaż z komisu - zmniejsz ilosc w komis
-                    if (termZrodlo === 'komis' && komisKubek?.komis_id) {
-                        const nowaIlosc = (komisKubek.ilosc || 0) - termIlosc;
-                        if (nowaIlosc <= 0) {
-                            await sbFetch('komis', `?id=eq.${komisKubek.komis_id}`, {
-                                method: 'PATCH',
-                                body: JSON.stringify({
-                                    status: 'sprzedany',
-                                    ilosc: 0
-                                })
-                            });
-                        } else {
-                            await sbFetch('komis', `?id=eq.${komisKubek.komis_id}`, {
-                                method: 'PATCH',
-                                body: JSON.stringify({
-                                    ilosc: nowaIlosc
-                                })
-                            });
-                        }
-                    }
-                }
             } else if (typ2 === 'wysylka') {
                 const wTyp = div.querySelector('[data-field="wysylka_typ"]')?.value || 'DPD';
                 const wNazwa = div.querySelector('[data-field="wysylka_nazwa"]')?.value || ('Wysyłka ' + wTyp);
@@ -5402,7 +5396,10 @@
             }
         }
 
-        console.log('pozycje:', pozycje, 'komis:', komisDoUtworzenia, 'maWlasneLogo:', maWlasneLogo);
+        console.log('=== PRZED ZAPISEM ===');
+        console.log('pozycje:', JSON.stringify(pozycje));
+        console.log('komisDoUtworzenia:', JSON.stringify(komisDoUtworzenia));
+        console.log('maWlasneLogo:', maWlasneLogo);
 
         try {
             msg.className = 'f-msg';
