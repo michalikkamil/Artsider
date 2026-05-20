@@ -1966,33 +1966,22 @@
                             thumbMap[k.id] = k.grafika.miniaturka_url;
                     });
                 } catch (e) {}
-                // Dociągnij aktualny stan mag+kom per kubek termiczny
+                // Dociągnij faktyczną sprzedaż z tabeli sprzedaz_termicznych (nie z różnicy stanów)
                 try {
-                    const stany = await sbFetch('v_stan_termicznych', '?select=kubek_id,ilosc_dostepna,magazyn_id');
-                    const komisAkt = await sbFetch('komis', '?status=eq.aktywny&select=kubek_id,ilosc');
-                    // Agreguj mag per kubek
-                    const magMap = {};
-                    stany.forEach(s => {
-                        magMap[s.kubek_id] = (magMap[s.kubek_id] || 0) + (s.ilosc_dostepna || 0);
+                    const sprzedaze = await sbFetch('sprzedaz_termicznych', '?select=kubek_id,ilosc');
+                    const sprzMap = {};
+                    sprzedaze.forEach(s => {
+                        sprzMap[s.kubek_id] = (sprzMap[s.kubek_id] || 0) + (s.ilosc || 0);
                     });
-                    const komMap = {};
-                    komisAkt.forEach(k => {
-                        komMap[k.kubek_id] = (komMap[k.kubek_id] || 0) + (k.ilosc || 0);
-                    });
-                    // Przelicz sprzedano na żywo
                     hist.forEach(h => {
                         if (h.kubek_termiczny_id) {
                             h.miniaturka_url = thumbMap[h.kubek_termiczny_id] || null;
-                            const mag = magMap[h.kubek_termiczny_id] || 0;
-                            const kom = komMap[h.kubek_termiczny_id] || 0;
-                            // Korekta zamówiono jeśli < mag+kom
-                            if ((h.zamowiono_lacznie || 0) < mag + kom)
-                                h.zamowiono_lacznie = mag + kom;
-                            h.sprzedano_lacznie = Math.max(0, (h.zamowiono_lacznie || 0) - mag - kom);
+                            // Sprzedano = bazowe z importu + nowe sprzedaże z apki (sprzedaz_termicznych)
+                            const noweZApki = sprzMap[h.kubek_termiczny_id] || 0;
+                            h.sprzedano_lacznie = (h.sprzedano_lacznie || 0) + noweZApki;
                         }
                     });
                 } catch (e) {
-                    // Fallback - użyj danych z importu
                     hist.forEach(h => {
                         if (h.kubek_termiczny_id)
                             h.miniaturka_url = thumbMap[h.kubek_termiczny_id] || null;
@@ -3729,8 +3718,9 @@
     ${stanyHtml ? `<div class="d-section">Stan wg magazynu</div><div class="mag-grid">${stanyHtml}${typ === 'termiczny' ? `<div class="mag-card" id="termKomisBox_${k.kubek_id}" style="background:#FBF3EA;border-color:#F0C8A8;"><div class="mag-card-name">🤝 Komis</div><div class="mag-card-num" id="termKomisNum_${k.kubek_id}">—</div><div class="mag-card-sub">szt.</div></div>` : ''}</div>` : ''}\n    ${typ === 'kubek' || typ === 'zlecony' ? renderZleceniaProdukcyjne(k) : ''}\n    ${acceptHtml}
     ${typ === 'kubek' && activeMagKubki && activeMagKubki !== 'zlecone' && activeMagKubki !== 'archiwum' ? renderPrzeniesForm(k) + renderZmienIlosc(k) : ''}
     ${typ === 'kubek' && (!activeMagKubki || activeMagKubki === 'archiwum' || k.ilosc_lacznie === 0) ? renderZmienIloscGlobal(k) : ''}
-    ${typ === 'kubek' ? renderZamowDoProdukcji(k) : ''}
-    ${typ === 'termiczny' && activeMagTermiczne && activeMagTermiczne !== 'archiwum' && activeMagTermiczne !== 'komis' ? renderPrzeniesTermiczne(k) + renderZmienIloscTermiczne(k) : ''}
+    
+    ${
+        typ === 'termiczny' && activeMagTermiczne && activeMagTermiczne !== 'archiwum' && activeMagTermiczne !== 'komis' ? renderPrzeniesTermiczne(k) + renderZmienIloscTermiczne(k) : ''}
     ${typ === 'termiczny' && (!activeMagTermiczne || activeMagTermiczne === 'archiwum' || k.ilosc_lacznie === 0) ? renderZmienIloscGlobalTermiczne(k) : ''}
     ${typ === 'przykrywka' && activeMagPrzykrywki && activeMagPrzykrywki !== 'archiwum' ? renderPrzeniesiePrzykrywki(k) + renderZmienIloscPrzykrywki(k) : ''}
     ${typ === 'przykrywka' && (!activeMagPrzykrywki || activeMagPrzykrywki === 'archiwum' || k.ilosc_lacznie === 0) ? renderZmienIloscGlobalPrzykrywki(k) : ''}
@@ -4137,6 +4127,20 @@
                     grafika_id: graf.id
                 })
             });
+
+            // Stwórz zlecenie produkcyjne jeśli nie "bez produkcji"
+            if (nowyKubek?.id && kubekData.zlecenie && kubekData.zlecenie.ilosc > 0) {
+                await sbFetch('zlecenie_produkcyjne', '', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        kubek_id: nowyKubek.id,
+                        ilosc_zlecona: kubekData.zlecenie.ilosc,
+                        data_zlecenia: kubekData.zlecenie.data || new Date().toISOString().slice(0, 10),
+                        status: 'w_produkcji'
+                    })
+                });
+                await incrStatZamowiono(nowyKubek.id, kubekData.zlecenie.ilosc);
+            }
 
             // utwórz stany magazynowe
             if (nowyKubek?.id) {
@@ -7167,64 +7171,8 @@
         }
     }
 
-    // ── ZAMÓW DO PRODUKCJI ──
-    function renderZamowDoProdukcji(k) {
-        const dataZl = k.data_zlecenia && k.data_zlecenia !== '1970-01-01' ? k.data_zlecenia : '';
-        return `
-    <div class="d-section">Zamów do produkcji</div>
-    <div class="accept-form">
-      <div class="f-row" style="margin-bottom:8px;">
-        <div class="accept-row" style="flex:1;">
-          <span class="accept-label">Ilość do zamówienia</span>
-          <input class="accept-input" type="number" min="0" value="${
 
 
-
-
-        k.ilosc_zlecona || 0}" id="zlecIlosc" style="width:90px;">
-        </div>
-      </div>
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-        <span style="font-size:12px;color:var(--ink2);flex-shrink:0;">Data zlecenia:</span>
-        <input class="f-input" type="date" id="zlecData" value="${
-
-
-
-        dataZl || new Date().toISOString().slice(0, 10)}" style="flex:1;">
-      </div>
-      <button class="btn-primary" onclick="zapiszZlecenie('${
-        k.kubek_id}')">📋 Zapisz zlecenie</button>
-      <div class="f-msg" id="zlecMsg"></div>
-    </div>`
-
-        ;
-    }
-
-    async function zapiszZlecenie(kubek_id) {
-        const ilosc = parseInt(document.getElementById('zlecIlosc').value) || 0;
-        const data = document.getElementById('zlecData').value;
-        const msg = document.getElementById('zlecMsg');
-        try {
-            await sbFetch('kubek', `?id=eq.${kubek_id}`, {
-                method: 'PATCH',
-                body: JSON.stringify({
-                    ilosc_zlecona: ilosc,
-                    data_zlecenia: data || null,
-                    status: ilosc > 0 ? 'zlecony' : 'w_magazynie'
-                })
-            });
-            msg.className = 'f-msg ok';
-            msg.textContent = `✓ Zlecono ${ilosc} szt. na ${data}`;
-            setTimeout(() => {
-                closeDrawer();
-                loadAll();
-            }, 1000);
-        } catch (e) {
-            console.error('zapiszZamowienie:', e);
-            msg.className = 'f-msg err';
-            msg.textContent = 'Błąd zapisu: ' + (e.message || e);
-        }
-    }
 
 
     async function zapiszPak(kubek_id) {
