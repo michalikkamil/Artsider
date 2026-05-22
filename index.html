@@ -1568,6 +1568,13 @@
                         <label class="f-label">Cena netto (zł)</label>
                         <input class="f-input" id="nCena" type="number" step="0.01" min="0" placeholder="np. 0.45">
                     </div>
+                    <div class="f-group">
+                        <label class="f-label">Logo</label>
+                        <select class="f-select" id="nLogo">
+                            <option value="artsider" selected>Artsider</option>
+                            <option value="klienta">Własne logo klienta</option>
+                        </select>
+                    </div>
                 </div>
 
                 <!-- TERMICZNY -->
@@ -4065,20 +4072,22 @@
             }
             const iloscZlecona = bezProdukcji ? 0 : (parseInt(document.getElementById('nIloscZlecona')?.value) || 0);
             const dataZlecenia = bezProdukcji ? null : (document.getElementById('nDataZlecenia')?.value || new Date().toISOString().slice(0, 10));
+            const logo = document.getElementById('nLogo')?.value || 'artsider';
             const kubData = {
                 pojemnosc_ml: poj,
                 typ_materialu: mat,
                 typ_scianki: sci,
                 sztuk_w_opakowaniu: pak,
                 cena_netto: cena || 0,
-                status: bezProdukcji ? 'w_magazynie' : 'zlecony',
-                ilosc_zlecona: iloscZlecona
+                logo
             };
-            if (dataZlecenia)
-                kubData.data_zlecenia = dataZlecenia;
             kubekData = {
                 table: 'kubek',
-                data: kubData
+                data: kubData,
+                zlecenie: !bezProdukcji && iloscZlecona > 0 ? {
+                    ilosc: iloscZlecona,
+                    data: dataZlecenia
+                } : null
             };
         } else {
             const poj = parseInt(document.getElementById('nTPoj').value);
@@ -4806,7 +4815,7 @@
             wrap.innerHTML = '<div style="color:var(--ink3);font-size:12px;padding:8px;">Wybierz magazyn.</div>';
             return;
         }
-        let lista = allKubki.filter(k => !k.isPrzykrywka);
+        let lista = allKubki.filter(k => !k.isPrzykrywka && k.logo !== 'klienta');
         if (mat)
             lista = lista.filter(k => k.typ_materialu === mat);
         if (sci)
@@ -4875,39 +4884,27 @@
         const wrap = document.getElementById(`plist_${id}`);
         if (!wrap)
             return;
-        const combos = [{
-            mat: 'papierowa',
-            rozm: 80,
-            kol: 'biały'
-        }, {
-            mat: 'papierowa',
-            rozm: 80,
-            kol: 'czarny'
-        }, {
-            mat: 'papierowa',
-            rozm: 90,
-            kol: 'biały'
-        }, {
-            mat: 'papierowa',
-            rozm: 90,
-            kol: 'czarny'
-        }, {
-            mat: 'papierowa',
-            rozm: 72,
-            kol: 'biały'
-        }, {
-            mat: 'plastikowa',
-            rozm: 80,
-            kol: 'biały'
-        }, {
-            mat: 'plastikowa',
-            rozm: 80,
-            kol: 'czarny'
-        }, {
-            mat: 'plastikowa',
-            rozm: 90,
-            kol: 'biały'
-        }];
+        // Buduj dynamicznie z istniejących przykrywek
+        const combosMap = new Map();
+        (allPrzykrywki || []).forEach(p => {
+            const g = (p.grafika || '').toLowerCase();
+            const mat = g.includes('plastik') ? 'plastikowa' : 'papierowa';
+            const kol = g.includes('czarn') ? 'czarny' : 'biały';
+            const key = `${mat}_${p.rozmiar_mm}_${kol}`;
+            if (!combosMap.has(key))
+                combosMap.set(key, {
+                    mat,
+                    rozm: p.rozmiar_mm,
+                    kol
+                });
+        });
+        const combos = [...combosMap.values()].sort((a, b) => {
+            if (a.mat !== b.mat)
+                return a.mat.localeCompare(b.mat);
+            if (a.rozm !== b.rozm)
+                return a.rozm - b.rozm;
+            return a.kol.localeCompare(b.kol);
+        });
         const rows = combos.map(c => {
             const prz = allPrzykrywki?.find(p => p.rozmiar_mm === c.rozm && (p.grafika || '').toLowerCase().includes(c.mat) && (p.grafika || '').toLowerCase().includes(c.kol));
             const ilosc = prz?.ilosc_lacznie || 0;
