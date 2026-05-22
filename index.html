@@ -5364,36 +5364,40 @@
                         cena_jednostkowa: cenW
                     });
             } else if (typ2 === 'przykrywka') {
-                const prMat = div.querySelector('[data-field="pr_mat"]')?.value;
-                const prRozm = parseInt(div.querySelector('[data-field="pr_rozm"]')?.value);
-                const prKol = div.querySelector('[data-field="pr_kol"]')?.value;
-                try {
-                    let prs = await sbFetch('przykrywka', `?typ_materialu=eq.${prMat}&rozmiar_mm=eq.${prRozm}&kolor=eq.${prKol}`);
-                    let pr;
-                    if (prs.length > 0)
-                        pr = prs[0];
-                    else {
-                        const [nowy] = await sbFetch('przykrywka', '', {
-                            method: 'POST',
-                            body: JSON.stringify({
-                                typ_materialu: prMat,
-                                rozmiar_mm: prRozm,
-                                kolor: prKol,
-                                cena_netto: cena
-                            })
-                        });
-                        pr = nowy;
+                // Zbierz pozycje z inline listy wieczek
+                const plistId = div.querySelector('[id^="plist_"]')?.id;
+                if (plistId) {
+                    const pWrap = document.getElementById(plistId);
+                    if (pWrap) {
+                        for (const row of pWrap.children) {
+                            const qInput = row.querySelector('[id^="wq_"]');
+                            const il = parseInt(qInput?.value) || 0;
+                            if (il <= 0)
+                                continue;
+                            const prMat = row.dataset.mat;
+                            const prRozm = parseInt(row.dataset.rozm);
+                            const prKol = row.dataset.kol;
+                            const cn = parseFloat(row.querySelector('[id^="wn_"]')?.value) || parseFloat(row.dataset.cena) || 0;
+                            if (!prMat || isNaN(prRozm))
+                                continue;
+                            try {
+                                let prs = await sbFetch('przykrywka', `?rozmiar_mm=eq.${prRozm}&select=*`);
+                                let pr = prs.find(p => (p.grafika || '').toLowerCase().includes(prMat) && (p.grafika || '').toLowerCase().includes(prKol));
+                                if (!pr)
+                                    pr = prs[0];
+                                if (pr) {
+                                    pozycje.push({
+                                        rodzaj_produktu: 'przykrywka',
+                                        przykrywka_id: pr.id,
+                                        ilosc: il,
+                                        cena_jednostkowa: cn
+                                    });
+                                }
+                            } catch (e) {
+                                console.warn('przykrywka match:', e);
+                            }
+                        }
                     }
-                    pozycje.push({
-                        rodzaj_produktu: 'przykrywka',
-                        przykrywka_id: pr.id,
-                        ilosc,
-                        cena_jednostkowa: cena
-                    });
-                } catch (e) {
-                    msg.className = 'f-msg err';
-                    msg.textContent = 'Błąd przykrywki: ' + e.message;
-                    return;
                 }
             }
         }
