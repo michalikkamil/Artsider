@@ -7197,6 +7197,55 @@
     }
 
     // ── AUTOCOMPLETE KLIENT FULL (z notatką) ──
+    function openNowyKlientInline() {
+        const f = document.getElementById('nowyKlientForm');
+        if (f)
+            f.style.display = f.style.display === 'none' ? 'block' : 'none';
+    }
+
+    async function zapiszNowegoKlienta() {
+        const nazwa = document.getElementById('nkNazwa')?.value?.trim();
+        const formalna = document.getElementById('nkFormalna')?.value?.trim() || null;
+        const adres = document.getElementById('nkAdres')?.value?.trim() || null;
+        const nip = document.getElementById('nkNip')?.value?.trim() || null;
+        const email = document.getElementById('nkEmail')?.value?.trim() || null;
+        const tel = document.getElementById('nkTelefon')?.value?.trim() || null;
+        const msg = document.getElementById('klientSaveMsg');
+        if (!nazwa) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'Wpisz nazwę klienta.';
+            return;
+        }
+        try {
+            const [nowy] = await sbFetch('klient', '', {
+                method: 'POST',
+                body: JSON.stringify({
+                    nazwa_wlasna: nazwa,
+                    nazwa_formalna: formalna,
+                    adres_faktury: adres,
+                    nip,
+                    email,
+                    telefon: tel
+                })
+            });
+            // Ustaw nowego klienta w autocomplete
+            document.getElementById('zamKlient').value = nowy.id;
+            document.getElementById('zamKlientInput').value = nazwa;
+            document.getElementById('zamKlientInput').dataset.id = nowy.id;
+            // Dodaj do listy klientów
+            allKlienci.push({
+                id: nowy.id,
+                nazwa_wlasna: nazwa
+            });
+            msg.className = 'f-msg ok';
+            msg.textContent = '✓ Klient dodany i wybrany!';
+            document.getElementById('nowyKlientForm').style.display = 'none';
+        } catch (e) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'Błąd: ' + e.message;
+        }
+    }
+
     function autocompleteKlientFull(q) {
         const list = document.getElementById('zamKlientList');
         const hidden = document.getElementById('zamKlient');
