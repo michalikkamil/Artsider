@@ -4764,7 +4764,8 @@
             ;
             wrap.appendChild(div);
             if (allMagazyny.length) {
-                document.getElementById(`kf_mag_${id}`).value = allMagazyny[0].id;
+                const _krk = allMagazyny.find(m => m.nazwa === 'Kraków') || allMagazyny[0];
+                document.getElementById(`kf_mag_${id}`).value = _krk.id;
                 renderKubkiInline(id);
             }
 
