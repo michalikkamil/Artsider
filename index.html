@@ -3504,6 +3504,14 @@
         <button onclick="zrealizujZlecenie('${
                 z.id}','${k.kubek_id}')" style="background:var(--green);color:white;border:none;border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:var(--fm);">✓ Zrealizuj</button>
         <button onclick="anulujZlecenie('${z.id}','${k.kubek_id}')" style="background:#FBE9E9;color:#A32D2D;border:1px solid #F4B5B5;border-radius:6px;padding:5px 8px;font-size:11px;cursor:pointer;font-family:var(--fm);">✕</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:-2px;margin-bottom:2px;padding:0 2px;">
+        <span style="font-size:10px;color:var(--ink3);flex-shrink:0;">🏭 Faktura prod.:</span>
+        <input type="text" value="${
+
+
+                z.numer_faktury_producent || ''}" id="zlecFakt_${z.id}" placeholder="nr faktury" style="flex:1;background:var(--surface);border:1.5px solid var(--border);border-radius:6px;padding:3px 6px;font-family:var(--fm);font-size:11px;">
+        <button onclick="zapiszFakturaZlecenie('${z.id}','${k.kubek_id}')" style="background:var(--accent);color:white;border:none;border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer;font-family:var(--fm);">✓</button>
       </div>`
                 ;
             });
@@ -3627,6 +3635,30 @@
         }
     }
 
+    async function zapiszFakturaZlecenie(zlecId, kubekId) {
+        const nr = document.getElementById('zlecFakt_' + zlecId)?.value?.trim() || null;
+        try {
+            await sbFetch('zlecenie_produkcyjne', `?id=eq.${zlecId}`, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    numer_faktury_producent: nr
+                })
+            });
+            const btn = event?.target;
+            if (btn) {
+                const o = btn.textContent;
+                btn.textContent = '✓';
+                btn.style.background = '#3B6D11';
+                setTimeout(() => {
+                    btn.textContent = o;
+                    btn.style.background = 'var(--accent)';
+                }, 1200);
+            }
+        } catch (e) {
+            alert('Błąd: ' + e.message);
+        }
+    }
+
     async function zrealizujZlecenie(zlecId, kubekId) {
         if (!confirm('Oznaczyć zlecenie jako zrealizowane? Pamiętaj żeby najpierw przyjąć sztuki do magazynu.'))
             return;
@@ -3731,6 +3763,18 @@
         k.sztuk_w_opakowaniu || ''}" id="editPak_${k.kubek_id}"
           style="width:70px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;padding:4px 8px;font-family:var(--fm);font-size:13px;text-align:center;">
         <button onclick="zapiszPak('${
+        k.kubek_id}')" style="background:var(--accent);color:white;border:none;border-radius:6px;padding:4px 10px;font-family:var(--fm);font-size:11px;cursor:pointer;">✓</button>
+      </span>
+    </div>`
+        : ''}
+    ${!k.isPrzykrywka ? `<div class="d-row">
+      <span class="d-key">Nr grafiki (kod prod.)</span>
+      <span class="d-val" style="display:flex;align-items:center;gap:8px;">
+        <input type="text" value="${
+
+        k.kod_grafiki || ''}" id="editKod_${k.kubek_id}" placeholder="np. ABC1234567" maxlength="20"
+          style="width:110px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;padding:4px 8px;font-family:var(--fm);font-size:12px;text-align:center;">
+        <button onclick="zapiszKodGrafiki('${
         k.kubek_id}')" style="background:var(--accent);color:white;border:none;border-radius:6px;padding:4px 10px;font-family:var(--fm);font-size:11px;cursor:pointer;">✓</button>
       </span>
     </div>`
@@ -4423,7 +4467,11 @@
 
       ${
             zam.tresc_zamowienia ? `<div class="d-section">Treść zamówienia</div><div style="background:var(--bg);border-radius:10px;padding:12px;font-size:12px;line-height:1.6;color:var(--ink2);white-space:pre-wrap;">${zam.tresc_zamowienia}</div>` : ''}
-      ${zam.numer_faktury ? `<div class="d-row"><span class="d-key">🧾 Faktura</span><span class="d-val">${zam.numer_faktury}</span></div>` : ''}
+      ${zam.numer_faktury ? `<div class="d-row"><span class="d-key">🧾 Faktura Artsider</span><span class="d-val">${zam.numer_faktury}</span></div>` : ''}
+      ${zam.typ_zamowienia === 'wlasne_logo' ? `<div class="d-row"><span class="d-key">🏭 Faktura producent</span><span class="d-val" style="display:flex;align-items:center;gap:6px;">
+        <input type="text" value="${zam.numer_faktury_producent || ''}" id="fakturaProd_${zamId}" placeholder="nr faktury" style="width:100px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;padding:4px 8px;font-family:var(--fm);font-size:12px;">
+        <button onclick="zapiszFakturaProducent('${zamId}')" style="background:var(--accent);color:white;border:none;border-radius:6px;padding:4px 10px;font-family:var(--fm);font-size:11px;cursor:pointer;">✓</button>
+      </span></div>` : ''}
 
       
       <div style="display:flex;gap:8px;margin-bottom:12px;">
@@ -4466,6 +4514,43 @@
             ;
             document.getElementById('overlayZam').classList.add('open');
             document.getElementById('drawerZam').classList.add('open');
+        } catch (e) {
+            alert('Błąd: ' + e.message);
+        }
+    }
+
+    async function zapiszFakturaProducent(zamId) {
+        const nr = document.getElementById('fakturaProd_' + zamId)?.value?.trim() || null;
+        try {
+            // Zapisz na zamówieniu
+            await sbFetch('zamowienie', `?id=eq.${zamId}`, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    numer_faktury_producent: nr
+                })
+            });
+            // Zaciągnij do zleceń produkcyjnych kubków z tego zamówienia
+            const pozycje = await sbFetch('pozycja_zamowienia', `?zamowienie_id=eq.${zamId}&rodzaj_produktu=eq.kubek&select=kubek_id`);
+            for (const p of pozycje) {
+                if (p.kubek_id) {
+                    await sbFetch('zlecenie_produkcyjne', `?kubek_id=eq.${p.kubek_id}&status=eq.w_produkcji`, {
+                        method: 'PATCH',
+                        body: JSON.stringify({
+                            numer_faktury_producent: nr
+                        })
+                    });
+                }
+            }
+            const btn = event?.target;
+            if (btn) {
+                const o = btn.textContent;
+                btn.textContent = '✓ OK';
+                btn.style.background = '#3B6D11';
+                setTimeout(() => {
+                    btn.textContent = o;
+                    btn.style.background = 'var(--accent)';
+                }, 1200);
+            }
         } catch (e) {
             alert('Błąd: ' + e.message);
         }
@@ -7219,6 +7304,34 @@
 
 
 
+
+    async function zapiszKodGrafiki(kubekId) {
+        const kod = document.getElementById('editKod_' + kubekId)?.value?.trim() || null;
+        try {
+            await sbFetch('kubek', `?id=eq.${kubekId}`, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    kod_grafiki: kod
+                })
+            });
+            // Aktualizuj lokalnie
+            const k = allKubki.find(x => x.kubek_id === kubekId);
+            if (k)
+                k.kod_grafiki = kod;
+            const btn = event?.target;
+            if (btn) {
+                const o = btn.textContent;
+                btn.textContent = '✓ Zapisano';
+                btn.style.background = '#3B6D11';
+                setTimeout(() => {
+                    btn.textContent = o;
+                    btn.style.background = 'var(--accent)';
+                }, 1200);
+            }
+        } catch (e) {
+            alert('Błąd: ' + e.message);
+        }
+    }
 
     async function zapiszPak(kubek_id) {
         const val = parseInt(document.getElementById('editPak_' + kubek_id)?.value) || null;
