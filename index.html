@@ -241,6 +241,13 @@
         text-transform: uppercase;
         margin-top: 2px;
         display: block;
+    }
+
+    .stat-sub {
+        display: block;
+        font-size: 9px;
+        color: var(--ink3);
+        margin-top: 1px;
     }/* CARDS */
     .list {
         padding: 10px 16px 80px;
@@ -1265,17 +1272,19 @@
             </div>
         </div>
         <div class="stats-bar">
-            <div class="stat">
+            <div class="stat" style="flex:0 0 auto;min-width:52px;padding:6px 10px;">
                 <span class="stat-val" id="skModeli">—</span>
                 <span class="stat-lbl">modeli</span>
             </div>
-            <div class="stat">
-                <span class="stat-val" id="skSztuk">—</span>
-                <span class="stat-lbl">sztuk</span>
+            <div class="stat" style="flex:1;">
+                <span class="stat-val" id="skSztukA">—</span>
+                <span class="stat-lbl">szt. Artsider</span>
+                <span class="stat-sub" id="skZlecA"></span>
             </div>
-            <div class="stat">
-                <span class="stat-val" id="skDrodze">—</span>
-                <span class="stat-lbl">zlecone szt.</span>
+            <div class="stat" style="flex:1;">
+                <span class="stat-val" id="skSztukK">—</span>
+                <span class="stat-lbl">szt. Klient</span>
+                <span class="stat-sub" id="skZlecK"></span>
             </div>
         </div>
         <div class="list" id="listKubki">
@@ -3216,31 +3225,38 @@
                 }
                 return true;
             });
-            let ts = 0,
-                td = 0;
             const fKubki = f.filter(k => !k.isPrzykrywka);
+            // Sztuki w magazynie - rozbite na Artsider vs Klient (per aktywny magazyn)
+            let sztA = 0,
+                sztK = 0;
             fKubki.forEach(k => {
+                let szt = 0;
                 if (activeMagKubki && activeMagKubki !== 'zlecone' && activeMagKubki !== 'archiwum') {
                     const s = k.stany.find(x => x.magazyn_id === activeMagKubki);
-                    ts += s?.ilosc_dostepna || 0;
-                    td += s?.ilosc_w_drodze || 0;
+                    szt = s?.ilosc_dostepna || 0;
                 } else {
-                    ts += k.ilosc_lacznie;
-                    td += k.ilosc_w_drodze;
+                    szt = k.ilosc_lacznie || 0;
                 }
+                if (k.logo === 'klienta')
+                    sztK += szt;
+                else
+                    sztA += szt;
             });
-            // Zlecone stats
-            if (activeMagKubki === 'zlecone') {
-                const totalZlecone = allZlecone.reduce((s, k) => s + (k.ilosc_zlecona || 0), 0);
-                document.getElementById('skModeli').textContent = allZlecone.length;
-                document.getElementById('skSztuk').textContent = totalZlecone;
-                document.getElementById('skDrodze').textContent = '—';
-            } else {
-                const totalZlecone = allZlecone.reduce((s, k) => s + (k.ilosc_zlecona || 0), 0);
-                document.getElementById('skModeli').textContent = fKubki.length;
-                document.getElementById('skSztuk').textContent = ts;
-                document.getElementById('skDrodze').textContent = totalZlecone || '—';
-            }
+            // Zlecone (globalne, niezależne od magazynu) - rozbite Artsider vs Klient
+            let zlecA = 0,
+                zlecK = 0;
+            allZlecone.forEach(k => {
+                const il = k.ilosc_zlecona || k.ilosc_w_produkcji || 0;
+                if (k.logo === 'klienta')
+                    zlecK += il;
+                else
+                    zlecA += il;
+            });
+            document.getElementById('skModeli').textContent = fKubki.length;
+            document.getElementById('skSztukA').textContent = sztA.toLocaleString('pl');
+            document.getElementById('skSztukK').textContent = sztK.toLocaleString('pl');
+            document.getElementById('skZlecA').textContent = zlecA > 0 ? `zlecono: ${zlecA.toLocaleString('pl')}` : '';
+            document.getElementById('skZlecK').textContent = zlecK > 0 ? `zlecono: ${zlecK.toLocaleString('pl')}` : '';
             // Sortuj: przykrywki na końcu, kubki wg pojemności rosnąco, potem dostępność malejąco
             const fSorted = [...f].sort((a, b) => {
                 if (a.isPrzykrywka && !b.isPrzykrywka)
@@ -3437,7 +3453,7 @@
 
 
             cardTitle}</span>
-            ${!isTermiczny && !k.isPrzykrywka && k.typ_materialu ? `<span style="font-size:10px;color:var(--ink3);">${k.typ_materialu}</span>` : ''}
+            ${!isTermiczny && !k.isPrzykrywka && k.typ_materialu ? (k.typ_materialu === 'BIO' ? `<span style="font-size:9px;color:#fff;background:#3B6D11;padding:1px 6px;border-radius:4px;font-weight:600;">BIO</span>` : `<span style="font-size:10px;color:var(--ink3);">${k.typ_materialu}</span>`) : ''}
             ${pakTag}
           </div>
           <div style="font-size:10px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.2;">${
@@ -4041,6 +4057,33 @@
         const dateEl = document.getElementById('nDataZlecenia');
         if (dateEl)
             dateEl.value = new Date().toISOString().slice(0, 10);
+    }
+
+    function toggleBezProdukcji() {
+        const checked = document.getElementById('nBezProdukcji')?.checked;
+        const wrap = document.getElementById('nMagStany');
+        const prodWrap = document.getElementById('nProdukcjaWrap');
+        if (!wrap)
+            return;
+        if (checked) {
+            // Pokaż inputy ilości per magazyn (Kraków pierwszy)
+            const sortedMag = [...allMagazyny].sort((a, b) => a.nazwa === 'Kraków' ? -1 : b.nazwa === 'Kraków' ? 1 : a.nazwa.localeCompare(b.nazwa, 'pl'));
+            wrap.style.display = 'block';
+            wrap.innerHTML = '<div class="f-section">Ilości w magazynach</div>' +
+            sortedMag.map(m => `<div class="f-group" style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <label class="f-label" style="flex:0 0 80px;margin:0;">${m.nazwa}</label>
+        <input class="f-input" id="nStanMag_${m.id}" type="number" min="0" value="${m.nazwa === 'Kraków' ? '' : '0'}" placeholder="0" style="flex:1;">
+      </div>`
+            ).join('');
+            // Ukryj sekcję produkcji
+            if (prodWrap)
+                prodWrap.style.display = 'none';
+        } else {
+            wrap.style.display = 'none';
+            wrap.innerHTML = '';
+            if (prodWrap)
+                prodWrap.style.display = 'block';
+        }
     }
 
     async function dodajKubek() {
