@@ -4319,8 +4319,8 @@
     }
 
     const STATUS_LABELS = {
-        w_produkcji: '🏭 W produkcji',
-        wyslane: '🚚 Wysłane',
+        w_produkcji: '❗ Zleć!',
+        wyslane: '🏭 W produkcji',
         zrealizowane: '✅ Zrealizowane'
     };
     const PLATNOSC_LABELS = {
@@ -4441,8 +4441,8 @@
 
 
 
-            zamId}','status_realizacji','w_produkcji')" class="btn-status ${zam.status_realizacji === 'w_produkcji' ? 'active' : ''}">🏭 W prod.</button>
-          <button onclick="zmienStatus('${zamId}','status_realizacji','wyslane')" class="btn-status ${zam.status_realizacji === 'wyslane' ? 'active' : ''}">🚚 Wysłane</button>
+            zamId}','status_realizacji','w_produkcji')" class="btn-status ${zam.status_realizacji === 'w_produkcji' ? 'active' : ''}">❗ Zleć!</button>
+          <button onclick="zmienStatus('${zamId}','status_realizacji','wyslane')" class="btn-status ${zam.status_realizacji === 'wyslane' ? 'active' : ''}">🏭 W produkcji</button>
           <button onclick="zmienStatus('${zamId}','status_realizacji','zrealizowane')" class="btn-status ${zam.status_realizacji === 'zrealizowane' ? 'active' : ''}">✅ Zrealizowane</button>
         </div>
         <div style="display:flex;gap:6px;">
