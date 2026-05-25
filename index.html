@@ -4848,9 +4848,14 @@
             document.getElementById(`poz_cena_${id}`).value = Number(cena).toFixed(2);
     }
 
-    function dodajPozycje(typ) {
+    function dodajPozycje(typ, wrapId) {
+        console.log('dodajPozycje:', typ, 'wrapId:', wrapId);
         const id = ++pozycjeCounter;
-        const wrap = document.getElementById('pozycjeZam');
+        const wrap = document.getElementById(wrapId || 'pozycjeZam');
+        if (!wrap) {
+            console.error('Container not found:', wrapId || 'pozycjeZam');
+            return;
+        }
         const div = document.createElement('div');
         div.id = `poz_${id}`;
         div.dataset.typ = typ;
