@@ -5745,18 +5745,24 @@
             zam.numer_faktury || ''}">
       </div>
 
-      <div class="d-section">Pozycje zamówienia</div>
+      <div class="d-section">Obecne pozycje</div>
       <div id="ePozycjeList">${
 
 
-            pozHTML}</div>
-      <button class="btn-secondary" onclick="dodajPozycjeEdit('kubek')" style="margin-bottom:6px;">+ Kubek papierowy</button>
-      <button class="btn-secondary" onclick="dodajPozycjeEdit('przykrywka')" style="margin-bottom:6px;">+ Wieczko</button>
+            pozHTML || '<div style="color:var(--ink3);font-size:12px;padding:4px 0;">Brak pozycji</div>'}</div>
+
+      <div class="d-section">Dodaj nowe pozycje</div>
+      <div id="ePozycjeZam"></div>
+      <button class="btn-secondary" onclick="dodajPozycje('kubek','ePozycjeZam')" style="margin-bottom:6px;">+ Kubek (Artsider)</button>
+      <button class="btn-secondary" onclick="dodajPozycjeWlasneLogo('ePozycjeZam')" style="margin-bottom:6px;">+ Kubek (własne logo)</button>
+      <button class="btn-secondary" onclick="dodajPozycje('przykrywka','ePozycjeZam')" style="margin-bottom:6px;">+ Wieczko</button>
       <button class="btn-secondary" onclick="dodajPozycjeTermiczneEdit()" style="margin-bottom:6px;">+ Termiczne</button>
-      <button class="btn-secondary" onclick="dodajPozycjeEdit('wysylka')" style="margin-bottom:6px;">+ Wysyłka</button>
-      <div id="ePozycjeNowe"></div>
+      <button class="btn-secondary" onclick="dodajPozycje('wysylka','ePozycjeZam')" style="margin-bottom:6px;">+ Wysyłka</button>
 
       <button class="btn-primary" onclick="zapiszEdycjeZamowienia('${
+
+
+
 
 
 
@@ -5848,12 +5854,10 @@
         const tresc = document.getElementById('eZamTresc').value.trim();
         const faktura = document.getElementById('eZamFaktura').value.trim();
         const msg = document.getElementById('eZamMsg');
-
         msg.className = 'f-msg';
         msg.textContent = 'Zapisuję…';
-
         try {
-            // zaktualizuj zamówienie
+            // Zaktualizuj zamówienie
             await sbFetch('zamowienie', `?id=eq.${zamId}`, {
                 method: 'PATCH',
                 body: JSON.stringify({
@@ -5865,129 +5869,221 @@
                 })
             });
 
-            // zapisz nowe pozycje
-            const nowe = document.querySelectorAll('#ePozycjeNowe > div[data-typ]');
-            for (const div of nowe) {
+            // Parsuj nowe pozycje z ePozycjeZam (ta sama logika co nowe zamówienie)
+            const pozycje = [];
+            const komisDoUtworzenia = [];
+            const divs = document.querySelectorAll('#ePozycjeZam > div[data-typ]');
+            for (const div of divs) {
                 const typ2 = div.dataset.typ;
-                const ilosc = parseInt(div.querySelector('[data-field="ilosc"]')?.value) || 0;
-                const cena = parseFloat(div.querySelector('[data-field="cena"]')?.value) || 0;
-                if (ilosc <= 0 || cena <= 0)
-                    continue;
-                if (typ2 === 'kubek') {
-                    const kubId = div.querySelector('[data-field="kubek_id"]')?.value;
-                    if (!kubId)
+
+                if (typ2 === 'kubek' || typ2 === 'wlasne_logo') {
+                    const lWrap = div.querySelector('[id^="klist_"]');
+                    if (!lWrap)
                         continue;
-                    const magIdE = div.querySelector('[id^="poz_mag_val_"]')?.value || null;
-                    await sbFetch('pozycja_zamowienia', '', {
-                        method: 'POST',
-                        body: JSON.stringify({
-                            zamowienie_id: zamId,
+                    for (const row of lWrap.querySelectorAll('[data-kubek-id]')) {
+                        const kubId = row.dataset.kubekId;
+                        const rowId = row.id;
+                        const il = parseInt(document.getElementById('kq_' + rowId)?.value) || 0;
+                        if (il <= 0)
+                            continue;
+                        const cn = parseFloat(document.getElementById('kn_' + rowId)?.value) || 0;
+                        const magId = row.dataset.magId || null;
+                        pozycje.push({
                             rodzaj_produktu: 'kubek',
                             kubek_id: kubId,
-                            magazyn_id: magIdE || undefined,
-                            ilosc,
-                            cena_jednostkowa: cena
-                        })
-                    });
-                } else if (typ2 === 'przykrywka') {
-                    const prMat = div.querySelector('[data-field="pr_mat"]')?.value;
-                    const prRozm = parseInt(div.querySelector('[data-field="pr_rozm"]')?.value);
-                    const prKol = div.querySelector('[data-field="pr_kol"]')?.value;
-                    let prs = await sbFetch('przykrywka', `?typ_materialu=eq.${prMat}&rozmiar_mm=eq.${prRozm}&kolor=eq.${prKol}`);
-                    let pr;
-                    if (prs.length > 0)
-                        pr = prs[0];
-                    else {
-                        const [n] = await sbFetch('przykrywka', '', {
-                            method: 'POST',
-                            body: JSON.stringify({
-                                typ_materialu: prMat,
-                                rozmiar_mm: prRozm,
-                                kolor: prKol,
-                                cena_netto: cena
-                            })
+                            magazyn_id: magId || undefined,
+                            ilosc: il,
+                            cena_jednostkowa: cn
                         });
-                        pr = n;
                     }
-                    await sbFetch('pozycja_zamowienia', '', {
-                        method: 'POST',
-                        body: JSON.stringify({
-                            zamowienie_id: zamId,
-                            rodzaj_produktu: 'przykrywka',
-                            przykrywka_id: pr.id,
-                            ilosc,
-                            cena_jednostkowa: cena
-                        })
-                    });
-                } else if (typ2 === 'termiczny') {
-                    const termTyp = div.querySelector('[id^="poz_term_typ_"]')?.value || 'sprzedaz';
-                    const termIlosc = parseInt(div.querySelector('[id^="poz_term_ilosc_"]')?.value) || 0;
-                    const termCenaNet = parseFloat(div.querySelector('[id^="poz_term_cena_"]')?.value) || 0;
-                    const termCenaBrut = parseFloat(div.querySelector('[id^="poz_term_brutto_"]')?.value) || 0;
-                    const termCena = termCenaNet || (termCenaBrut / 1.23) || 0;
-                    if (termIlosc <= 0)
+                }
+                else if (typ2 === 'przykrywka') {
+                    const plistId = div.querySelector('[id^="plist_"]')?.id;
+                    if (plistId) {
+                        const pWrap = document.getElementById(plistId);
+                        if (pWrap) {
+                            for (const row of pWrap.children) {
+                                const il = parseInt(row.querySelector('[id^="wq_"]')?.value) || 0;
+                                if (il <= 0)
+                                    continue;
+                                const prMat = row.dataset.mat;
+                                const prRozm = parseInt(row.dataset.rozm);
+                                const prKol = row.dataset.kol;
+                                const cn = parseFloat(row.querySelector('[id^="wn_"]')?.value) || parseFloat(row.dataset.cena) || 0;
+                                if (!prMat || isNaN(prRozm))
+                                    continue;
+                                const cenaJedn = cn / 100;
+                                let prs = await sbFetch('przykrywka', `?rozmiar_mm=eq.${prRozm}&select=*`);
+                                let pr = prs.find(p => (p.grafika || '').toLowerCase().includes(prMat) && (p.grafika || '').toLowerCase().includes(prKol)) || prs[0];
+                                if (pr)
+                                    pozycje.push({
+                                        rodzaj_produktu: 'przykrywka',
+                                        przykrywka_id: pr.id,
+                                        ilosc: il,
+                                        cena_jednostkowa: cenaJedn
+                                    });
+                            }
+                        }
+                    }
+                }
+                else if (typ2 === 'termiczny') {
+                    const termTyp = div.querySelector('[id^="poz_term_typ_val_"]')?.dataset?.val || 'sprzedaz';
+                    const termZrodlo = div.querySelector('[id^="poz_term_zrodlo_val_"]')?.dataset?.val || 'magazyn';
+                    const sid = div.id.replace('poz_', '');
+                    const lWrap = document.getElementById(`termlist_${sid}`);
+                    if (!lWrap)
                         continue;
-                    if (termTyp === 'komis') {
-                        const kubId = div.querySelector('[data-field="kubek_termiczny_komis_id"]')?.value;
-                        if (!kubId)
+                    for (const row of lWrap.querySelectorAll('[data-kubek-id]')) {
+                        const kubId = row.dataset.kubekId;
+                        const rowId = row.id;
+                        const il = parseInt(document.getElementById('tq_' + rowId)?.value) || 0;
+                        if (il <= 0)
                             continue;
-                        const cenKom = parseFloat(div.querySelector('[id^="poz_term_cena_kom_"]')?.value) || 0;
-                        await sbFetch('komis', '', {
-                            method: 'POST',
-                            body: JSON.stringify({
+                        const cn = parseFloat(document.getElementById('tn_' + rowId)?.value) || 0;
+                        if (termTyp === 'komis') {
+                            komisDoUtworzenia.push({
                                 kubek_id: kubId,
-                                klient_id: klientId,
-                                ilosc: termIlosc,
-                                cena_komisowa: cenKom || null,
-                                status: 'aktywny',
-                                data_przekazania: new Date().toISOString().slice(0, 10)
-                            })
-                        });
-                    } else {
-                        const termZrodlo = div.querySelector('[id^="poz_term_zrodlo_"]')?.value || 'magazyn';
-                        const kubId = termZrodlo === 'komis' ? div.querySelector('[id^="poz_term_komis_kub_"]')?.value : div.querySelector('[data-field="kubek_termiczny_id"]')?.value;
-                        if (!kubId)
-                            continue;
-                        await sbFetch('pozycja_zamowienia', '', {
-                            method: 'POST',
-                            body: JSON.stringify({
-                                zamowienie_id: zamId,
+                                ilosc: il,
+                                cena_komisowa: null
+                            });
+                        } else {
+                            pozycje.push({
                                 rodzaj_produktu: 'termiczny',
                                 kubek_termiczny_id: kubId,
                                 typ_termiczny: 'sprzedaz',
-                                ilosc: termIlosc,
-                                cena_jednostkowa: termCena
-                            })
-                        });
+                                ilosc: il,
+                                cena_jednostkowa: cn
+                            });
+                            if (termZrodlo === 'komis' && row.dataset.komisId) {
+                                try {
+                                    await sbFetch('sprzedaz_termicznych', '', {
+                                        method: 'POST',
+                                        body: JSON.stringify({
+                                            komis_id: row.dataset.komisId,
+                                            kubek_id: kubId,
+                                            klient_id: klientId,
+                                            ilosc: il,
+                                            cena_netto: cn,
+                                            data_sprzedazy: new Date().toISOString().slice(0, 10),
+                                            status_faktury: 'nie_wystawiona',
+                                            status_platnosci: 'nieoplacona'
+                                        })
+                                    });
+                                    const kl = window['tl_kom_' + sid] || [];
+                                    const ki = kl.find(k => k.id === kubId);
+                                    const ni = (ki?.ilosc || 0) - il;
+                                    if (ni <= 0)
+                                        await sbFetch('komis', `?id=eq.${row.dataset.komisId}`, {
+                                            method: 'PATCH',
+                                            body: JSON.stringify({
+                                                status: 'sprzedany',
+                                                ilosc: 0
+                                            })
+                                        });
+                                    else
+                                        await sbFetch('komis', `?id=eq.${row.dataset.komisId}`, {
+                                            method: 'PATCH',
+                                            body: JSON.stringify({
+                                                ilosc: ni
+                                            })
+                                        });
+                                } catch (e) {
+                                    console.warn('komis sale:', e);
+                                }
+                            }
+                            if (termZrodlo === 'magazyn') {
+                                try {
+                                    const stany = await sbFetch('stan_magazynowy_termiczne', `?kubek_id=eq.${kubId}&order=ilosc_dostepna.desc`);
+                                    let rem = il;
+                                    for (const s of stany) {
+                                        if (rem <= 0)
+                                            break;
+                                        const odj = Math.min(rem, s.ilosc_dostepna || 0);
+                                        if (odj > 0) {
+                                            await sbFetch('stan_magazynowy_termiczne', `?kubek_id=eq.${kubId}&magazyn_id=eq.${s.magazyn_id}`, {
+                                                method: 'PATCH',
+                                                body: JSON.stringify({
+                                                    ilosc_dostepna: Math.max(0, s.ilosc_dostepna - odj)
+                                                })
+                                            });
+                                            rem -= odj;
+                                        }
+                                    }
+                                } catch (e) {
+                                    console.warn('term stock:', e);
+                                }
+                            }
+                        }
                     }
-                } else if (typ2 === 'wysylka') {
-                    const wTyp = div.querySelector('[data-field="wysylka_typ"]')?.value || 'DPD';
-                    const wNazwa = div.querySelector('[data-field="wysylka_nazwa"]')?.value || ('Wysyłka ' + wTyp);
-                    const cenWn = parseFloat(div.querySelector('[data-field="cena"]')?.value) || 0;
-                    const cenWb = parseFloat(div.querySelector('[id^="poz_brutto_"]')?.value) || 0;
-                    const cenW = cenWn || (cenWb / 1.23) || 0;
-                    if (cenW > 0)
-                        await sbFetch('pozycja_zamowienia', '', {
-                            method: 'POST',
-                            body: JSON.stringify({
-                                zamowienie_id: zamId,
-                                rodzaj_produktu: 'wysylka',
-                                typ_wysylki: wTyp,
-                                nazwa_wysylki: wNazwa,
-                                ilosc: 1,
-                                cena_jednostkowa: cenW
-                            })
-                        });
+                }
+                else if (typ2 === 'wysylka') {
+                    const il = parseInt(div.querySelector('[id^="wys_ilosc_"]')?.value) || 1;
+                    const cn = parseFloat(div.querySelector('[id^="wys_cena_"]')?.value) || 0;
+                    pozycje.push({
+                        rodzaj_produktu: 'wysylka',
+                        ilosc: il,
+                        cena_jednostkowa: cn
+                    });
                 }
             }
 
+            // Zapisz komisy
+            for (const k of komisDoUtworzenia) {
+                await sbFetch('komis', '', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        kubek_id: k.kubek_id,
+                        klient_id: klientId,
+                        ilosc: k.ilosc,
+                        cena_komisowa: k.cena_komisowa || null,
+                        status: 'aktywny',
+                        data_przekazania: new Date().toISOString().slice(0, 10)
+                    })
+                });
+                try {
+                    const stany = await sbFetch('stan_magazynowy_termiczne', `?kubek_id=eq.${k.kubek_id}&order=ilosc_dostepna.desc`);
+                    let pozostalo = k.ilosc;
+                    for (const s of stany) {
+                        if (pozostalo <= 0)
+                            break;
+                        const odejmij = Math.min(pozostalo, s.ilosc_dostepna || 0);
+                        if (odejmij > 0) {
+                            await sbFetch('stan_magazynowy_termiczne', `?kubek_id=eq.${k.kubek_id}&magazyn_id=eq.${s.magazyn_id}`, {
+                                method: 'PATCH',
+                                body: JSON.stringify({
+                                    ilosc_dostepna: Math.max(0, s.ilosc_dostepna - odejmij)
+                                })
+                            });
+                            pozostalo -= odejmij;
+                        }
+                    }
+                } catch (e) {
+                    console.warn('komis stock:', e);
+                }
+            }
+
+            // Zapisz nowe pozycje zamówienia
+            for (const p of pozycje) {
+                await sbFetch('pozycja_zamowienia', '', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        zamowienie_id: zamId,
+                        ...p
+                    })
+                });
+            }
+
             msg.className = 'f-msg ok';
-            msg.textContent = '✓ Zapisano zmiany!';
-            setTimeout(() => openZamowienieDrawer(zamId), 1000);
+            msg.textContent = '✓ Zapisano zmiany';
+            setTimeout(() => {
+                closeZamDrawer();
+                loadZamowienia();
+                loadAll();
+            }, 700);
         } catch (e) {
-            console.error('zapiszZamowienie:', e);
+            console.error('zapiszEdycjeZamowienia:', e);
             msg.className = 'f-msg err';
-            msg.textContent = 'Błąd zapisu: ' + (e.message || e);
+            msg.textContent = 'Błąd: ' + (e.message || e);
         }
     }
 
@@ -8094,9 +8190,9 @@
     }
 
     // ── WŁASNE LOGO KUBEK W ZAMÓWIENIU ──
-    function dodajPozycjeWlasneLogo() {
+    function dodajPozycjeWlasneLogo(wrapId) {
         const id = ++pozycjeCounter;
-        const wrap = document.getElementById('pozycjeZam');
+        const wrap = document.getElementById(wrapId || 'pozycjeZam');
         const div = document.createElement('div');
         div.id = `poz_${id}`;
         div.dataset.typ = 'wlasne_logo';
