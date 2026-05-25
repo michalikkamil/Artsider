@@ -5049,7 +5049,7 @@
       <div style="text-align:right;flex-shrink:0;"><div style="display:flex;align-items:center;gap:3px;justify-content:flex-end;"><span class="stock-dot ${dotCls}"></span><span style="font-size:13px;font-weight:600;">${ilosc}</span></div></div>
       <input type="number" min="0" value="" placeholder="0" id="wq_${rowId}" style="width:50px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:6px;font-size:14px;text-align:center;font-family:var(--fm);" oninput="onWIloscChange(this,'${rowId}','${cena}')">
       <div id="wprice_${rowId}" style="display:none;flex-direction:column;gap:2px;">
-        <input type="number" step="0.01" placeholder="netto" id="wn_${rowId}" style="width:60px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:5px;font-size:12px;text-align:center;font-family:var(--fm);" oninput="const b=document.getElementById('wb_${rowId}');if(b)b.value=(parseFloat(this.value||0)*1.23).toFixed(2);">
+        <input type="number" step="0.01" placeholder="za 100szt" value="${cena || ''}" title="Cena za 100 sztuk" id="wn_${rowId}" style="width:60px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:5px;font-size:12px;text-align:center;font-family:var(--fm);" oninput="const b=document.getElementById('wb_${rowId}');if(b)b.value=(parseFloat(this.value||0)*1.23).toFixed(2);">
         <input type="number" step="0.01" placeholder="brutto" id="wb_${rowId}" style="width:60px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:5px;font-size:12px;text-align:center;font-family:var(--fm);" oninput="const n=document.getElementById('wn_${rowId}');if(n)n.value=(parseFloat(this.value||0)/1.23).toFixed(2);">
       </div>
     </div>`
@@ -5508,6 +5508,8 @@
                             const cn = parseFloat(row.querySelector('[id^="wn_"]')?.value) || parseFloat(row.dataset.cena) || 0;
                             if (!prMat || isNaN(prRozm))
                                 continue;
+                            // Cena wieczek podana za 100 szt - przelicz na cenę jednostkową
+                            const cenaJedn = cn / 100;
                             try {
                                 let prs = await sbFetch('przykrywka', `?rozmiar_mm=eq.${prRozm}&select=*`);
                                 let pr = prs.find(p => (p.grafika || '').toLowerCase().includes(prMat) && (p.grafika || '').toLowerCase().includes(prKol));
@@ -5518,7 +5520,7 @@
                                         rodzaj_produktu: 'przykrywka',
                                         przykrywka_id: pr.id,
                                         ilosc: il,
-                                        cena_jednostkowa: cn
+                                        cena_jednostkowa: cenaJedn
                                     });
                                 }
                             } catch (e) {
