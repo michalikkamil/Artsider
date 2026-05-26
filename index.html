@@ -15,7 +15,7 @@
         --ink2: #6B6760;
         --ink3: #A8A5A0;
         --accent: #C8502A;
-        --accent2: #E8855F;a
+        --accent2: #E8855F;
         --border: #D8D4CC;
         --green: #639922;
         --blue: #185FA5;
@@ -1904,6 +1904,7 @@
                     ilosc_w_produkcji: r.ilosc_w_produkcji || 0,
                     data_najwczesniejszego_zlecenia: r.data_najwczesniejszego_zlecenia,
                     data_najwczesniejszej_dostawy: r.data_najwczesniejszej_dostawy,
+                    data_planowanej_dostawy: r.data_najwczesniejszej_dostawy,
                     logo: r.logo,
                     stany: [],
                     ilosc_lacznie: 0,
@@ -3463,7 +3464,8 @@
           ${
 
             showDate ? `
-            ${k.data_zlecenia && k.data_zlecenia !== '1970-01-01' ? `<div style="font-size:10px;color:var(--ink3);line-height:1.1;">${k.data_zlecenia}</div>` : ''}
+            ${k.data_zlecenia && k.data_zlecenia !== '1970-01-01' ? `<div style="font-size:10px;color:var(--ink3);line-height:1.1;">zlec: ${k.data_zlecenia}</div>` : ''}
+            ${k.data_planowanej_dostawy && k.data_planowanej_dostawy !== '1970-01-01' ? `<div style="font-size:10px;color:#BA7517;line-height:1.1;font-weight:500;">📦 ${k.data_planowanej_dostawy}</div>` : ''}
             ${k.ilosc_zlecona > 0 ? `<div style="font-family:var(--fh);font-size:14px;font-weight:700;color:var(--accent);line-height:1.1;">${k.ilosc_zlecona} szt.</div>` : ''}
           ` : `
             <div style="display:flex;align-items:center;gap:5px;justify-content:flex-end;line-height:1;margin-top:-1px;">
@@ -3682,6 +3684,21 @@
                     numer_faktury_producent: nr
                 })
             });
+            // Synchronizuj do zamówień zawierających ten kubek (własne logo)
+            try {
+                const pozycje = await sbFetch('pozycja_zamowienia', `?kubek_id=eq.${kubekId}&rodzaj_produktu=eq.kubek&select=zamowienie_id`);
+                const zamIds = [...new Set(pozycje.map(p => p.zamowienie_id).filter(Boolean))];
+                for (const zid of zamIds) {
+                    await sbFetch('zamowienie', `?id=eq.${zid}`, {
+                        method: 'PATCH',
+                        body: JSON.stringify({
+                            numer_faktury_producent: nr
+                        })
+                    });
+                }
+            } catch (e) {
+                console.warn('sync faktura to zamowienie:', e);
+            }
             const inp = document.getElementById('zlecFakt_' + zlecId);
             if (inp) {
                 inp.style.borderColor = '#3B6D11';
@@ -4135,6 +4152,20 @@
             ceEl.value = '';
     }
 
+    function previewFileEdit(input) {
+        const file = input.files[0];
+        if (!file)
+            return;
+        const reader = new FileReader();
+        reader.onload = e => {
+            const img = document.getElementById('ekUploadPreview');
+            img.src = e.target.result;
+            img.style.display = 'block';
+            document.getElementById('ekUploadTxt').textContent = file.name;
+        };
+        reader.readAsDataURL(file);
+    }
+
     function previewFile(input) {
         const file = input.files[0];
         if (!file)
@@ -4484,6 +4515,27 @@
         try {
             const [zam] = await sbFetch('v_zamowienia', `?id=eq.${zamId}`);
             const pozycje = await sbFetch('v_pozycje_zamowienia', `?zamowienie_id=eq.${zamId}`);
+            // Dla własnego logo: dociągnij fakturę producenta ze zlecenia kubków (źródło prawdy)
+            if (zam.typ_zamowienia === 'wlasne_logo') {
+                try {
+                    const kubekIds = [...new Set(pozycje.filter(p => p.rodzaj_produktu === 'kubek' && p.kubek_id).map(p => p.kubek_id))];
+                    for (const kid of kubekIds) {
+                        const zlec = await sbFetch('zlecenie_produkcyjne', `?kubek_id=eq.${kid}&numer_faktury_producent=not.is.null&select=numer_faktury_producent&limit=1`);
+                        if (zlec.length && zlec[0].numer_faktury_producent) {
+                            zam.numer_faktury_producent = zlec[0].numer_faktury_producent;
+                            break;
+                        }
+                    }
+                    // Pobierz też bezpośrednio z zamowienia jeśli zlecenie nie miało
+                    if (!zam.numer_faktury_producent) {
+                        const [z2] = await sbFetch('zamowienie', `?id=eq.${zamId}&select=numer_faktury_producent`);
+                        if (z2?.numer_faktury_producent)
+                            zam.numer_faktury_producent = z2.numer_faktury_producent;
+                    }
+                } catch (e) {
+                    console.warn('fetch faktura prod:', e);
+                }
+            }
             const pozHTML = pozycje.map(p => {
                 let opis = '';
                 if (p.rodzaj_produktu === 'kubek')
@@ -6194,9 +6246,21 @@
     <div class="drawer-title">Edytuj kubek</div>
     <div class="f-group"><label class="f-label">Nazwa grafiki</label><input class="f-input" id="ekGrafika" value="${
         k.grafika || ''}"></div>
+    <div class="f-group"><label class="f-label">Grafika (miniaturka)</label>
+      <div class="upload-area" onclick="document.getElementById('ekFileInput').click()">
+        <input type="file" id="ekFileInput" accept="image/*" onchange="previewFileEdit(this)">
+        <img id="ekUploadPreview" class="upload-preview" src="${
+
+
+        k.miniaturka || ''}" style="display:${k.miniaturka ? 'block' : 'none'};">
+        <div class="upload-txt" id="ekUploadTxt">${k.miniaturka ? '📷 Kliknij żeby zmienić' : '📷 Kliknij żeby dodać zdjęcie'}</div>
+      </div>
+    </div>
     <div class="f-group"><label class="f-label">Artysta</label>
       <select class="f-select" id="ekArtysta">
         ${
+
+
 
         allArtysci.map(a => `<option value="${a.id}">${a.imie_nazwisko}</option>`).join('')}
       </select>
@@ -6281,13 +6345,26 @@
         try {
             // pobierz grafika_id dla tego kubka
             const [kubek] = await sbFetch('kubek', `?id=eq.${kubek_id}`);
-            // zaktualizuj grafikę
+            // Upload nowej miniaturki jeśli wybrano
+            let miniaturkaUrl = undefined;
+            const ekFile = document.getElementById('ekFileInput')?.files?.[0];
+            if (ekFile) {
+                try {
+                    miniaturkaUrl = await sbUpload(ekFile);
+                } catch (e) {
+                    console.warn('upload:', e);
+                }
+            }
+            // zaktualizuj grafikę (z miniaturką jeśli nowa)
+            const grafPatch = {
+                nazwa: grafNazwa,
+                artysta_id: artId
+            };
+            if (miniaturkaUrl)
+                grafPatch.miniaturka_url = miniaturkaUrl;
             await sbFetch('grafika', `?id=eq.${kubek.grafika_id}`, {
                 method: 'PATCH',
-                body: JSON.stringify({
-                    nazwa: grafNazwa,
-                    artysta_id: artId
-                })
+                body: JSON.stringify(grafPatch)
             });
             // zaktualizuj kubek
             await sbFetch('kubek', `?id=eq.${kubek_id}`, {
