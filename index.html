@@ -3499,9 +3499,16 @@
         <div style="flex:1;">
           <div style="font-family:var(--fh);font-size:14px;font-weight:600;">${
                 z.ilosc_zlecona} szt.</div>
-          <div style="font-size:10px;color:var(--ink3);">zlecone: ${z.data_zlecenia}${z.data_planowanej_dostawy ? ` · dostawa: ${dataDost}` : ''}</div>
+          <div style="font-size:10px;color:var(--ink3);display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+            <span>zlecone:</span>
+            <input type="date" value="${
+
+                z.data_zlecenia || ''}" id="zlecData_${z.id}" onchange="zapiszDataZlecenia('${z.id}','${k.kubek_id}')" style="font-size:10px;padding:1px 3px;border:1px solid var(--border);border-radius:4px;background:var(--surface);font-family:var(--fm);">
+            ${z.data_planowanej_dostawy ? `· dostawa: ${dataDost}` : ''}
+          </div>
         </div>
         <button onclick="zrealizujZlecenie('${
+
                 z.id}','${k.kubek_id}')" style="background:var(--green);color:white;border:none;border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:var(--fm);">✓ Zrealizuj</button>
         <button onclick="anulujZlecenie('${z.id}','${k.kubek_id}')" style="background:#FBE9E9;color:#A32D2D;border:1px solid #F4B5B5;border-radius:6px;padding:5px 8px;font-size:11px;cursor:pointer;font-family:var(--fm);">✕</button>
       </div>
@@ -3635,6 +3642,32 @@
         }
     }
 
+    async function zapiszDataZlecenia(zlecId, kubekId) {
+        const data = document.getElementById('zlecData_' + zlecId)?.value;
+        if (!data)
+            return;
+        try {
+            await sbFetch('zlecenie_produkcyjne', `?id=eq.${zlecId}`, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    data_zlecenia: data
+                })
+            });
+            const inp = document.getElementById('zlecData_' + zlecId);
+            if (inp) {
+                inp.style.borderColor = '#3B6D11';
+                inp.style.background = '#EAF3DE';
+                setTimeout(() => {
+                    inp.style.borderColor = 'var(--border)';
+                    inp.style.background = 'var(--surface)';
+                }, 1200);
+            }
+            loadAll();
+        } catch (e) {
+            alert('Błąd: ' + e.message);
+        }
+    }
+
     async function zapiszFakturaZlecenie(zlecId, kubekId) {
         const nr = document.getElementById('zlecFakt_' + zlecId)?.value?.trim() || null;
         try {
@@ -3644,15 +3677,14 @@
                     numer_faktury_producent: nr
                 })
             });
-            const btn = event?.target;
-            if (btn) {
-                const o = btn.textContent;
-                btn.textContent = '✓';
-                btn.style.background = '#3B6D11';
+            const inp = document.getElementById('zlecFakt_' + zlecId);
+            if (inp) {
+                inp.style.borderColor = '#3B6D11';
+                inp.style.background = '#EAF3DE';
                 setTimeout(() => {
-                    btn.textContent = o;
-                    btn.style.background = 'var(--accent)';
-                }, 1200);
+                    inp.style.borderColor = 'var(--border)';
+                    inp.style.background = 'var(--surface)';
+                }, 1500);
             }
         } catch (e) {
             alert('Błąd: ' + e.message);
@@ -4058,6 +4090,22 @@
         document.getElementById('formPapierowy').style.display = r === 'papierowy' ? 'block' : 'none';
         document.getElementById('formTermiczny').style.display = r === 'termiczny' ? 'block' : 'none';
         document.getElementById('formWspolne').style.display = r ? 'block' : 'none';
+    }
+
+    function updatePojemnosciEdit() {
+        const mat = document.getElementById('ekMat').value;
+        const sel = document.getElementById('nPoj');
+        if (!sel)
+            return;
+        const prev = sel.value;
+        const pojs = POJEMNOSCI[mat] || [];
+        sel.innerHTML = pojs.length
+        ? pojs.map(p => `<option value="${p}" ${String(p) === prev ? 'selected' : ''}>${p} ml</option>`).join('')
+        : `<option value="">— brak —</option>`;
+        // Jeśli poprzednia pojemność nie pasuje do nowego materiału, wybierz pierwszą dostępną
+        if (pojs.length && !pojs.includes(parseInt(prev))) {
+            sel.value = pojs[0];
+        }
     }
 
     function updatePojemnosci() {
@@ -6143,7 +6191,7 @@
     </div>
     <div class="f-row">
       <div class="f-group"><label class="f-label">Materiał</label>
-        <select class="f-select" id="ekMat" onchange="updatePojemnosci()">
+        <select class="f-select" id="ekMat" onchange="updatePojemnosciEdit()">
           <option value="PE" ${
 
 
@@ -6208,6 +6256,16 @@
         const pak = parseInt(document.getElementById('ekPak').value) || null;
         const cena = parseFloat(document.getElementById('ekCena').value);
         const msg = document.getElementById('ekMsg');
+        if (!poj || isNaN(poj)) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'Wybierz pojemność.';
+            return;
+        }
+        if (!mat) {
+            msg.className = 'f-msg err';
+            msg.textContent = 'Wybierz materiał.';
+            return;
+        }
         try {
             // pobierz grafika_id dla tego kubka
             const [kubek] = await sbFetch('kubek', `?id=eq.${kubek_id}`);
@@ -7424,15 +7482,14 @@
             const k = allKubki.find(x => x.kubek_id === kubekId);
             if (k)
                 k.kod_grafiki = kod;
-            const btn = event?.target;
-            if (btn) {
-                const o = btn.textContent;
-                btn.textContent = '✓ Zapisano';
-                btn.style.background = '#3B6D11';
+            const inp = document.getElementById('editKod_' + kubekId);
+            if (inp) {
+                inp.style.borderColor = '#3B6D11';
+                inp.style.background = '#EAF3DE';
                 setTimeout(() => {
-                    btn.textContent = o;
-                    btn.style.background = 'var(--accent)';
-                }, 1200);
+                    inp.style.borderColor = 'var(--border)';
+                    inp.style.background = 'var(--bg)';
+                }, 1500);
             }
         } catch (e) {
             alert('Błąd: ' + e.message);
