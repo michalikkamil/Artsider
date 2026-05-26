@@ -3644,15 +3644,19 @@
 
     async function zapiszDataZlecenia(zlecId, kubekId) {
         const data = document.getElementById('zlecData_' + zlecId)?.value;
-        if (!data)
+        console.log('zapiszDataZlecenia:', zlecId, 'data:', data);
+        if (!data) {
+            console.warn('brak daty');
             return;
+        }
         try {
-            await sbFetch('zlecenie_produkcyjne', `?id=eq.${zlecId}`, {
+            const res = await sbFetch('zlecenie_produkcyjne', `?id=eq.${zlecId}`, {
                 method: 'PATCH',
                 body: JSON.stringify({
                     data_zlecenia: data
                 })
             });
+            console.log('PATCH result:', res);
             const inp = document.getElementById('zlecData_' + zlecId);
             if (inp) {
                 inp.style.borderColor = '#3B6D11';
@@ -3662,9 +3666,10 @@
                     inp.style.background = 'var(--surface)';
                 }, 1200);
             }
-            loadAll();
+            await loadAll();
         } catch (e) {
-            alert('Błąd: ' + e.message);
+            console.error('zapiszDataZlecenia err:', e);
+            alert('Błąd zapisu daty: ' + e.message);
         }
     }
 
@@ -3742,8 +3747,15 @@
         // Załaduj zlecenia produkcyjne dla tego kubka
         try {
             const zlc = await sbFetch('zlecenie_produkcyjne', `?kubek_id=eq.${kubek_id}&order=data_zlecenia.desc&select=*`);
+            // Dociągnij kod_grafiki bezpośrednio z tabeli kubek (pewne źródło)
+            let kodG = k.kod_grafiki;
+            try {
+                const [kb] = await sbFetch('kubek', `?id=eq.${kubek_id}&select=kod_grafiki`);
+                kodG = kb?.kod_grafiki || '';
+            } catch (e) {}
             k = Object.assign({}, k, {
-                zlecenia: zlc
+                zlecenia: zlc,
+                kod_grafiki: kodG
             });
         } catch (e) {
             k.zlecenia = [];
@@ -7471,13 +7483,15 @@
 
     async function zapiszKodGrafiki(kubekId) {
         const kod = document.getElementById('editKod_' + kubekId)?.value?.trim() || null;
+        console.log('zapiszKodGrafiki:', kubekId, 'kod:', kod);
         try {
-            await sbFetch('kubek', `?id=eq.${kubekId}`, {
+            const res = await sbFetch('kubek', `?id=eq.${kubekId}`, {
                 method: 'PATCH',
                 body: JSON.stringify({
                     kod_grafiki: kod
                 })
             });
+            console.log('PATCH kubek result:', res);
             // Aktualizuj lokalnie
             const k = allKubki.find(x => x.kubek_id === kubekId);
             if (k)
