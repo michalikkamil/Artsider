@@ -5977,7 +5977,6 @@
         msg.className = 'f-msg';
         msg.textContent = 'Zapisuję…';
         try {
-            // Zaktualizuj zamówienie
             await sbFetch('zamowienie', `?id=eq.${zamId}`, {
                 method: 'PATCH',
                 body: JSON.stringify({
@@ -5989,32 +5988,115 @@
                 })
             });
 
-            // Parsuj nowe pozycje z ePozycjeZam (ta sama logika co nowe zamówienie)
+            // Parsuj nowe pozycje z ePozycjeZam - DOKŁADNIE jak w zapiszZamowienie
             const pozycje = [];
             const komisDoUtworzenia = [];
             const divs = document.querySelectorAll('#ePozycjeZam > div[data-typ]');
+            console.log('zapiszEdycjeZamowienia: divs found:', divs.length);
+
             for (const div of divs) {
                 const typ2 = div.dataset.typ;
+                const id = div.id.replace('poz_', '');
+                console.log('  div typ:', typ2, 'id:', id);
 
-                if (typ2 === 'kubek' || typ2 === 'wlasne_logo') {
-                    const lWrap = div.querySelector('[id^="klist_"]');
-                    if (!lWrap)
-                        continue;
-                    for (const row of lWrap.querySelectorAll('[data-kubek-id]')) {
+                if (typ2 === 'kubek') {
+                    // Kubki: iteruj po wierszach z data-kubek-id
+                    for (const row of div.querySelectorAll('[data-kubek-id]')) {
                         const kubId = row.dataset.kubekId;
+                        const magId = row.dataset.magId;
                         const rowId = row.id;
                         const il = parseInt(document.getElementById('kq_' + rowId)?.value) || 0;
                         if (il <= 0)
                             continue;
                         const cn = parseFloat(document.getElementById('kn_' + rowId)?.value) || 0;
-                        const magId = row.dataset.magId || null;
+                        const cb = parseFloat(document.getElementById('kb_' + rowId)?.value) || 0;
                         pozycje.push({
                             rodzaj_produktu: 'kubek',
                             kubek_id: kubId,
-                            magazyn_id: magId || undefined,
+                            magazyn_id: magId,
                             ilosc: il,
-                            cena_jednostkowa: cn
+                            cena_jednostkowa: cn || (cb / 1.23) || 0
                         });
+                    }
+                }
+                else if (typ2 === 'wlasne_logo') {
+                    // Tworzenie nowego kubka z własnym logo
+                    const wlMat = div.querySelector(`[id^="wl_mat_"]`)?.value;
+                    const wlPoj = parseInt(div.querySelector(`[id^="wl_poj_"]`)?.value) || 0;
+                    const wlSci = div.querySelector(`[id^="wl_sci_"]`)?.value;
+                    const wlPak = parseInt(div.querySelector(`[id^="wl_pak_"]`)?.value) || 1000;
+                    const wlIlosc = parseInt(div.querySelector(`[id^="wl_ilosc_"]`)?.value) || 0;
+                    const wlCena = parseFloat(div.querySelector(`[id^="wl_cena_"]`)?.value) || 0;
+                    const wlData = div.querySelector(`[id^="wl_data_"]`)?.value || new Date().toISOString().slice(0, 10);
+                    const wlNazwa = div.querySelector(`[id^="wl_nazwa_"]`)?.value || 'Klient ' + Date.now();
+                    if (!wlMat || !wlPoj || !wlSci || wlIlosc <= 0)
+                        continue;
+                    try {
+                        const klient = allKlienci.find(k => k.id === klientId);
+                        const klNazwa = klient?.nazwa_wlasna || 'Klient';
+                        const [grafs] = await sbFetch('artysta', `?imie_nazwisko=eq.${encodeURIComponent('własne logo')}&limit=1`);
+                        let artId = grafs?.id;
+                        if (!artId) {
+                            const [noArt] = await sbFetch('artysta', '', {
+                                method: 'POST',
+                                body: JSON.stringify({
+                                    imie_nazwisko: 'własne logo',
+                                    prowizja_papierowe: 0,
+                                    prowizja_termiczne: 0
+                                })
+                            });
+                            artId = noArt.id;
+                        }
+                        const [graf] = await sbFetch('grafika', '', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                nazwa: wlNazwa + ' (' + klNazwa + ')',
+                                artysta_id: artId
+                            })
+                        });
+                        const [nowyKubek] = await sbFetch('kubek', '', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                pojemnosc_ml: wlPoj,
+                                typ_materialu: wlMat,
+                                typ_scianki: wlSci,
+                                sztuk_w_opakowaniu: wlPak,
+                                cena_netto: wlCena,
+                                logo: 'klienta',
+                                grafika_id: graf.id
+                            })
+                        });
+                        await sbFetch('zlecenie_produkcyjne', '', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                kubek_id: nowyKubek.id,
+                                ilosc_zlecona: wlIlosc,
+                                data_zlecenia: wlData,
+                                status: 'w_produkcji'
+                            })
+                        });
+                        await incrStatZamowiono(nowyKubek.id, wlIlosc);
+                        const stanyWl = allMagazyny.map(m => ({
+                            kubek_id: nowyKubek.id,
+                            magazyn_id: m.id,
+                            ilosc_dostepna: 0,
+                            ilosc_w_drodze: 0
+                        }));
+                        for (const s of stanyWl) {
+                            await sbFetch('stan_magazynowy', '', {
+                                method: 'POST',
+                                body: JSON.stringify(s)
+                            });
+                        }
+                        pozycje.push({
+                            rodzaj_produktu: 'kubek',
+                            kubek_id: nowyKubek.id,
+                            magazyn_id: allMagazyny[0]?.id || null,
+                            ilosc: wlIlosc,
+                            cena_jednostkowa: wlCena
+                        });
+                    } catch (wlErr) {
+                        console.error('wlasne_logo:', wlErr);
                     }
                 }
                 else if (typ2 === 'przykrywka') {
@@ -6074,80 +6156,29 @@
                                 ilosc: il,
                                 cena_jednostkowa: cn
                             });
-                            if (termZrodlo === 'komis' && row.dataset.komisId) {
-                                try {
-                                    await sbFetch('sprzedaz_termicznych', '', {
-                                        method: 'POST',
-                                        body: JSON.stringify({
-                                            komis_id: row.dataset.komisId,
-                                            kubek_id: kubId,
-                                            klient_id: klientId,
-                                            ilosc: il,
-                                            cena_netto: cn,
-                                            data_sprzedazy: new Date().toISOString().slice(0, 10),
-                                            status_faktury: 'nie_wystawiona',
-                                            status_platnosci: 'nieoplacona'
-                                        })
-                                    });
-                                    const kl = window['tl_kom_' + sid] || [];
-                                    const ki = kl.find(k => k.id === kubId);
-                                    const ni = (ki?.ilosc || 0) - il;
-                                    if (ni <= 0)
-                                        await sbFetch('komis', `?id=eq.${row.dataset.komisId}`, {
-                                            method: 'PATCH',
-                                            body: JSON.stringify({
-                                                status: 'sprzedany',
-                                                ilosc: 0
-                                            })
-                                        });
-                                    else
-                                        await sbFetch('komis', `?id=eq.${row.dataset.komisId}`, {
-                                            method: 'PATCH',
-                                            body: JSON.stringify({
-                                                ilosc: ni
-                                            })
-                                        });
-                                } catch (e) {
-                                    console.warn('komis sale:', e);
-                                }
-                            }
-                            if (termZrodlo === 'magazyn') {
-                                try {
-                                    const stany = await sbFetch('stan_magazynowy_termiczne', `?kubek_id=eq.${kubId}&order=ilosc_dostepna.desc`);
-                                    let rem = il;
-                                    for (const s of stany) {
-                                        if (rem <= 0)
-                                            break;
-                                        const odj = Math.min(rem, s.ilosc_dostepna || 0);
-                                        if (odj > 0) {
-                                            await sbFetch('stan_magazynowy_termiczne', `?kubek_id=eq.${kubId}&magazyn_id=eq.${s.magazyn_id}`, {
-                                                method: 'PATCH',
-                                                body: JSON.stringify({
-                                                    ilosc_dostepna: Math.max(0, s.ilosc_dostepna - odj)
-                                                })
-                                            });
-                                            rem -= odj;
-                                        }
-                                    }
-                                } catch (e) {
-                                    console.warn('term stock:', e);
-                                }
-                            }
                         }
                     }
                 }
                 else if (typ2 === 'wysylka') {
-                    const il = parseInt(div.querySelector('[id^="wys_ilosc_"]')?.value) || 1;
-                    const cn = parseFloat(div.querySelector('[id^="wys_cena_"]')?.value) || 0;
-                    pozycje.push({
-                        rodzaj_produktu: 'wysylka',
-                        ilosc: il,
-                        cena_jednostkowa: cn
-                    });
+                    const wTyp = div.querySelector('[data-field="wysylka_typ"]')?.value || 'DPD';
+                    const wNazwa = div.querySelector('[data-field="wysylka_nazwa"]')?.value || ('Wysyłka ' + wTyp);
+                    const cenWNetto = parseFloat(div.querySelector('[data-field="cena"]')?.value) || 0;
+                    const cenWBrutto = parseFloat(div.querySelector('[id^="poz_brutto_"]')?.value) || 0;
+                    const cenW = cenWNetto || (cenWBrutto / 1.23) || 0;
+                    console.log('  wysylka:', wTyp, wNazwa, 'netto:', cenWNetto, 'brutto:', cenWBrutto, 'final:', cenW);
+                    if (cenW > 0)
+                        pozycje.push({
+                            rodzaj_produktu: 'wysylka',
+                            typ_wysylki: wTyp,
+                            nazwa_wysylki: wNazwa,
+                            ilosc: 1,
+                            cena_jednostkowa: cenW
+                        });
                 }
             }
 
-            // Zapisz komisy
+            console.log('zapiszEdycjeZamowienia: pozycje:', pozycje, 'komis:', komisDoUtworzenia);
+
             for (const k of komisDoUtworzenia) {
                 await sbFetch('komis', '', {
                     method: 'POST',
@@ -6160,29 +6191,8 @@
                         data_przekazania: new Date().toISOString().slice(0, 10)
                     })
                 });
-                try {
-                    const stany = await sbFetch('stan_magazynowy_termiczne', `?kubek_id=eq.${k.kubek_id}&order=ilosc_dostepna.desc`);
-                    let pozostalo = k.ilosc;
-                    for (const s of stany) {
-                        if (pozostalo <= 0)
-                            break;
-                        const odejmij = Math.min(pozostalo, s.ilosc_dostepna || 0);
-                        if (odejmij > 0) {
-                            await sbFetch('stan_magazynowy_termiczne', `?kubek_id=eq.${k.kubek_id}&magazyn_id=eq.${s.magazyn_id}`, {
-                                method: 'PATCH',
-                                body: JSON.stringify({
-                                    ilosc_dostepna: Math.max(0, s.ilosc_dostepna - odejmij)
-                                })
-                            });
-                            pozostalo -= odejmij;
-                        }
-                    }
-                } catch (e) {
-                    console.warn('komis stock:', e);
-                }
             }
 
-            // Zapisz nowe pozycje zamówienia
             for (const p of pozycje) {
                 await sbFetch('pozycja_zamowienia', '', {
                     method: 'POST',
@@ -6194,12 +6204,12 @@
             }
 
             msg.className = 'f-msg ok';
-            msg.textContent = '✓ Zapisano zmiany';
+            msg.textContent = `✓ Zapisano (${pozycje.length} pozycji)`;
             setTimeout(() => {
                 closeZamDrawer();
                 loadZamowienia();
                 loadAll();
-            }, 700);
+            }, 900);
         } catch (e) {
             console.error('zapiszEdycjeZamowienia:', e);
             msg.className = 'f-msg err';
