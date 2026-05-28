@@ -5272,7 +5272,7 @@
                 const komis = await sbFetch('v_komis_aktywny', `?klient_id=eq.${klientId}&select=*`);
                 window['tl_kom_' + id] = komis.map(k => ({
                     id: k.kubek_id,
-                    komis_id: k.id,
+                    komis_id: k.komis_id,
                     grafika: k.grafika,
                     pojemnosc: k.pojemnosc_ml,
                     kolor: k.kolor || '',
@@ -6156,6 +6156,67 @@
                                 ilosc: il,
                                 cena_jednostkowa: cn
                             });
+                            // Sprzedaż z komisu: zarejestruj + zmniejsz komis
+                            if (termZrodlo === 'komis' && row.dataset.komisId) {
+                                try {
+                                    await sbFetch('sprzedaz_termicznych', '', {
+                                        method: 'POST',
+                                        body: JSON.stringify({
+                                            komis_id: row.dataset.komisId,
+                                            kubek_id: kubId,
+                                            klient_id: klientId,
+                                            ilosc: il,
+                                            cena_netto: cn,
+                                            data_sprzedazy: new Date().toISOString().slice(0, 10),
+                                            status_faktury: 'nie_wystawiona',
+                                            status_platnosci: 'nieoplacona'
+                                        })
+                                    });
+                                    const kl = window['tl_kom_' + sid] || [];
+                                    const ki = kl.find(k => k.id === kubId);
+                                    const ni = (ki?.ilosc || 0) - il;
+                                    if (ni <= 0)
+                                        await sbFetch('komis', `?id=eq.${row.dataset.komisId}`, {
+                                            method: 'PATCH',
+                                            body: JSON.stringify({
+                                                status: 'sprzedany',
+                                                ilosc: 0
+                                            })
+                                        });
+                                    else
+                                        await sbFetch('komis', `?id=eq.${row.dataset.komisId}`, {
+                                            method: 'PATCH',
+                                            body: JSON.stringify({
+                                                ilosc: ni
+                                            })
+                                        });
+                                } catch (e) {
+                                    console.warn('komis sale edit:', e);
+                                }
+                            }
+                            // Sprzedaż z magazynu: zmniejsz stan
+                            if (termZrodlo === 'magazyn') {
+                                try {
+                                    const stany = await sbFetch('stan_magazynowy_termiczne', `?kubek_id=eq.${kubId}&order=ilosc_dostepna.desc`);
+                                    let rem = il;
+                                    for (const s of stany) {
+                                        if (rem <= 0)
+                                            break;
+                                        const odj = Math.min(rem, s.ilosc_dostepna || 0);
+                                        if (odj > 0) {
+                                            await sbFetch('stan_magazynowy_termiczne', `?kubek_id=eq.${kubId}&magazyn_id=eq.${s.magazyn_id}`, {
+                                                method: 'PATCH',
+                                                body: JSON.stringify({
+                                                    ilosc_dostepna: Math.max(0, s.ilosc_dostepna - odj)
+                                                })
+                                            });
+                                            rem -= odj;
+                                        }
+                                    }
+                                } catch (e) {
+                                    console.warn('term stock edit:', e);
+                                }
+                            }
                         }
                     }
                 }
