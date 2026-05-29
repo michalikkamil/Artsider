@@ -7850,22 +7850,29 @@
             const minMap = {};
             if (kubekIds.length) {
                 try {
-                    const ks = await sbFetch('kubek', `?id=in.(${kubekIds.join(',')})&select=id,grafika(nazwa,miniaturka_url)`);
+                    const ks = await sbFetch('kubek', `?id=in.(${kubekIds.map(i => '"' + i + '"').join(',')})&select=id,grafika(nazwa,miniaturka_url)`);
+                    console.log('ostatnie zam: kubki fetched:', ks);
                     ks.forEach(k => {
                         if (k.grafika?.miniaturka_url)
                             minMap[k.id] = k.grafika.miniaturka_url;
                     });
-                } catch (e) {}
+                } catch (e) {
+                    console.warn('kubki miniaturki:', e);
+                }
             }
             if (termIds.length) {
                 try {
-                    const ts = await sbFetch('kubek_termiczny', `?id=in.(${termIds.join(',')})&select=id,grafika(miniaturka_url)`);
+                    const ts = await sbFetch('kubek_termiczny', `?id=in.(${termIds.map(i => '"' + i + '"').join(',')})&select=id,grafika(miniaturka_url)`);
+                    console.log('ostatnie zam: termiczne fetched:', ts);
                     ts.forEach(k => {
                         if (k.grafika?.miniaturka_url)
                             minMap[k.id] = k.grafika.miniaturka_url;
                     });
-                } catch (e) {}
+                } catch (e) {
+                    console.warn('term miniaturki:', e);
+                }
             }
+            console.log('ostatnie zam: minMap:', minMap);
             const data = btn.dataset.data;
             wrap.innerHTML = `
       <div style="background:var(--surface);border:1.5px solid var(--accent);border-radius:10px;padding:10px;margin-top:8px;position:relative;">
