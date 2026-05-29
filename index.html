@@ -7812,13 +7812,15 @@
                 document.getElementById('zamKlientInfo').style.display = 'block';
             }
             // Sprawdź czy klient ma jakieś zamówienia
-            const zams = await sbFetch('zamowienie', `?klient_id=eq.${id}&order=data_utworzenia.desc&limit=1&select=id,data_utworzenia`);
+            const zams = await sbFetch('zamowienie', `?klient_id=eq.${id}&order=data_zamowienia.desc&limit=1&select=id,data_zamowienia`);
+            console.log('selectKlientFull: client', id, 'last orders:', zams);
             const btn = document.getElementById('btnOstatnieZam');
+            console.log('btn element:', btn);
             if (zams.length) {
                 if (btn) {
                     btn.style.display = 'inline-block';
                     btn.dataset.zamId = zams[0].id;
-                    btn.dataset.data = zams[0].data_utworzenia;
+                    btn.dataset.data = zams[0].data_zamowienia;
                 }
             } else if (btn) {
                 btn.style.display = 'none';
