@@ -7839,40 +7839,39 @@
         wrap.style.display = 'block';
         wrap.innerHTML = '<div style="padding:12px;color:var(--ink3);font-size:12px;">⏳ Ładowanie…</div>';
         try {
-            const pozycje = await sbFetch('v_pozycje_zamowienia', `?zamowienie_id=eq.${zamId}&select=*`);
+            // Pobierz pozycje bezpośrednio z tabeli żeby mieć kubek_id i kubek_termiczny_id
+            const pozycje = await sbFetch('pozycja_zamowienia', `?zamowienie_id=eq.${zamId}&select=*,kubek:kubek_id(id,pojemnosc_ml,typ_materialu,typ_scianki,grafika(nazwa,miniaturka_url,artysta(imie_nazwisko))),kubek_termiczny:kubek_termiczny_id(id,pojemnosc_ml,kolor,grafika(nazwa,miniaturka_url)),przykrywka:przykrywka_id(rozmiar_mm,typ_materialu,kolor,grafika)`);
+            console.log('ostatnie zam: pozycje fetched:', pozycje);
             if (!pozycje.length) {
                 wrap.innerHTML = '<div style="padding:12px;color:var(--ink3);font-size:12px;">Brak pozycji</div>';
                 return;
             }
-            // Dociągnij miniaturki dla kubków
-            const kubekIds = [...new Set(pozycje.filter(p => p.rodzaj_produktu === 'kubek' && p.kubek_id).map(p => p.kubek_id))];
-            const termIds = [...new Set(pozycje.filter(p => p.rodzaj_produktu === 'termiczny' && p.kubek_termiczny_id).map(p => p.kubek_termiczny_id))];
+            // Buduj minMap bezpośrednio z embedded data
             const minMap = {};
-            if (kubekIds.length) {
-                try {
-                    const ks = await sbFetch('kubek', `?id=in.(${kubekIds.map(i => '"' + i + '"').join(',')})&select=id,grafika(nazwa,miniaturka_url)`);
-                    console.log('ostatnie zam: kubki fetched:', ks);
-                    ks.forEach(k => {
-                        if (k.grafika?.miniaturka_url)
-                            minMap[k.id] = k.grafika.miniaturka_url;
-                    });
-                } catch (e) {
-                    console.warn('kubki miniaturki:', e);
+            pozycje.forEach(p => {
+                if (p.kubek?.grafika?.miniaturka_url)
+                    minMap[p.kubek_id] = p.kubek.grafika.miniaturka_url;
+                if (p.kubek_termiczny?.grafika?.miniaturka_url)
+                    minMap[p.kubek_termiczny_id] = p.kubek_termiczny.grafika.miniaturka_url;
+            });
+            console.log('ostatnie zam: minMap from embeds:', minMap);
+            // Wzbogać pozycje o dane do wyświetlenia (z embeds)
+            pozycje.forEach(p => {
+                if (p.kubek) {
+                    p.grafika = p.kubek.grafika?.nazwa;
+                    p.pojemnosc_ml = p.kubek.pojemnosc_ml;
+                    p.typ_materialu = p.kubek.typ_materialu;
+                    p.typ_scianki = p.kubek.typ_scianki;
                 }
-            }
-            if (termIds.length) {
-                try {
-                    const ts = await sbFetch('kubek_termiczny', `?id=in.(${termIds.map(i => '"' + i + '"').join(',')})&select=id,grafika(miniaturka_url)`);
-                    console.log('ostatnie zam: termiczne fetched:', ts);
-                    ts.forEach(k => {
-                        if (k.grafika?.miniaturka_url)
-                            minMap[k.id] = k.grafika.miniaturka_url;
-                    });
-                } catch (e) {
-                    console.warn('term miniaturki:', e);
+                if (p.kubek_termiczny) {
+                    p.term_grafika = p.kubek_termiczny.grafika?.nazwa;
+                    p.term_pojemnosc = p.kubek_termiczny.pojemnosc_ml;
                 }
-            }
-            console.log('ostatnie zam: minMap:', minMap);
+                if (p.przykrywka) {
+                    p.pr_rozmiar = p.przykrywka.rozmiar_mm;
+                    p.pr_typ = p.przykrywka.typ_materialu;
+                }
+            });
             const data = btn.dataset.data;
             wrap.innerHTML = `
       <div style="background:var(--surface);border:1.5px solid var(--accent);border-radius:10px;padding:10px;margin-top:8px;position:relative;">
