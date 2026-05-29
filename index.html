@@ -7840,7 +7840,7 @@
         wrap.innerHTML = '<div style="padding:12px;color:var(--ink3);font-size:12px;">⏳ Ładowanie…</div>';
         try {
             // Pobierz pozycje bezpośrednio z tabeli żeby mieć kubek_id i kubek_termiczny_id
-            const pozycje = await sbFetch('pozycja_zamowienia', `?zamowienie_id=eq.${zamId}&select=*,kubek:kubek_id(id,pojemnosc_ml,typ_materialu,typ_scianki,grafika(nazwa,miniaturka_url,artysta(imie_nazwisko))),kubek_termiczny:kubek_termiczny_id(id,pojemnosc_ml,kolor,grafika(nazwa,miniaturka_url)),przykrywka:przykrywka_id(rozmiar_mm,typ_materialu,kolor,grafika)`);
+            const pozycje = await sbFetch('pozycja_zamowienia', `?zamowienie_id=eq.${zamId}&select=*,kubek:kubek_id(id,pojemnosc_ml,typ_materialu,typ_scianki,grafika(nazwa,miniaturka_url,artysta(imie_nazwisko))),kubek_termiczny:kubek_termiczny_id(id,pojemnosc_ml,kolor,grafika(nazwa,miniaturka_url)),przykrywka:przykrywka_id(rozmiar_mm,typ_materialu,kolor,miniaturka_url)`);
             console.log('ostatnie zam: pozycje fetched:', pozycje);
             if (!pozycje.length) {
                 wrap.innerHTML = '<div style="padding:12px;color:var(--ink3);font-size:12px;">Brak pozycji</div>';
@@ -7853,6 +7853,8 @@
                     minMap[p.kubek_id] = p.kubek.grafika.miniaturka_url;
                 if (p.kubek_termiczny?.grafika?.miniaturka_url)
                     minMap[p.kubek_termiczny_id] = p.kubek_termiczny.grafika.miniaturka_url;
+                if (p.przykrywka?.miniaturka_url)
+                    minMap[p.przykrywka_id] = p.przykrywka.miniaturka_url;
             });
             console.log('ostatnie zam: minMap from embeds:', minMap);
             // Wzbogać pozycje o dane do wyświetlenia (z embeds)
@@ -7879,7 +7881,7 @@
         <div style="font-size:10px;text-transform:uppercase;color:var(--ink3);margin-bottom:6px;font-weight:600;">📋 Ostatnie zamówienie · ${
 
             data || ''}</div>
-        ${pozycje.map(p => {let nazwa = '',ikona = '',miniaturkaId = '';if (p.rodzaj_produktu === 'kubek') {nazwa = `${p.grafika || '?'} · ${p.pojemnosc_ml}ml ${p.typ_materialu || ''} ${p.typ_scianki === 'dwuściankowy' ? 'DW' : p.typ_scianki === 'jednościankowy' ? 'SW' : ''}`;ikona = '☕';miniaturkaId = p.kubek_id;} else if (p.rodzaj_produktu === 'termiczny') {nazwa = `${p.term_grafika || p.grafika || '?'} · ${p.term_pojemnosc || p.pojemnosc_ml || ''}ml`;ikona = '🌡';miniaturkaId = p.kubek_termiczny_id;} else if (p.rodzaj_produktu === 'przykrywka') {nazwa = `Wieczko ${p.pr_rozmiar || ''}mm ${p.pr_typ || ''}`;ikona = '🫗';} else if (p.rodzaj_produktu === 'wysylka') {nazwa = `Wysyłka ${p.typ_wysylki || ''}`;ikona = '📦';}const mini = minMap[miniaturkaId];const thumb = mini ? `<img src="${mini}" style="width:32px;height:32px;border-radius:4px;object-fit:cover;flex-shrink:0;">` : `<div style="width:32px;height:32px;border-radius:4px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">${ikona}</div>`;return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--bg2);">
+        ${pozycje.map(p => {let nazwa = '',ikona = '',miniaturkaId = '';if (p.rodzaj_produktu === 'kubek') {nazwa = `${p.grafika || '?'} · ${p.pojemnosc_ml}ml ${p.typ_materialu || ''} ${p.typ_scianki === 'dwuściankowy' ? 'DW' : p.typ_scianki === 'jednościankowy' ? 'SW' : ''}`;ikona = '☕';miniaturkaId = p.kubek_id;} else if (p.rodzaj_produktu === 'termiczny') {nazwa = `${p.term_grafika || p.grafika || '?'} · ${p.term_pojemnosc || p.pojemnosc_ml || ''}ml`;ikona = '🌡';miniaturkaId = p.kubek_termiczny_id;} else if (p.rodzaj_produktu === 'przykrywka') {nazwa = `Wieczko ${p.pr_rozmiar || ''}mm ${p.pr_typ || ''}`;ikona = '🫗';miniaturkaId = p.przykrywka_id;} else if (p.rodzaj_produktu === 'wysylka') {nazwa = `Wysyłka ${p.typ_wysylki || ''}`;ikona = '📦';}const mini = minMap[miniaturkaId];const thumb = mini ? `<img src="${mini}" style="width:32px;height:32px;border-radius:4px;object-fit:cover;flex-shrink:0;">` : `<div style="width:32px;height:32px;border-radius:4px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">${ikona}</div>`;return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--bg2);">
             ${thumb}
             <div style="flex:1;min-width:0;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${nazwa}</div>
             <div style="font-weight:600;font-size:13px;flex-shrink:0;">${p.ilosc} szt.</div>
