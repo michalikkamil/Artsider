@@ -1843,7 +1843,8 @@
                             kubek_id: 'pr_' + kid,
                             przykrywka_id: kid,
                             rozmiar_mm: r.rozmiar_mm || parseInt(r.opis?.match(/(\d+)mm/)?.[1]) || 0,
-                            typ_materialu: r.typ_materialu_przefiltrowany,
+                            typ_materialu: r.typ_materialu || r.typ_materialu_przefiltrowany,
+                            kolor: r.kolor || '',
                             cena_netto: r.cena_netto,
                             grafika: r.opis,
                             miniaturka: r.miniaturka_url || null,
@@ -3521,7 +3522,7 @@
             ${
             totalLacznie > stan ? `<div style="font-size:9px;color:var(--ink3);line-height:1.1;">z ${totalLacznie} szt.</div>` : ''}
             ${(k.ilosc_w_produkcji || 0) > 0 && !showDate ? `<div style="font-size:9px;color:#BA7517;line-height:1.1;font-weight:600;">🏭 +${k.ilosc_w_produkcji} w prod.</div>` : ''}
-            ${k.cena_netto != null ? `<div style="font-size:12px;color:var(--accent);font-weight:700;line-height:1.1;">${Number(k.cena_netto).toFixed(2)} zł <span style="font-size:9px;color:var(--ink3);font-weight:400;">(${(Number(k.cena_netto) * 1.23).toFixed(2)} zł)</span></div>` : ''}
+            ${k.cena_netto != null ? `<div style="font-size:12px;color:var(--accent);font-weight:700;line-height:1.1;">${Number(k.cena_netto).toFixed(3)} zł <span style="font-size:9px;color:var(--ink3);font-weight:400;">(${(Number(k.cena_netto) * 1.23).toFixed(3)} zł)</span></div>` : ''}
           `
             }
         </div>
@@ -3886,8 +3887,8 @@
     </div>`
         : ''}
     ${k.kolor ? `<div class="d-row"><span class="d-key">Kolor</span><span class="d-val">${k.kolor}</span></div>` : ''}
-    <div class="d-row"><span class="d-key">Cena netto</span><span class="d-val acc">${k.cena_netto != null ? Number(k.cena_netto).toFixed(2) + ' zł' : '—'}</span></div>
-    <div class="d-row"><span class="d-key">Cena brutto</span><span class="d-val">${k.cena_netto != null ? (Number(k.cena_netto) * 1.23).toFixed(2) + ' zł' : '—'}</span></div>
+    <div class="d-row"><span class="d-key">Cena netto</span><span class="d-val acc">${k.cena_netto != null ? Number(k.cena_netto).toFixed(3) + ' zł' : '—'}</span></div>
+    <div class="d-row"><span class="d-key">Cena brutto</span><span class="d-val">${k.cena_netto != null ? (Number(k.cena_netto) * 1.23).toFixed(3) + ' zł' : '—'}</span></div>
     ${stanyHtml ? `<div class="d-section">Stan wg magazynu</div><div class="mag-grid">${stanyHtml}${typ === 'termiczny' ? `<div class="mag-card" id="termKomisBox_${k.kubek_id}" style="background:#FBF3EA;border-color:#F0C8A8;"><div class="mag-card-name">🤝 Komis</div><div class="mag-card-num" id="termKomisNum_${k.kubek_id}">—</div><div class="mag-card-sub">szt.</div></div>` : ''}</div>` : ''}\n    ${typ === 'kubek' || typ === 'zlecony' ? renderZleceniaProdukcyjne(k) : ''}\n    ${acceptHtml}
     ${typ === 'kubek' && activeMagKubki && activeMagKubki !== 'zlecone' && activeMagKubki !== 'archiwum' ? renderPrzeniesForm(k) + renderZmienIlosc(k) : ''}
     ${typ === 'kubek' && (!activeMagKubki || activeMagKubki === 'archiwum' || k.ilosc_lacznie === 0) ? renderZmienIloscGlobal(k) : ''}
@@ -5006,7 +5007,7 @@
         const opt = sel?.options[sel.selectedIndex];
         const cena = opt?.dataset?.cena;
         if (cena)
-            document.getElementById(`poz_cena_${id}`).value = Number(cena).toFixed(2);
+            document.getElementById(`poz_cena_${id}`).value = Number(cena).toFixed(3);
     }
 
     function dodajPozycje(typ, wrapId) {
@@ -5067,11 +5068,23 @@
             div.innerHTML = `
       <button onclick="document.getElementById('poz_${id}').remove()" style="position:absolute;top:8px;right:8px;background:none;border:none;font-size:16px;cursor:pointer;color:var(--ink3);">✕</button>
       <div style="font-size:10px;text-transform:uppercase;color:var(--ink3);letter-spacing:.08em;margin-bottom:10px;font-weight:600;">🫗 Wieczka</div>
+      <div style="margin-bottom:8px;">
+        <select class="f-select" id="wf_mag_${
+
+            id}" onchange="renderWieczkaInline(${id})" style="width:100%;">
+          ${[...allMagazyny].sort((a, b) => a.nazwa === 'Kraków' ? -1 : b.nazwa === 'Kraków' ? 1 : a.nazwa.localeCompare(b.nazwa, 'pl')).map(m => `<option value="${m.id}">${m.nazwa}</option>`).join('')}
+        </select>
+      </div>
       <div id="plist_${
+
             id}"></div>
     `
             ;
             wrap.appendChild(div);
+            // Domyślny magazyn - Kraków
+            const _krkW = allMagazyny.find(m => m.nazwa === 'Kraków') || allMagazyny[0];
+            if (_krkW)
+                document.getElementById(`wf_mag_${id}`).value = _krkW.id;
             renderWieczkaInline(id);
 
         } else if (typ === 'wysylka') {
@@ -5147,7 +5160,7 @@
       <input type="number" min="0" value="" placeholder="0" id="kq_${
             rowId}" style="width:50px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:6px;font-size:14px;text-align:center;font-family:var(--fm);" oninput="onKIloscChange(this,'${rowId}','${k.cena_netto || 0}')">
       <div id="kprice_${rowId}" style="display:none;flex-direction:column;gap:2px;">
-        <input type="number" step="0.01" placeholder="netto" id="kn_${rowId}" style="width:60px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:5px;font-size:12px;text-align:center;font-family:var(--fm);" oninput="const b=document.getElementById('kb_${rowId}');if(b)b.value=(parseFloat(this.value||0)*1.23).toFixed(2);">
+        <input type="number" step="0.001" placeholder="netto" id="kn_${rowId}" style="width:60px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:5px;font-size:12px;text-align:center;font-family:var(--fm);" oninput="const b=document.getElementById('kb_${rowId}');if(b)b.value=(parseFloat(this.value||0)*1.23).toFixed(2);">
         <input type="number" step="0.01" placeholder="brutto" id="kb_${rowId}" style="width:60px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:5px;font-size:12px;text-align:center;font-family:var(--fm);" oninput="const n=document.getElementById('kn_${rowId}');if(n)n.value=(parseFloat(this.value||0)/1.23).toFixed(2);">
       </div>
     </div>`
@@ -5179,18 +5192,21 @@
         const wrap = document.getElementById(`plist_${id}`);
         if (!wrap)
             return;
-        // Buduj dynamicznie z istniejących przykrywek
+        const magId = document.getElementById(`wf_mag_${id}`)?.value || '';
+        // Buduj dynamicznie z istniejących przykrywek (z prawdziwych pól DB)
         const combosMap = new Map();
         (allPrzykrywki || []).forEach(p => {
-            const g = (p.grafika || '').toLowerCase();
-            const mat = g.includes('plastik') ? 'plastikowa' : 'papierowa';
-            const kol = g.includes('czarn') ? 'czarny' : 'biały';
+            const mat = (p.typ_materialu || '').toLowerCase();
+            const kol = (p.kolor || '').toLowerCase();
+            if (!mat || !p.rozmiar_mm)
+                return;
             const key = `${mat}_${p.rozmiar_mm}_${kol}`;
             if (!combosMap.has(key))
                 combosMap.set(key, {
                     mat,
                     rozm: p.rozmiar_mm,
-                    kol
+                    kol,
+                    prz: p
                 });
         });
         const combos = [...combosMap.values()].sort((a, b) => {
@@ -5201,19 +5217,28 @@
             return a.kol.localeCompare(b.kol);
         });
         const rows = combos.map(c => {
-            const prz = allPrzykrywki?.find(p => p.rozmiar_mm === c.rozm && (p.grafika || '').toLowerCase().includes(c.mat) && (p.grafika || '').toLowerCase().includes(c.kol));
-            const ilosc = prz?.ilosc_lacznie || 0;
-            if (ilosc <= 0)
+            const prz = c.prz || allPrzykrywki?.find(p => p.rozmiar_mm === c.rozm && (p.typ_materialu || '').toLowerCase() === c.mat && (p.kolor || '').toLowerCase() === c.kol);
+            const total = prz?.ilosc_lacznie || 0;
+            const stanW = magId ? (prz?.stany?.find(s => s.magazyn_id === magId)?.ilosc_dostepna || 0) : total;
+            const ilosc = stanW;
+            if (magId && ilosc <= 0)
+                return '';
+            if (total <= 0)
                 return '';
             const cena = prz?.cena_netto || 0;
             const rowId = `wr_${id}_${c.mat}_${c.rozm}_${c.kol}`;
             const dotCls = ilosc < 100 ? 'stock-low' : 'stock-ok';
             const thumb = prz?.miniaturka ? `<img src="${prz.miniaturka}" style="width:40px;height:40px;border-radius:6px;object-fit:cover;flex-shrink:0;">` : `<div style="width:40px;height:40px;border-radius:6px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🫗</div>`;
-            return `<div id="${rowId}" style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--bg2);" data-mat="${c.mat}" data-rozm="${c.rozm}" data-kol="${c.kol}" data-cena="${cena}">
+            return `<div id="${rowId}" style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--bg2);" data-mat="${c.mat}" data-rozm="${c.rozm}" data-kol="${c.kol}" data-cena="${cena}" data-mag-id="${magId || ''}">
       ${thumb}
-      <div style="flex:1;"><div style="font-size:13px;font-weight:600;">${c.rozm}mm <span style="font-weight:400;color:var(--ink3);font-size:11px;">${c.mat} ${c.kol}</span></div></div>
-      <div style="text-align:right;flex-shrink:0;"><div style="display:flex;align-items:center;gap:3px;justify-content:flex-end;"><span class="stock-dot ${dotCls}"></span><span style="font-size:13px;font-weight:600;">${ilosc}</span></div></div>
-      <input type="number" min="0" value="" placeholder="0" id="wq_${rowId}" style="width:50px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:6px;font-size:14px;text-align:center;font-family:var(--fm);" oninput="onWIloscChange(this,'${rowId}','${cena}')">
+      <div style="flex:1;"><div style="font-size:13px;font-weight:600;">${c.rozm}mm <span style="font-weight:400;color:var(--ink3);font-size:11px;">${c.mat}${c.kol ? ' ' + c.kol : ''}</span></div></div>
+      <div style="text-align:right;flex-shrink:0;">
+        <div style="display:flex;align-items:center;gap:3px;justify-content:flex-end;"><span class="stock-dot ${
+            dotCls}"></span><span style="font-size:13px;font-weight:600;">${ilosc.toLocaleString('pl')}</span></div>
+        ${total > ilosc ? `<div style="font-size:10px;color:var(--ink3);">(z ${total.toLocaleString('pl')})</div>` : ''}
+      </div>
+      <input type="number" min="0" value="" placeholder="0" id="wq_${
+            rowId}" style="width:50px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:6px;font-size:14px;text-align:center;font-family:var(--fm);" oninput="onWIloscChange(this,'${rowId}','${cena}')">
       <div id="wprice_${rowId}" style="display:none;flex-direction:column;gap:2px;">
         <input type="number" step="0.01" placeholder="za 100szt" value="${cena || ''}" title="Cena za 100 sztuk" id="wn_${rowId}" style="width:60px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:5px;font-size:12px;text-align:center;font-family:var(--fm);" oninput="const b=document.getElementById('wb_${rowId}');if(b)b.value=(parseFloat(this.value||0)*1.23).toFixed(2);">
         <input type="number" step="0.01" placeholder="brutto" id="wb_${rowId}" style="width:60px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:5px;font-size:12px;text-align:center;font-family:var(--fm);" oninput="const n=document.getElementById('wn_${rowId}');if(n)n.value=(parseFloat(this.value||0)/1.23).toFixed(2);">
@@ -5222,7 +5247,7 @@
 
             ;
         }).filter(Boolean).join('');
-        wrap.innerHTML = rows || '<div style="color:var(--ink3);font-size:12px;padding:8px;">Brak wieczek w magazynie.</div>';
+        wrap.innerHTML = rows || '<div style="color:var(--ink3);font-size:12px;padding:8px;">Brak wieczek w tym magazynie.</div>';
     }
 
     function onWIloscChange(input, rowId, defaultCena) {
@@ -5677,17 +5702,21 @@
                             // Cena wieczek podana za 100 szt - przelicz na cenę jednostkową
                             const cenaJedn = cn / 100;
                             try {
-                                let prs = await sbFetch('przykrywka', `?rozmiar_mm=eq.${prRozm}&select=*`);
-                                let pr = prs.find(p => (p.grafika || '').toLowerCase().includes(prMat) && (p.grafika || '').toLowerCase().includes(prKol));
-                                if (!pr)
+                                // Szukaj po dokładnych polach DB (typ_materialu + rozmiar_mm + kolor)
+                                let prs = await sbFetch('przykrywka', `?rozmiar_mm=eq.${prRozm}&typ_materialu=eq.${encodeURIComponent(prMat)}&select=*`);
+                                let pr = prs.find(p => (p.kolor || '').toLowerCase() === (prKol || '').toLowerCase());
+                                if (!pr && prs.length)
                                     pr = prs[0];
                                 if (pr) {
+                                    console.log('  przykrywka matched:', pr.typ_materialu, pr.rozmiar_mm + 'mm', pr.kolor);
                                     pozycje.push({
                                         rodzaj_produktu: 'przykrywka',
                                         przykrywka_id: pr.id,
                                         ilosc: il,
                                         cena_jednostkowa: cenaJedn
                                     });
+                                } else {
+                                    console.warn('  brak przykrywki:', prMat, prRozm + 'mm', prKol);
                                 }
                             } catch (e) {
                                 console.warn('przykrywka match:', e);
@@ -5857,7 +5886,7 @@
                 : `Przykrywka ${p.pr_typ || ''} ${p.pr_rozmiar || ''}mm`;
                 return `<div id="epoz_${p.id}" style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
         <div style="flex:1;font-size:12px;">${opis}</div>
-        <div style="font-size:12px;color:var(--ink2);">${p.ilosc} szt. · ${Number(p.cena_jednostkowa).toFixed(2)} zł</div>
+        <div style="font-size:12px;color:var(--ink2);">${p.ilosc} szt. · ${Number(p.cena_jednostkowa).toFixed(3)} zł</div>
         <button onclick="usunPozycje('${p.id}','epoz_${p.id}')" style="background:none;border:none;color:var(--accent);font-size:16px;cursor:pointer;padding:0 4px;">✕</button>
       </div>`
                 ;
@@ -6164,8 +6193,11 @@
                                 if (!prMat || isNaN(prRozm))
                                     continue;
                                 const cenaJedn = cn / 100;
-                                let prs = await sbFetch('przykrywka', `?rozmiar_mm=eq.${prRozm}&select=*`);
-                                let pr = prs.find(p => (p.grafika || '').toLowerCase().includes(prMat) && (p.grafika || '').toLowerCase().includes(prKol)) || prs[0];
+                                // Szukaj po dokładnych polach DB
+                                let prs = await sbFetch('przykrywka', `?rozmiar_mm=eq.${prRozm}&typ_materialu=eq.${encodeURIComponent(prMat)}&select=*`);
+                                let pr = prs.find(p => (p.kolor || '').toLowerCase() === (prKol || '').toLowerCase());
+                                if (!pr && prs.length)
+                                    pr = prs[0];
                                 if (pr)
                                     pozycje.push({
                                         rodzaj_produktu: 'przykrywka',
@@ -6783,6 +6815,75 @@
     }
 
     // ── POBIERZ DANE Z MF (białej listy VAT) ──
+    async function odzyskajMiastaZFakturowni() {
+        if (!confirm('Skrypt poszuka miast w Fakturowni dla klientów z brakującym miastem (po NIP). Kontynuować?'))
+            return;
+        const msg = document.getElementById('odzyskajMsg');
+        msg.textContent = '⏳ Pobieram klientów…';
+
+        try {
+            // 1. Pobierz klientów z brakującym miastem ALE z NIP
+            const klienci = await sbFetch('klient', `?or=(miasto.is.null,miasto.eq.)&nip=not.is.null&select=id,nazwa_wlasna,nip`);
+            if (!klienci.length) {
+                msg.textContent = '✓ Brak klientów do uzupełnienia (wszyscy mają miasto lub brak NIP).';
+                return;
+            }
+            msg.textContent = `Znaleziono ${klienci.length} klientów do uzupełnienia. Łączę z Fakturownią…`;
+
+            const token = localStorage.getItem('fakturownia_token');
+            const domain = localStorage.getItem('fakturownia_domain');
+            if (!token || !domain) {
+                msg.textContent = '❌ Brak konfiguracji Fakturowni (ustawienia).';
+                return;
+            }
+
+            let ok = 0,
+                miss = 0,
+                errs = [];
+            for (const k of klienci) {
+                const nip = k.nip.replace(/[^0-9]/g, '');
+                if (nip.length !== 10) {
+                    miss++;
+                    continue;
+                }
+                try {
+                    // Szukaj klienta po NIP w Fakturowni
+                    const res = await fetch(`https://${domain}.fakturownia.pl/clients.json?api_token=${token}&tax_no=${nip}`);
+                    const arr = await res.json();
+                    const found = Array.isArray(arr) ? arr[0] : (arr?.id ? arr : null);
+                    if (found?.city) {
+                        // Update miasto + ewentualnie też kod_pocztowy i ulica jeśli puste
+                        const patch = {
+                            miasto: found.city
+                        };
+                        if (found.post_code)
+                            patch.kod_pocztowy = found.post_code;
+                        if (found.street)
+                            patch.ulica = found.street;
+                        await sbFetch('klient', `?id=eq.${k.id}`, {
+                            method: 'PATCH',
+                            body: JSON.stringify(patch)
+                        });
+                        ok++;
+                        msg.textContent = `✓ ${ok}/${klienci.length} (ostatni: ${k.nazwa_wlasna} → ${found.city})`;
+                    } else {
+                        miss++;
+                        errs.push(`${k.nazwa_wlasna}: nie znaleziono w Fakturowni`);
+                    }
+                } catch (e) {
+                    miss++;
+                    errs.push(`${k.nazwa_wlasna}: ${e.message}`);
+                }
+                // Mała pauza żeby nie zalewać API
+                await new Promise(r => setTimeout(r, 200));
+            }
+
+            msg.innerHTML = `<div style="color:#3B6D11;font-weight:600;">✓ Odzyskano: ${ok}/${klienci.length}</div>${miss > 0 ? `<div style="color:#A32D2D;font-size:11px;margin-top:4px;">Nie znaleziono: ${miss}</div>` : ''}${errs.length ? `<details style="margin-top:6px;font-size:10px;"><summary>Szczegóły błędów</summary><pre style="white-space:pre-wrap;">${errs.join('\n')}</pre></details>` : ''}`;
+        } catch (e) {
+            msg.textContent = '❌ Błąd: ' + e.message;
+        }
+    }
+
     async function pobierzDaneZMF() {
         const nip = document.getElementById('nkNip').value.replace(/[^0-9]/g, '');
         const msg = document.getElementById('gusMsg');
@@ -6815,10 +6916,29 @@
                 nazwaEl.value = podmiot.name || '';
             if (nazwaWlEl && !nazwaWlEl.value)
                 nazwaWlEl.value = podmiot.name || '';
-            // adres z pierwszego wpisu
+            // adres z pierwszego wpisu - rozdziel na ulica, kod_pocztowy, miasto
             const adr = podmiot.residenceAddress || podmiot.workingAddress || '';
-            if (adresEl)
-                adresEl.value = adr;
+            if (adr) {
+                const kodMatch = adr.match(/(\d{2}-\d{3})/);
+                const kodp = kodMatch ? kodMatch[1] : '';
+                const parts = adr.split(',').map(s => s.trim()).filter(Boolean);
+                // Ulica = pierwszy fragment przed pierwszym przecinkiem
+                const ulica = parts[0] || '';
+                // Miasto = po kodzie
+                let miasto = '';
+                if (parts.length > 1) {
+                    miasto = parts.slice(1).join(' ').replace(kodp, '').trim();
+                }
+                const ulEl = document.getElementById('nkUlica');
+                const kpEl = document.getElementById('nkKodPocztowy');
+                const mEl = document.getElementById('nkMiasto');
+                if (ulEl)
+                    ulEl.value = ulica;
+                if (kpEl)
+                    kpEl.value = kodp;
+                if (mEl)
+                    mEl.value = miasto;
+            }
             if (adresDoEl && !adresDoEl.value)
                 adresDoEl.value = adr;
             msg.className = 'f-msg ok';
@@ -7739,8 +7859,12 @@
 
     async function zapiszNowegoKlienta() {
         const nazwa = document.getElementById('nkNazwa')?.value?.trim();
-        const formalna = document.getElementById('nkFormalna')?.value?.trim() || null;
-        const adres = document.getElementById('nkAdres')?.value?.trim() || null;
+        const formalna = document.getElementById('nkNazwaFormalna')?.value?.trim() || document.getElementById('nkFormalna')?.value?.trim() || null;
+        const ulica = document.getElementById('nkUlica')?.value?.trim() || null;
+        const kodp = document.getElementById('nkKodPocztowy')?.value?.trim() || null;
+        const miasto = document.getElementById('nkMiasto')?.value?.trim() || null;
+        // Pełny adres do legacy pola
+        const adresLegacy = [ulica, [kodp, miasto].filter(Boolean).join(' ')].filter(Boolean).join(', ') || null;
         const nip = document.getElementById('nkNip')?.value?.trim() || null;
         const email = document.getElementById('nkEmail')?.value?.trim() || null;
         const tel = document.getElementById('nkTelefon')?.value?.trim() || null;
@@ -7756,7 +7880,9 @@
                 body: JSON.stringify({
                     nazwa_wlasna: nazwa,
                     nazwa_formalna: formalna,
-                    adres_faktury: adres,
+                    ulica,
+                    kod_pocztowy: kodp,
+                    miasto,
                     nip,
                     email,
                     telefon: tel
@@ -7999,7 +8125,7 @@
 
             dotCls}"></span><span style="font-size:14px;font-weight:600;">${stanWMag}</span></div>
         <div style="font-size:10px;color:var(--ink3);">${magNazwa}</div>
-        <div style="font-size:11px;color:var(--accent);">${k.cena_netto != null ? Number(k.cena_netto).toFixed(2) + ' zł' : '—'}</div>
+        <div style="font-size:11px;color:var(--accent);">${k.cena_netto != null ? Number(k.cena_netto).toFixed(3) + ' zł' : '—'}</div>
       </div>
     </div>`
 
@@ -8798,4 +8924,11 @@
     </script>
     <button onclick="openNoweZamowienie()" id="fabNowe" style="display:flex;position:fixed;bottom:24px;right:20px;width:56px;height:56px;border-radius:50%;background:var(--accent);color:white;border:none;font-size:30px;font-weight:300;cursor:pointer;z-index:500;box-shadow:0 4px 16px rgba(200,80,42,0.45);align-items:center;justify-content:center;line-height:1;padding:0;">+</button>
 </body>
-</html>
+</html
+    <div style="margin-top:20px;padding:12px;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;">
+<div style="font-family:var(--fh);font-size:13px;font-weight:600;margin-bottom:6px;">🔧 Narzędzia jednorazowe</div>
+<button onclick="odzyskajMiastaZFakturowni()" style="background:var(--bg2);border:1.5px solid var(--accent);color:var(--accent);border-radius:8px;padding:8px 14px;font-family:var(--fm);font-size:12px;cursor:pointer;">📍 Odzyskaj brakujące miasta z Fakturowni</button>
+<div id="odzyskajMsg" style="margin-top:8px;font-size:12px;"></div>
+</div>
+
+  >
