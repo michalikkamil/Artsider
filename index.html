@@ -6819,66 +6819,41 @@
         if (!confirm('Skrypt poszuka miast w Fakturowni dla klientów z brakującym miastem (po NIP). Kontynuować?'))
             return;
         const msg = document.getElementById('odzyskajMsg');
-        msg.textContent = '⏳ Pobieram klientów…';
+        msg.innerHTML = '⏳ Łączę z Fakturownią przez Edge Function…';
 
         try {
-            // 1. Pobierz klientów z brakującym miastem ALE z NIP
-            const klienci = await sbFetch('klient', `?or=(miasto.is.null,miasto.eq.)&nip=not.is.null&select=id,nazwa_wlasna,nip`);
-            if (!klienci.length) {
-                msg.textContent = '✓ Brak klientów do uzupełnienia (wszyscy mają miasto lub brak NIP).';
-                return;
-            }
-            msg.textContent = `Znaleziono ${klienci.length} klientów do uzupełnienia. Łączę z Fakturownią…`;
-
-            const token = localStorage.getItem('fakturownia_token');
-            const domain = localStorage.getItem('fakturownia_domain');
-            if (!token || !domain) {
-                msg.textContent = '❌ Brak konfiguracji Fakturowni (ustawienia).';
+            const {url, key} = getConfig();
+            if (!url || !key) {
+                msg.textContent = '❌ Brak konfiguracji Supabase.';
                 return;
             }
 
-            let ok = 0,
-                miss = 0,
-                errs = [];
-            for (const k of klienci) {
-                const nip = k.nip.replace(/[^0-9]/g, '');
-                if (nip.length !== 10) {
-                    miss++;
-                    continue;
-                }
-                try {
-                    // Szukaj klienta po NIP w Fakturowni
-                    const res = await fetch(`https://${domain}.fakturownia.pl/clients.json?api_token=${token}&tax_no=${nip}`);
-                    const arr = await res.json();
-                    const found = Array.isArray(arr) ? arr[0] : (arr?.id ? arr : null);
-                    if (found?.city) {
-                        // Update miasto + ewentualnie też kod_pocztowy i ulica jeśli puste
-                        const patch = {
-                            miasto: found.city
-                        };
-                        if (found.post_code)
-                            patch.kod_pocztowy = found.post_code;
-                        if (found.street)
-                            patch.ulica = found.street;
-                        await sbFetch('klient', `?id=eq.${k.id}`, {
-                            method: 'PATCH',
-                            body: JSON.stringify(patch)
-                        });
-                        ok++;
-                        msg.textContent = `✓ ${ok}/${klienci.length} (ostatni: ${k.nazwa_wlasna} → ${found.city})`;
-                    } else {
-                        miss++;
-                        errs.push(`${k.nazwa_wlasna}: nie znaleziono w Fakturowni`);
-                    }
-                } catch (e) {
-                    miss++;
-                    errs.push(`${k.nazwa_wlasna}: ${e.message}`);
-                }
-                // Mała pauza żeby nie zalewać API
-                await new Promise(r => setTimeout(r, 200));
+            const res = await fetch(`${url}/functions/v1/fakturownia-lookup`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${key}`,
+                    'apikey': key
+                },
+                body: JSON.stringify({})
+            });
+            const data = await res.json();
+
+            if (!res.ok || data.error) {
+                msg.textContent = '❌ Błąd: ' + (data.error || res.status);
+                return;
             }
 
-            msg.innerHTML = `<div style="color:#3B6D11;font-weight:600;">✓ Odzyskano: ${ok}/${klienci.length}</div>${miss > 0 ? `<div style="color:#A32D2D;font-size:11px;margin-top:4px;">Nie znaleziono: ${miss}</div>` : ''}${errs.length ? `<details style="margin-top:6px;font-size:10px;"><summary>Szczegóły błędów</summary><pre style="white-space:pre-wrap;">${errs.join('\n')}</pre></details>` : ''}`;
+            const {total, ok, miss, updates, message} = data;
+            if (message) {
+                msg.innerHTML = `<div style="color:var(--ink3);">${message}</div>`;
+                return;
+            }
+
+            const updatesList = (updates || []).map(u => `${u.nazwa} → ${u.miasto}${u.kod_pocztowy ? ', ' + u.kod_pocztowy : ''}`).join('\n');
+            msg.innerHTML = `<div style="color:#3B6D11;font-weight:600;">✓ Odzyskano: ${ok}/${total}</div>${miss > 0 ? `<div style="color:#A32D2D;font-size:11px;margin-top:4px;">Nie znaleziono: ${miss}</div>` : ''}${updatesList ? `<details style="margin-top:6px;font-size:10px;"><summary>Szczegóły (${updates.length})</summary><pre style="white-space:pre-wrap;">${updatesList}</pre></details>` : ''}`;
+            // Odśwież dane lokalne
+            setTimeout(loadAll, 500);
         } catch (e) {
             msg.textContent = '❌ Błąd: ' + e.message;
         }
