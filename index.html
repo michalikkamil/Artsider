@@ -3955,34 +3955,6 @@ async function zmienIloscGlobal(kubek_id){
 
 
 // ── POBIERZ DANE Z MF (białej listy VAT) ──
-async function odzyskajMiastaZFakturowni(){
-  if(!confirm('Skrypt poszuka miast w Fakturowni dla klientów z brakującym miastem (po NIP). Kontynuować?'))return;
-  const msg=document.getElementById('odzyskajMsg');
-  msg.innerHTML='⏳ Łączę z Fakturownią przez Edge Function…';
-  
-  try{
-    const{url,key}=getCfg();
-    if(!url||!key){msg.textContent='❌ Brak konfiguracji Supabase.';return;}
-    
-    const res=await fetch(`${url}/functions/v1/bright-api`,{
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':`Bearer ${key}`,'apikey':key},
-      body:JSON.stringify({})
-    });
-    const data=await res.json();
-    
-    if(!res.ok||data.error){msg.textContent='❌ Błąd: '+(data.error||res.status);return;}
-    
-    const{total,ok,miss,updates,message}=data;
-    if(message){msg.innerHTML=`<div style="color:var(--ink3);">${message}</div>`;return;}
-    
-    const updatesList=(updates||[]).map(u=>`${u.nazwa} → ${u.miasto}${u.kod_pocztowy?', '+u.kod_pocztowy:''}`).join('\n');
-    msg.innerHTML=`<div style="color:#3B6D11;font-weight:600;">✓ Odzyskano: ${ok}/${total}</div>${miss>0?`<div style="color:#A32D2D;font-size:11px;margin-top:4px;">Nie znaleziono: ${miss}</div>`:''}${updatesList?`<details style="margin-top:6px;font-size:10px;"><summary>Szczegóły (${updates.length})</summary><pre style="white-space:pre-wrap;">${updatesList}</pre></details>`:''}`;
-    // Odśwież dane lokalne
-    setTimeout(loadAll,500);
-  }catch(e){msg.textContent='❌ Błąd: '+e.message;}
-}
-
 async function pobierzDaneZMF(){
   const nip = document.getElementById('nkNip').value.replace(/[^0-9]/g,'');
   const msg = document.getElementById('gusMsg');
@@ -5285,10 +5257,4 @@ window.addEventListener('load',async()=>{
 </script>
 <button onclick="openNoweZamowienie()" id="fabNowe" style="display:flex;position:fixed;bottom:24px;right:20px;width:56px;height:56px;border-radius:50%;background:var(--accent);color:white;border:none;font-size:30px;font-weight:300;cursor:pointer;z-index:500;box-shadow:0 4px 16px rgba(200,80,42,0.45);align-items:center;justify-content:center;line-height:1;padding:0;">+</button>
 </body>
-</html
-    <div style="margin-top:20px;padding:12px;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;">
-      <div style="font-family:var(--fh);font-size:13px;font-weight:600;margin-bottom:6px;">🔧 Narzędzia jednorazowe</div>
-      <button onclick="odzyskajMiastaZFakturowni()" style="background:var(--bg2);border:1.5px solid var(--accent);color:var(--accent);border-radius:8px;padding:8px 14px;font-family:var(--fm);font-size:12px;cursor:pointer;">📍 Odzyskaj brakujące miasta z Fakturowni</button>
-      <div id="odzyskajMsg" style="margin-top:8px;font-size:12px;"></div>
-    </div>
-  >
+</html>
