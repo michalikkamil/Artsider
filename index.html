@@ -3964,7 +3964,7 @@ async function odzyskajMiastaZFakturowni(){
     const{url,key}=getCfg();
     if(!url||!key){msg.textContent='❌ Brak konfiguracji Supabase.';return;}
     
-    const res=await fetch(`${url}/functions/v1/fakturownia-lookup`,{
+    const res=await fetch(`${url}/functions/v1/bright-api`,{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':`Bearer ${key}`,'apikey':key},
       body:JSON.stringify({})
