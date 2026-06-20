@@ -3782,6 +3782,17 @@ async function zapiszEdycjeKubka(kubek_id){
 }
 
 async function usunKubek(kubek_id){
+  // Jeśli kubek jest oglądany w kontekście archiwum, robimy "miękkie" usunięcie:
+  // ukrywamy go z widoku archiwum, ale zachowujemy rekord (statystyki, historia zamówień, widoki artystów)
+  if(activeMagKubki==='archiwum'){
+    const choice = confirm('Czy na pewno usunąć ten kubek z Archiwum?\n\nKubek zniknie z listy archiwum, ale jego statystyki i historia zamówień pozostaną zachowane w systemie.');
+    if(!choice)return;
+    try{
+      await sbFetch('kubek',`?id=eq.${kubek_id}`,{method:'PATCH',body:JSON.stringify({ukryty_w_archiwum:true})});
+      closeDrawer();loadAll();
+    }catch(e){alert('Błąd: '+e.message);}
+    return;
+  }
   const choice = confirm('Czy na pewno usunąć ten kubek?\n\nJeśli kubek był w zamówieniach, nie można go usunąć — zostanie wtedy zarchiwizowany (stan = 0).');
   if(!choice)return;
   try{
@@ -4024,7 +4035,7 @@ async function loadArchiwum(){
     stany.forEach(s=>{sumy[s.kubek_id]=(sumy[s.kubek_id]||0)+s.ilosc_dostepna;});
     const wProdukcji=new Set(zlecenia.map(z=>z.kubek_id));
     allArchiwum = kubki
-      .filter(k=>(sumy[k.id]||0)===0 && !wProdukcji.has(k.id))
+      .filter(k=>(sumy[k.id]||0)===0 && !wProdukcji.has(k.id) && !k.ukryty_w_archiwum)
       .map(k=>({
         kubek_id:k.id,
         pojemnosc_ml:k.pojemnosc_ml,
