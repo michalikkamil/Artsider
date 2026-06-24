@@ -399,6 +399,13 @@ nav{background:var(--ink);display:flex;align-items:center;position:sticky;top:0;
         </select>
       </div>
     </div>
+    <div style="padding:6px 16px 0;display:flex;gap:6px;flex-wrap:wrap;">
+      <button id="zamTypBtn_" onclick="setZamTypFilter('')" style="font-size:11px;padding:5px 10px;border-radius:20px;border:1.5px solid rgba(255,255,255,0.35);background:rgba(255,255,255,0.18);color:white;cursor:pointer;font-family:var(--fm);font-weight:600;" class="zam-typ-btn active-zam-typ">Wszystkie</button>
+      <button id="zamTypBtn_sprzedaz_gotowych" onclick="setZamTypFilter('sprzedaz_gotowych')" style="font-size:11px;padding:5px 10px;border-radius:20px;border:1.5px solid rgba(255,255,255,0.25);background:transparent;color:rgba(255,255,255,0.75);cursor:pointer;font-family:var(--fm);" class="zam-typ-btn">📦 Sprzedaż gotowych</button>
+      <button id="zamTypBtn_produkcja_artsider" onclick="setZamTypFilter('produkcja_artsider')" style="font-size:11px;padding:5px 10px;border-radius:20px;border:1.5px solid rgba(255,255,255,0.25);background:transparent;color:rgba(255,255,255,0.75);cursor:pointer;font-family:var(--fm);" class="zam-typ-btn">🏭 Produkcja Artsider</button>
+      <button id="zamTypBtn_produkcja_artsider_logo" onclick="setZamTypFilter('produkcja_artsider_logo')" style="font-size:11px;padding:5px 10px;border-radius:20px;border:1.5px solid rgba(255,255,255,0.25);background:transparent;color:rgba(255,255,255,0.75);cursor:pointer;font-family:var(--fm);" class="zam-typ-btn">🎨 Artsider + logo klienta</button>
+      <button id="zamTypBtn_produkcja_klienta" onclick="setZamTypFilter('produkcja_klienta')" style="font-size:11px;padding:5px 10px;border-radius:20px;border:1.5px solid rgba(255,255,255,0.25);background:transparent;color:rgba(255,255,255,0.75);cursor:pointer;font-family:var(--fm);" class="zam-typ-btn">✏️ Produkcja klienta</button>
+    </div>
     <div style="padding:8px 16px 0;">
       <div class="autocomplete-wrap">
         <input class="autocomplete-input" id="zamSearchKlient" placeholder="Szukaj po kliencie…" oninput="zamAutocompleteKlient(this.value)" autocomplete="off" style="background:rgba(255,255,255,0.1);color:var(--bg);border-color:rgba(255,255,255,0.2);">
@@ -735,7 +742,8 @@ function grupuj(stany){
 
 async function ladujZlecone(){
   try{
-    const kubki=await sbFetch('v_stan_kubkow','?ilosc_w_produkcji=gt.0&select=*');
+    // Kubki zlecone = tylko Artsider (logo artsider lub brak) — kubki klienta trafiają wyłącznie do zamówień
+    const kubki=await sbFetch('v_stan_kubkow','?ilosc_w_produkcji=gt.0&logo=neq.klienta&select=*');
     const zlecenia=await sbFetch('v_zlecenia_produkcyjne','?status=eq.w_produkcji&select=*');
     const zleceniaByKubek={};
     zlecenia.forEach(z=>{
@@ -2499,6 +2507,27 @@ async function loadZamowienia(){
   }
 }
 
+let activeZamTypFilter = '';
+function setZamTypFilter(typ){
+  activeZamTypFilter=typ;
+  document.querySelectorAll('.zam-typ-btn').forEach(b=>b.classList.remove('active-zam-typ'));
+  const btn=document.getElementById('zamTypBtn_'+(typ||''));
+  if(btn){
+    btn.classList.add('active-zam-typ');
+    btn.style.background='rgba(255,255,255,0.28)';
+    btn.style.borderColor='rgba(255,255,255,0.7)';
+    btn.style.color='white';
+    btn.style.fontWeight='600';
+  }
+  document.querySelectorAll('.zam-typ-btn').forEach(b=>{
+    if(!b.classList.contains('active-zam-typ')){
+      b.style.background='transparent';b.style.borderColor='rgba(255,255,255,0.25)';
+      b.style.color='rgba(255,255,255,0.75)';b.style.fontWeight='';
+    }
+  });
+  applyFilters('zamowienia');
+}
+
 function applyFiltersZamowienia(){
   const klientId = document.getElementById('zamSearchKlient')?.dataset?.klientId||'';
   const status   = document.getElementById('wfStatus').value;
@@ -2511,14 +2540,27 @@ function applyFiltersZamowienia(){
     if(faktura  && z.status_faktury    !== faktura)  return false;
     if(rok      && !(z.data_zamowienia||'').startsWith(rok)) return false;
     if(miesiac  && (z.data_zamowienia||'').slice(5,7)!==miesiac) return false;
+    if(activeZamTypFilter){
+      // mapowanie starych wartości → nowe typy
+      const t=z.typ_zamowienia||'';
+      if(activeZamTypFilter==='sprzedaz_gotowych' && t!=='sprzedaz_gotowych' && t!=='artsider') return false;
+      if(activeZamTypFilter==='produkcja_artsider' && t!=='produkcja_artsider') return false;
+      if(activeZamTypFilter==='produkcja_artsider_logo' && t!=='produkcja_artsider_logo' && t!=='wlasne_logo') return false;
+      if(activeZamTypFilter==='produkcja_klienta' && t!=='produkcja_klienta') return false;
+    }
     return true;
   });
   renderZamowienia(f);
 }
 
-const STATUS_LABELS = {w_produkcji:'❗ Zleć!', wyslane:'🏭 W produkcji', zrealizowane:'✅ Zrealizowane'};
-const PLATNOSC_LABELS = {oplacona:'💚 Opłacone', nieoplacona:'🔴 Nieopłacone'};
-const FAKTURA_LABELS = {wyslana:'📄 Wysłana', nie_wyslana:'⏳ Niewysłana'};
+const ZAM_TYP_LABELS = {
+  sprzedaz_gotowych: {label:'📦 Sprzedaż gotowych', bg:'#EAF3DE', border:'#C0DD97', color:'#3B6D11'},
+  artsider:          {label:'📦 Sprzedaż gotowych', bg:'#EAF3DE', border:'#C0DD97', color:'#3B6D11'},
+  produkcja_artsider:{label:'🏭 Produkcja Artsider', bg:'#E8F0FE', border:'#93B4F5', color:'#1A3A8F'},
+  produkcja_artsider_logo:{label:'🎨 Artsider + logo klienta', bg:'#FFF8E7', border:'#F5C842', color:'#7A5500'},
+  wlasne_logo:       {label:'🎨 Artsider + logo klienta', bg:'#FFF8E7', border:'#F5C842', color:'#7A5500'},
+  produkcja_klienta: {label:'✏️ Produkcja klienta', bg:'#F5EDFF', border:'#C49AE8', color:'#5B1A8F'},
+};
 
 function renderZamowienia(zamowienia){
   const list = document.getElementById('listZamowienia');
@@ -2531,17 +2573,19 @@ function renderZamowienia(zamowienia){
     return (b.data_zamowienia||'').localeCompare(a.data_zamowienia||'');
   });
   list.innerHTML = zamowienia.map(z=>{
-    const isWL=z.typ_zamowienia==='wlasne_logo';
-    const wlBg=isWL?'background:#FFFBEB;border-left:3px solid #F59E0B;':'';
+    const typInfo=ZAM_TYP_LABELS[z.typ_zamowienia]||{label:z.typ_zamowienia||'—',bg:'#F3F3F3',border:'#CCC',color:'#555'};
+    const isProdukcja=z.typ_zamowienia&&z.typ_zamowienia!=='sprzedaz_gotowych'&&z.typ_zamowienia!=='artsider';
+    const cardBorder=isProdukcja?`border-left:3px solid ${typInfo.border};`:'';
     const dostawaDate=z.data_zamowienia?new Date(new Date(z.data_zamowienia).getTime()+32*86400000).toISOString().slice(0,10):'';
     return `
-    <div class="card" style="flex-direction:column;padding:12px 14px;${wlBg}">
+    <div class="card" style="flex-direction:column;padding:12px 14px;${cardBorder}">
       <div class="card-top" style="margin-bottom:4px;cursor:pointer;" onclick="openZamowienieDrawer('${z.id}')">
-        <div class="card-title" style="white-space:normal;">${z.klient}${isWL?' ✏️':''}</div>
+        <div class="card-title" style="white-space:normal;">${z.klient}</div>
         <div class="card-price">${Number(z.wartosc_lacznie).toFixed(2)} zł</div>
       </div>
       <div style="font-size:11px;color:var(--ink3);margin-bottom:6px;cursor:pointer;" onclick="openZamowienieDrawer('${z.id}')">${z.data_zamowienia}${dostawaDate?' · dost. '+dostawaDate:''} · ${z.zrodlo||'—'} · ${z.liczba_pozycji} poz.</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+        <span class="tag" style="background:${typInfo.bg};border-color:${typInfo.border};color:${typInfo.color};font-weight:600;">${typInfo.label}</span>
         <span class="tag" style="background:${z.status_realizacji==='zrealizowane'?'#EAF3DE':z.status_realizacji==='wyslane'?'#FFF0E0':'#FBE9E9'};border-color:${z.status_realizacji==='zrealizowane'?'#C0DD97':z.status_realizacji==='wyslane'?'#F5C480':'#F4B5B5'};color:${z.status_realizacji==='zrealizowane'?'#3B6D11':z.status_realizacji==='wyslane'?'#9C5810':'#A32D2D'};">${STATUS_LABELS[z.status_realizacji]||z.status_realizacji}</span>
         <span class="tag" style="background:${z.status_platnosci==='oplacona'?'#EAF3DE':'#FBE9E9'};border-color:${z.status_platnosci==='oplacona'?'#C0DD97':'#F4B5B5'};color:${z.status_platnosci==='oplacona'?'#3B6D11':'#A32D2D'};">${PLATNOSC_LABELS[z.status_platnosci]||z.status_platnosci}</span>
         ${z.status_faktury==='wystawiona'||z.status_faktury==='wyslana'||z.numer_faktury?`<span class="tag" style="background:#EAF3DE;border-color:#C0DD97;color:#3B6D11;font-weight:600;">🧾 FV</span>`:''}
@@ -2723,12 +2767,61 @@ function closeZamDrawer(){
 
 // ── NOWE ZAMÓWIENIE ──
 function openNoweZamowienie(){
-  const klientOptions = allKlienci.map(k=>`<option value="${k.id}">${k.nazwa_wlasna}</option>`).join('');
-
   document.getElementById('drawerZamContent').innerHTML=`
     <button class="drawer-back" onclick="closeZamDrawer()">← Zamknij</button>
     <div class="drawer-title">Nowe zamówienie</div>
+    <div class="d-section">Rodzaj zamówienia</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px;">
+      <button onclick="otworzFormularzZamowienia('sprzedaz_gotowych')" style="padding:14px 10px;border-radius:12px;border:2px solid #C0DD97;background:#EAF3DE;color:#3B6D11;font-family:var(--fm);font-size:12px;font-weight:700;cursor:pointer;text-align:left;line-height:1.4;">📦 Sprzedaż gotowych<br><span style="font-weight:400;font-size:10px;color:#5A9020;">Kubki z mojej półki</span></button>
+      <button onclick="otworzFormularzZamowienia('produkcja_artsider')" style="padding:14px 10px;border-radius:12px;border:2px solid #93B4F5;background:#E8F0FE;color:#1A3A8F;font-family:var(--fm);font-size:12px;font-weight:700;cursor:pointer;text-align:left;line-height:1.4;">🏭 Produkcja Artsider<br><span style="font-weight:400;font-size:10px;color:#3A5AB0;">Moje kubki, bez klienta końcowego</span></button>
+      <button onclick="otworzFormularzZamowienia('produkcja_artsider_logo')" style="padding:14px 10px;border-radius:12px;border:2px solid #F5C842;background:#FFF8E7;color:#7A5500;font-family:var(--fm);font-size:12px;font-weight:700;cursor:pointer;text-align:left;line-height:1.4;">🎨 Artsider + logo klienta<br><span style="font-weight:400;font-size:10px;color:#9A7010;">Moja grafika, logo klienta</span></button>
+      <button onclick="otworzFormularzZamowienia('produkcja_klienta')" style="padding:14px 10px;border-radius:12px;border:2px solid #C49AE8;background:#F5EDFF;color:#5B1A8F;font-family:var(--fm);font-size:12px;font-weight:700;cursor:pointer;text-align:left;line-height:1.4;">✏️ Produkcja klienta<br><span style="font-weight:400;font-size:10px;color:#7B3ABF;">Własna grafika klienta, jednorazowe</span></button>
+    </div>
+  `;
+  document.getElementById('overlayZam').classList.add('open');
+  document.getElementById('drawerZam').classList.add('open');
+}
 
+function otworzFormularzZamowienia(typ){
+  const klientOptions = allKlienci.map(k=>`<option value="${k.id}">${k.nazwa_wlasna}</option>`).join('');
+  const needsKubek = typ!=='produkcja_artsider'; // produkcja_artsider nie wymaga klienta ani ceny sprzedaży
+  const needsClient = typ!=='produkcja_artsider';
+
+  const sekcjaKubka = (typ==='produkcja_artsider'||typ==='produkcja_artsider_logo'||typ==='produkcja_klienta') ? `
+    <div class="d-section">Szczegóły kubka</div>
+    <div id="pozycjeZam_kubek_wrap"></div>
+    <script>
+      (function(){
+        const wrap=document.getElementById('pozycjeZam_kubek_wrap');
+        const id=++pozycjeCounter;
+        const div=document.createElement('div');
+        div.id='poz_'+id;
+        div.dataset.typ='${typ==='produkcja_artsider'?'nowy_kubek_artsider':typ==='produkcja_artsider_logo'?'wlasne_logo':'kubek_klienta'}';
+        div.style.cssText='background:${typ==='produkcja_klienta'?'#F5EDFF;border:1.5px solid #C49AE8':typ==='produkcja_artsider_logo'?'#FBF3EA;border:1.5px solid #F0C8A8':'#E8F0FE;border:1.5px solid #93B4F5'};border-radius:10px;padding:14px;margin-bottom:8px;';
+        div.innerHTML=renderSekcjaKubkaHTML(id,'${typ}');
+        wrap.appendChild(div);
+        if(typeof updateWlPojemnosci==='function'){}
+      })();
+    <\/script>` : '';
+
+  const sekcjaProduktow = typ==='sprzedaz_gotowych' ? `
+    <div class="d-section">Produkty</div>
+    <div id="tresc-sticky-placeholder"></div>
+    <div id="pozycjeZam"></div>
+    <button class="btn-secondary" onclick="dodajPozycje('kubek');makeTrescSticky();" style="margin-bottom:6px;">+ Kubek (Artsider)</button>
+    <button class="btn-secondary" onclick="dodajPozycje('przykrywka');makeTrescSticky();" style="margin-bottom:6px;">+ Wieczko</button>
+    <button class="btn-secondary" onclick="dodajPozycjeTermiczne();makeTrescSticky();" style="margin-bottom:6px;">+ Termiczne</button>
+    <button class="btn-secondary" onclick="dodajPozycje('wysylka');makeTrescSticky();" style="margin-bottom:6px;">+ Wysyłka</button>` : `
+    <div id="tresc-sticky-placeholder"></div>
+    <div id="pozycjeZam"></div>`;
+
+  document.getElementById('drawerZamContent').innerHTML=`
+    <button class="drawer-back" onclick="openNoweZamowienie()">← Zmień typ</button>
+    <div class="drawer-title">Nowe zamówienie</div>
+    <div style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;margin-bottom:14px;background:${ typ==='sprzedaz_gotowych'?'#EAF3DE':typ==='produkcja_artsider'?'#E8F0FE':typ==='produkcja_artsider_logo'?'#FFF8E7':'#F5EDFF'};color:${typ==='sprzedaz_gotowych'?'#3B6D11':typ==='produkcja_artsider'?'#1A3A8F':typ==='produkcja_artsider_logo'?'#7A5500':'#5B1A8F'};border:1.5px solid ${typ==='sprzedaz_gotowych'?'#C0DD97':typ==='produkcja_artsider'?'#93B4F5':typ==='produkcja_artsider_logo'?'#F5C842':'#C49AE8'};">${typ==='sprzedaz_gotowych'?'📦 Sprzedaż gotowych':typ==='produkcja_artsider'?'🏭 Produkcja Artsider':typ==='produkcja_artsider_logo'?'🎨 Artsider + logo klienta':'✏️ Produkcja klienta'}</div>
+    <input type="hidden" id="zamTypZlecenia" value="${typ}">
+
+    ${needsClient?`
     <div class="d-section">Klient</div>
     <div class="f-group">
       <div class="autocomplete-wrap">
@@ -2741,14 +2834,8 @@ function openNoweZamowienie(){
       <div id="ostatnieZamPopup" style="display:none;"></div>
     </div>
     <div id="zamKlientInfo" style="display:none;margin-top:8px;">
-      <div class="f-group">
-        <label class="f-label">Nazwa własna klienta (edytuj)</label>
-        <input class="f-input" id="zamKlientNazwaWlasna" placeholder="np. Kasia z kawiarni">
-      </div>
-      <div class="f-group">
-        <label class="f-label">Notatka o kliencie</label>
-        <textarea class="f-input" id="zamKlientNotatka" rows="2" placeholder="np. zamawia zawsze kubki BIO, preferuje faktury na koniec miesiąca…" style="resize:vertical;"></textarea>
-      </div>
+      <div class="f-group"><label class="f-label">Nazwa własna klienta (edytuj)</label><input class="f-input" id="zamKlientNazwaWlasna" placeholder="np. Kasia z kawiarni"></div>
+      <div class="f-group"><label class="f-label">Notatka o kliencie</label><textarea class="f-input" id="zamKlientNotatka" rows="2" style="resize:vertical;"></textarea></div>
       <button class="btn-secondary" onclick="zapiszDaneKlienta()" style="font-size:12px;padding:8px;">💾 Zapisz dane klienta</button>
       <div class="f-msg" id="klientSaveMsg"></div>
     </div>
@@ -2774,7 +2861,7 @@ function openNoweZamowienie(){
         <button class="btn-primary" onclick="zapiszNowegoKlienta()" style="margin-top:8px;">Zapisz klienta i wybierz</button>
         <div class="f-msg" id="nkMsg"></div>
       </div>
-    </div>
+    </div>`:'<input type="hidden" id="zamKlient" value=""><input type="hidden" id="zamKlientInput">'}
 
     <div class="d-section">Szczegóły</div>
     <div class="f-row">
@@ -2787,27 +2874,37 @@ function openNoweZamowienie(){
           <option value="instagram">Instagram</option>
         </select>
       </div>
-
     </div>
     <div class="f-group"><label class="f-label">Treść zamówienia (wklej z maila/SMS)</label>
       <textarea class="f-input" id="zamTresc" rows="4" placeholder="Wklej tutaj treść wiadomości od klienta…" style="resize:vertical;"></textarea>
     </div>
 
+    ${typ==='sprzedaz_gotowych'?`
     <div class="d-section">Produkty</div>
     <div id="tresc-sticky-placeholder"></div>
     <div id="pozycjeZam"></div>
     <button class="btn-secondary" onclick="dodajPozycje('kubek');makeTrescSticky();" style="margin-bottom:6px;">+ Kubek (Artsider)</button>
-    <button class="btn-secondary" onclick="dodajPozycjeWlasneLogo();makeTrescSticky();" style="margin-bottom:6px;background:#FBF3EA;border-color:#F0C8A8;">+ Kubek (własne logo)</button>
     <button class="btn-secondary" onclick="dodajPozycje('przykrywka');makeTrescSticky();" style="margin-bottom:6px;">+ Wieczko</button>
     <button class="btn-secondary" onclick="dodajPozycjeTermiczne();makeTrescSticky();" style="margin-bottom:6px;">+ Termiczne</button>
     <button class="btn-secondary" onclick="dodajPozycje('wysylka');makeTrescSticky();" style="margin-bottom:6px;">+ Wysyłka</button>
+    `:`
+    <div class="d-section">Szczegóły kubka</div>
+    <div id="pozycjeZam"></div>
+    <div id="kubek_prod_wrap"></div>
+    `}
 
     <button class="btn-primary" onclick="zapiszZamowienie()" style="margin-top:12px;">💾 Zapisz zamówienie</button>
     <div class="f-msg" id="zamMsg"></div>
   `;
 
-  document.getElementById('overlayZam').classList.add('open');
-  document.getElementById('drawerZam').classList.add('open');
+  // Dla typów produkcyjnych: od razu dodaj sekcję kubka
+  if(typ==='produkcja_artsider_logo'){
+    dodajPozycjeWlasneLogo('kubek_prod_wrap');
+  } else if(typ==='produkcja_artsider'){
+    dodajPozycjeNowyKubek('kubek_prod_wrap');
+  } else if(typ==='produkcja_klienta'){
+    dodajPozycjeKubetKlienta('kubek_prod_wrap');
+  }
 }
 
 let pozycjeCounter = 0;
@@ -3136,35 +3233,223 @@ function renderTermInline(id){
 }
 
 
+// ── NOWY KUBEK ARTSIDER (produkcja własna, bez klienta) ──
+function dodajPozycjeNowyKubek(wrapId){
+  const id=++pozycjeCounter;
+  const wrap=document.getElementById(wrapId||'pozycjeZam');
+  if(!wrap)return;
+  const div=document.createElement('div');
+  div.id=`poz_${id}`;div.dataset.typ='nowy_kubek_artsider';
+  div.style.cssText='background:#E8F0FE;border:1.5px solid #93B4F5;border-radius:10px;padding:14px;margin-bottom:8px;position:relative;';
+  const maty=['PE','BIO','rPET'];
+  div.innerHTML=`
+    <div style="font-size:10px;text-transform:uppercase;color:#1A3A8F;margin-bottom:10px;font-weight:600;">🏭 Nowy kubek Artsider</div>
+    <div class="f-row">
+      <div class="f-group" style="flex:1;"><label class="f-label">Materiał</label>
+        <select class="f-select" id="wl_mat_${id}" onchange="updateWlPojemnosci(${id})" style="background:white;">
+          <option value="">— wybierz —</option>
+          ${maty.map(m=>`<option value="${m}">${m}</option>`).join('')}
+        </select>
+      </div>
+      <div class="f-group" style="flex:1;"><label class="f-label">Pojemność</label>
+        <select class="f-select" id="wl_poj_${id}" style="background:white;"><option value="">— najpierw materiał —</option></select>
+      </div>
+    </div>
+    <div class="f-row">
+      <div class="f-group" style="flex:1;"><label class="f-label">Ścianka</label>
+        <select class="f-select" id="wl_sci_${id}" onchange="autoCenaWl(${id})" style="background:white;">
+          <option value="jednościankowy">Jednościankowy</option>
+          <option value="dwuściankowy" selected>Dwuściankowy</option>
+          <option value="inny">Inny</option>
+        </select>
+      </div>
+      <div class="f-group" style="flex:1;"><label class="f-label">Szt. w opakowaniu</label>
+        <input class="f-input" id="wl_pak_${id}" type="number" min="1" placeholder="np. 25" style="background:white;">
+      </div>
+    </div>
+    <div class="f-group"><label class="f-label">Nazwa grafiki</label>
+      <input class="f-input" id="wl_grafika_${id}" placeholder="np. Artsider vol.7" style="background:white;">
+    </div>
+    <div class="f-group"><label class="f-label">Artysta</label>
+      <select class="f-select" id="wl_artysta_${id}" style="background:white;">
+        <option value="">— brak artysty —</option>
+        ${allArtysci.map(a=>`<option value="${a.id}">${a.imie_nazwisko}</option>`).join('')}
+      </select>
+    </div>
+    <div class="f-group"><label class="f-label">Miniaturka (opcjonalnie)</label>
+      <div style="border:2px dashed #93B4F5;border-radius:8px;padding:12px;text-align:center;cursor:pointer;background:white;" onclick="document.getElementById('wl_file_${id}').click()">
+        <input type="file" id="wl_file_${id}" accept="image/*" style="display:none;" onchange="previewWlFile(${id})">
+        <div id="wl_preview_${id}" style="font-size:12px;color:var(--ink3);">📷 Kliknij żeby wybrać zdjęcie</div>
+      </div>
+    </div>
+    <div class="f-row">
+      <div class="f-group" style="flex:1;"><label class="f-label">Ilość do zlecenia</label>
+        <input class="f-input" id="wl_ilosc_${id}" type="number" min="1" placeholder="np. 500">
+      </div>
+      <div class="f-group" style="flex:1;"><label class="f-label">Data zlecenia</label>
+        <input class="f-input" id="wl_data_${id}" type="date" value="${new Date().toISOString().slice(0,10)}">
+      </div>
+    </div>
+    <div class="f-group"><label class="f-label">Cena netto (docelowa sprzedaży)</label>
+      <input class="f-input" id="wl_cena_${id}" type="number" step="0.01" placeholder="netto" style="background:white;">
+    </div>
+  `;
+  wrap.appendChild(div);
+}
+
+// ── KUBEK KLIENTA (grafika klienta, jednorazowe zlecenie) ──
+function dodajPozycjeKubetKlienta(wrapId){
+  const id=++pozycjeCounter;
+  const wrap=document.getElementById(wrapId||'pozycjeZam');
+  if(!wrap)return;
+  const div=document.createElement('div');
+  div.id=`poz_${id}`;div.dataset.typ='kubek_klienta';
+  div.style.cssText='background:#F5EDFF;border:1.5px solid #C49AE8;border-radius:10px;padding:14px;margin-bottom:8px;position:relative;';
+  const maty=['PE','BIO','rPET'];
+  div.innerHTML=`
+    <div style="font-size:10px;text-transform:uppercase;color:#5B1A8F;margin-bottom:10px;font-weight:600;">✏️ Kubek klienta (własna grafika)</div>
+    <div class="f-row">
+      <div class="f-group" style="flex:1;"><label class="f-label">Materiał</label>
+        <select class="f-select" id="wl_mat_${id}" onchange="updateWlPojemnosci(${id})" style="background:white;">
+          <option value="">— wybierz —</option>
+          ${maty.map(m=>`<option value="${m}">${m}</option>`).join('')}
+        </select>
+      </div>
+      <div class="f-group" style="flex:1;"><label class="f-label">Pojemność</label>
+        <select class="f-select" id="wl_poj_${id}" style="background:white;"><option value="">— najpierw materiał —</option></select>
+      </div>
+    </div>
+    <div class="f-row">
+      <div class="f-group" style="flex:1;"><label class="f-label">Ścianka</label>
+        <select class="f-select" id="wl_sci_${id}" style="background:white;">
+          <option value="jednościankowy">Jednościankowy</option>
+          <option value="dwuściankowy" selected>Dwuściankowy</option>
+          <option value="inny">Inny</option>
+        </select>
+      </div>
+      <div class="f-group" style="flex:1;"><label class="f-label">Szt. w opakowaniu</label>
+        <input class="f-input" id="wl_pak_${id}" type="number" min="1" placeholder="np. 25" style="background:white;">
+      </div>
+    </div>
+    <div class="f-group"><label class="f-label">Nazwa / opis grafiki klienta</label>
+      <input class="f-input" id="wl_grafika_${id}" placeholder="np. Logo Firma XYZ — własny projekt" style="background:white;">
+    </div>
+    <div class="f-group"><label class="f-label">Miniaturka (opcjonalnie)</label>
+      <div style="border:2px dashed #C49AE8;border-radius:8px;padding:12px;text-align:center;cursor:pointer;background:white;" onclick="document.getElementById('wl_file_${id}').click()">
+        <input type="file" id="wl_file_${id}" accept="image/*" style="display:none;" onchange="previewWlFile(${id})">
+        <div id="wl_preview_${id}" style="font-size:12px;color:var(--ink3);">📷 Kliknij żeby wybrać zdjęcie</div>
+      </div>
+    </div>
+    <div class="f-row">
+      <div class="f-group" style="flex:1;"><label class="f-label">Ilość</label>
+        <input class="f-input" id="wl_ilosc_${id}" type="number" min="1" placeholder="np. 500">
+      </div>
+      <div class="f-group" style="flex:1;"><label class="f-label">Data zlecenia</label>
+        <input class="f-input" id="wl_data_${id}" type="date" value="${new Date().toISOString().slice(0,10)}">
+      </div>
+    </div>
+    <div class="f-group"><label class="f-label">Cena netto / brutto</label>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <input class="f-input" id="wl_cena_${id}" type="number" step="0.01" placeholder="netto" style="flex:1;background:white;" oninput="syncBruttoWl(${id})">
+        <span style="font-size:10px;color:var(--ink3);">/</span>
+        <input class="f-input" id="wl_brutto_${id}" type="number" step="0.01" placeholder="brutto" style="flex:1;background:white;" oninput="syncNettoWl(${id})">
+      </div>
+    </div>
+  `;
+  wrap.appendChild(div);
+}
+
 async function zapiszZamowienie(){
   console.log('=== zapiszZamowienie START ===');
   const klientId = document.getElementById('zamKlient')?.value || document.getElementById('zamKlientInput')?.dataset?.id || '';
   const zrodlo   = document.getElementById('zamZrodlo')?.value||'inne';
-  const typ      = document.getElementById('zamTyp')?.value||'artsider';
+  const typZlecenia = document.getElementById('zamTypZlecenia')?.value||'sprzedaz_gotowych';
   const tresc    = document.getElementById('zamTresc')?.value?.trim()||'';
   const msg      = document.getElementById('zamMsg');
-  console.log('klientId:', klientId, 'zrodlo:', zrodlo);
+  console.log('klientId:', klientId, 'zrodlo:', zrodlo, 'typZlecenia:', typZlecenia);
 
   if(!msg){alert('Bug: brak elementu zamMsg w formularzu');return;}
-  if(!klientId){msg.className='f-msg err';msg.textContent='Wybierz klienta z listy.';return;}
+
+  // Dla typów wymagających klienta — walidacja
+  if(typZlecenia!=='produkcja_artsider' && !klientId){
+    msg.className='f-msg err';msg.textContent='Wybierz klienta z listy.';return;
+  }
 
   // zbierz pozycje
-  const pozycjeDivs = document.querySelectorAll('#pozycjeZam > div[data-typ]');
+  const pozycjeDivs = document.querySelectorAll('#pozycjeZam > div[data-typ], #kubek_prod_wrap > div[data-typ]');
   const pozycje = [];
   const komisDoUtworzenia = [];
-  let maWlasneLogo = false;
   for(const div of pozycjeDivs){
-    if(div.dataset.typ==='wlasne_logo') maWlasneLogo = true;
     const typ2 = div.dataset.typ;
-    if(typ2==='kubek'||typ2==='przykrywka'||typ2==='termiczny'){}
-    else if(typ2!=='wysylka'&&typ2!=='wlasne_logo'){
-      const ilosCheck=parseInt(div.querySelector('[data-field="ilosc"]')?.value)||0;
-      if(ilosCheck<=0)continue;
-    }
-    const cena=parseFloat(div.querySelector('[data-field="cena"]')?.value)||0;
 
+    // ── PRODUKCJA ARTSIDER (nowy kubek bez klienta) ──
+    if(typ2==='nowy_kubek_artsider'){
+      const wlMat=div.querySelector(`[id^="wl_mat_"]`)?.value;
+      const wlPoj=parseInt(div.querySelector(`[id^="wl_poj_"]`)?.value)||0;
+      const wlSci=div.querySelector(`[id^="wl_sci_"]`)?.value;
+      const wlPak=parseInt(div.querySelector(`[id^="wl_pak_"]`)?.value)||null;
+      const wlGrafika=div.querySelector(`[id^="wl_grafika_"]`)?.value?.trim()||'Artsider';
+      const wlIlosc=parseInt(div.querySelector(`[id^="wl_ilosc_"]`)?.value)||0;
+      const wlData=div.querySelector(`[id^="wl_data_"]`)?.value||new Date().toISOString().slice(0,10);
+      const wlCena=parseFloat(div.querySelector(`[id^="wl_cena_"]`)?.value)||0;
+      if(!wlMat||!wlPoj||!wlSci){msg.className='f-msg err';msg.textContent='Uzupełnij dane kubka (materiał, pojemność, ścianka).';return;}
+      if(wlIlosc<=0){msg.className='f-msg err';msg.textContent='Podaj ilość do zlecenia.';return;}
+      try{
+        const wlArtId=div.querySelector(`[id^="wl_artysta_"]`)?.value||null;
+        const wlFileInput=div.querySelector(`[id^="wl_file_"]`);
+        let wlMiniaturka=null;
+        if(wlFileInput?.files?.[0]){try{wlMiniaturka=await sbUpload(wlFileInput.files[0]);}catch(e){}}
+        const[graf]=await sbFetch('grafika','',{method:'POST',body:JSON.stringify({nazwa:wlGrafika,miniaturka_url:wlMiniaturka,artysta_id:wlArtId||undefined})});
+        const[nowyKubek]=await sbFetch('kubek','',{method:'POST',body:JSON.stringify({
+          grafika_id:graf.id,pojemnosc_ml:wlPoj,typ_materialu:wlMat,
+          typ_scianki:wlSci,sztuk_w_opakowaniu:wlPak,cena_netto:wlCena||null,logo:'artsider',
+        })});
+        await sbFetch('zlecenie_produkcyjne','',{method:'POST',body:JSON.stringify({
+          kubek_id:nowyKubek.id,ilosc_zlecona:wlIlosc,data_zlecenia:wlData,status:'w_produkcji'
+        })});
+        await incrStatZamowiono(nowyKubek.id,wlIlosc);
+        const stanyWl=allMagazyny.map(m=>({kubek_id:nowyKubek.id,magazyn_id:m.id,ilosc_dostepna:0,ilosc_w_drodze:0}));
+        for(const s of stanyWl){await sbFetch('stan_magazynowy','',{method:'POST',body:JSON.stringify(s)});}
+        // Produkcja Artsider = brak zamówienia sprzedażowego, kończymy tu
+      }catch(e){msg.className='f-msg err';msg.textContent='Błąd tworzenia kubka: '+e.message;return;}
+      continue;
+    }
+
+    // ── KUBEK KLIENTA (grafika klienta, jednorazowe) ──
+    if(typ2==='kubek_klienta'){
+      const wlMat=div.querySelector(`[id^="wl_mat_"]`)?.value;
+      const wlPoj=parseInt(div.querySelector(`[id^="wl_poj_"]`)?.value)||0;
+      const wlSci=div.querySelector(`[id^="wl_sci_"]`)?.value;
+      const wlPak=parseInt(div.querySelector(`[id^="wl_pak_"]`)?.value)||null;
+      const wlGrafika=div.querySelector(`[id^="wl_grafika_"]`)?.value?.trim()||'Grafika klienta';
+      const wlIlosc=parseInt(div.querySelector(`[id^="wl_ilosc_"]`)?.value)||0;
+      const wlData=div.querySelector(`[id^="wl_data_"]`)?.value||new Date().toISOString().slice(0,10);
+      const wlCenaNet=parseFloat(div.querySelector(`[id^="wl_cena_"]`)?.value)||0;
+      const wlCenaBrut=parseFloat(div.querySelector(`[id^="wl_brutto_"]`)?.value)||0;
+      const wlCena=wlCenaNet||(wlCenaBrut/1.23)||0;
+      if(!wlMat||!wlPoj||!wlSci){msg.className='f-msg err';msg.textContent='Uzupełnij dane kubka klienta.';return;}
+      try{
+        const wlFileInput=div.querySelector(`[id^="wl_file_"]`);
+        let wlMiniaturka=null;
+        if(wlFileInput?.files?.[0]){try{wlMiniaturka=await sbUpload(wlFileInput.files[0]);}catch(e){}}
+        const[graf]=await sbFetch('grafika','',{method:'POST',body:JSON.stringify({nazwa:wlGrafika,miniaturka_url:wlMiniaturka})});
+        const[nowyKubek]=await sbFetch('kubek','',{method:'POST',body:JSON.stringify({
+          grafika_id:graf.id,pojemnosc_ml:wlPoj,typ_materialu:wlMat,
+          typ_scianki:wlSci,sztuk_w_opakowaniu:wlPak,cena_netto:wlCena||null,logo:'klienta',
+        })});
+        await sbFetch('zlecenie_produkcyjne','',{method:'POST',body:JSON.stringify({
+          kubek_id:nowyKubek.id,ilosc_zlecona:wlIlosc,data_zlecenia:wlData,status:'w_produkcji'
+        })});
+        await incrStatZamowiono(nowyKubek.id,wlIlosc);
+        const stanyWl=allMagazyny.map(m=>({kubek_id:nowyKubek.id,magazyn_id:m.id,ilosc_dostepna:0,ilosc_w_drodze:0}));
+        for(const s of stanyWl){await sbFetch('stan_magazynowy','',{method:'POST',body:JSON.stringify(s)});}
+        pozycje.push({rodzaj_produktu:'kubek',kubek_id:nowyKubek.id,magazyn_id:allMagazyny[0]?.id||null,ilosc:wlIlosc,cena_jednostkowa:wlCena});
+      }catch(e){msg.className='f-msg err';msg.textContent='Błąd tworzenia kubka klienta: '+e.message;return;}
+      continue;
+    }
+
+    // ── WŁASNE LOGO (Artsider + logo klienta) — istniejąca logika ──
     if(typ2==='wlasne_logo'){
-      // Utwórz nowy kubek jako zlecony i dodaj do pozycji zamówienia
       const wlMat=div.querySelector(`[id^="wl_mat_"]`)?.value;
       const wlPoj=parseInt(div.querySelector(`[id^="wl_poj_"]`)?.value)||0;
       const wlSci=div.querySelector(`[id^="wl_sci_"]`)?.value;
@@ -3177,39 +3462,35 @@ async function zapiszZamowienie(){
       const wlCena=wlCenaNet||(wlCenaBrut/1.23)||0;
       if(!wlMat||!wlPoj||!wlSci){msg.className='f-msg err';msg.textContent='Uzupełnij dane kubka z własnym logo.';return;}
       try{
-        // Szukaj artysty "własne logo" lub utwórz
-        // Utwórz grafikę bez artysty
         const wlArtId=div.querySelector(`[id^="wl_artysta_"]`)?.value||null;
         const wlFileInput=div.querySelector(`[id^="wl_file_"]`);
         let wlMiniaturka=null;
-        if(wlFileInput?.files?.[0]){
-          try{wlMiniaturka=await sbUpload(wlFileInput.files[0]);}catch(e){}
-        }
-        const[graf]=await sbFetch('grafika','',{method:'POST',body:JSON.stringify({
-          nazwa:wlGrafika,
-          miniaturka_url:wlMiniaturka,
-          artysta_id:wlArtId||undefined
-        })});
-        // Utwórz kubek zlecony
+        if(wlFileInput?.files?.[0]){try{wlMiniaturka=await sbUpload(wlFileInput.files[0]);}catch(e){}}
+        const[graf]=await sbFetch('grafika','',{method:'POST',body:JSON.stringify({nazwa:wlGrafika,miniaturka_url:wlMiniaturka,artysta_id:wlArtId||undefined})});
         const[nowyKubek]=await sbFetch('kubek','',{method:'POST',body:JSON.stringify({
           grafika_id:graf.id,pojemnosc_ml:wlPoj,typ_materialu:wlMat,
-          typ_scianki:wlSci,sztuk_w_opakowaniu:wlPak,
-          cena_netto:wlCena||null,logo:'klienta',
+          typ_scianki:wlSci,sztuk_w_opakowaniu:wlPak,cena_netto:wlCena||null,logo:'klienta',
         })});
-        // Stwórz zlecenie produkcyjne
         await sbFetch('zlecenie_produkcyjne','',{method:'POST',body:JSON.stringify({
-          kubek_id:nowyKubek.id, ilosc_zlecona:wlIlosc,
-          data_zlecenia:wlData, status:'w_produkcji'
+          kubek_id:nowyKubek.id,ilosc_zlecona:wlIlosc,data_zlecenia:wlData,status:'w_produkcji'
         })});
-        // Aktualizuj statystyki
-        await incrStatZamowiono(nowyKubek.id, wlIlosc);
-        // Utwórz stany magazynowe (0 szt.)
+        await incrStatZamowiono(nowyKubek.id,wlIlosc);
         const stanyWl=allMagazyny.map(m=>({kubek_id:nowyKubek.id,magazyn_id:m.id,ilosc_dostepna:0,ilosc_w_drodze:0}));
         for(const s of stanyWl){await sbFetch('stan_magazynowy','',{method:'POST',body:JSON.stringify(s)});}
-        // Dodaj do pozycji zamówienia
         pozycje.push({rodzaj_produktu:'kubek',kubek_id:nowyKubek.id,magazyn_id:allMagazyny[0]?.id||null,ilosc:wlIlosc,cena_jednostkowa:wlCena});
-      }catch(wlErr){msg.className='f-msg err';msg.textContent='Błąd tworzenia kubka: '+wlErr.message;return;}
-    } else if(typ2==='kubek'){
+      }catch(e){msg.className='f-msg err';msg.textContent='Błąd tworzenia kubka: '+e.message;return;}
+      continue;
+    }
+
+    // ── STANDARDOWE POZYCJE (kubek z półki, przykrywka, termiczny, wysyłka) ──
+    if(typ2==='kubek'||typ2==='przykrywka'||typ2==='termiczny'){}
+    else if(typ2!=='wysylka'){
+      const ilosCheck=parseInt(div.querySelector('[data-field="ilosc"]')?.value)||0;
+      if(ilosCheck<=0)continue;
+    }
+    const cena=parseFloat(div.querySelector('[data-field="cena"]')?.value)||0;
+
+    if(typ2==='kubek'){
       for(const row of div.querySelectorAll('[data-kubek-id]')){
         const kubId=row.dataset.kubekId;const magId=row.dataset.magId;const rowId=row.id;
         const il=parseInt(document.getElementById('kq_'+rowId)?.value)||0;if(il<=0)continue;
@@ -3224,37 +3505,27 @@ async function zapiszZamowienie(){
       const lWrap=document.getElementById(`termlist_${sid}`);
       if(!lWrap)continue;
       const termRows=lWrap.querySelectorAll('[data-kubek-id]');
-      console.log('termiczne rows found:', termRows.length, 'typ:', termTyp, 'zrodlo:', termZrodlo);
       for(const row of termRows){
         const kubId=row.dataset.kubekId;const rowId=row.id;
         const qInput=document.getElementById('tq_'+rowId);
-        const il=parseInt(qInput?.value)||0;
-        console.log('  row:', rowId, 'kubId:', kubId, 'il:', il, 'inputFound:', !!qInput);
-        if(il<=0)continue;
+        const il=parseInt(qInput?.value)||0;if(il<=0)continue;
         const cn=parseFloat(document.getElementById('tn_'+rowId)?.value)||0;
         if(termTyp==='komis'){
           komisDoUtworzenia.push({kubek_id:kubId,ilosc:il,cena_komisowa:null});
         } else {
           pozycje.push({rodzaj_produktu:'termiczny',kubek_termiczny_id:kubId,typ_termiczny:'sprzedaz',ilosc:il,cena_jednostkowa:cn});
-          // Sprzedaż z komisu: zarejestruj w sprzedaz_termicznych + zmniejsz komis
           if(termZrodlo==='komis'&&row.dataset.komisId){
             try{
               await sbFetch('sprzedaz_termicznych','',{method:'POST',body:JSON.stringify({
-                komis_id:row.dataset.komisId,
-                kubek_id:kubId,
-                klient_id:klientId,
-                ilosc:il,
-                cena_netto:cn,
-                data_sprzedazy:new Date().toISOString().slice(0,10),
-                status_faktury:'nie_wystawiona',
-                status_platnosci:'nieoplacona'
+                komis_id:row.dataset.komisId,kubek_id:kubId,klient_id:klientId,
+                ilosc:il,cena_netto:cn,data_sprzedazy:new Date().toISOString().slice(0,10),
+                status_faktury:'nie_wystawiona',status_platnosci:'nieoplacona'
               })});
               const kl=window['tl_kom_'+sid]||[];const ki=kl.find(k=>k.id===kubId);const ni=(ki?.ilosc||0)-il;
               if(ni<=0)await sbFetch('komis',`?id=eq.${row.dataset.komisId}`,{method:'PATCH',body:JSON.stringify({status:'sprzedany',ilosc:0})});
               else await sbFetch('komis',`?id=eq.${row.dataset.komisId}`,{method:'PATCH',body:JSON.stringify({ilosc:ni})});
             }catch(e){console.warn('komis sale:',e);}
           }
-          // Stan magazynowy NIE odejmuje się przy utworzeniu - tylko przy statusie 'zrealizowane' (odejmijZeStan)
         }
       }
       continue;
@@ -3262,37 +3533,26 @@ async function zapiszZamowienie(){
       const wTyp=div.querySelector('[data-field="wysylka_typ"]')?.value||'DPD';
       const wNazwa=div.querySelector('[data-field="wysylka_nazwa"]')?.value||('Wysyłka '+wTyp);
       const cenWNetto=parseFloat(div.querySelector('[data-field="cena"]')?.value)||0;
-      const cenWBrutto=parseFloat(div.querySelector('[id^="poz_brutto_"]')?.value)||0;
+      const cenWBrutto=parseFloat(div.querySelector(`[id^="poz_brutto_"]`)?.value)||0;
       const cenW=cenWNetto||(cenWBrutto/1.23)||0;
       if(cenW>0)pozycje.push({rodzaj_produktu:'wysylka',typ_wysylki:wTyp,nazwa_wysylki:wNazwa,ilosc:1,cena_jednostkowa:cenW});
     } else if(typ2==='przykrywka'){
-      // Zbierz pozycje z inline listy wieczek
       const plistId=div.querySelector('[id^="plist_"]')?.id;
       if(plistId){
         const pWrap=document.getElementById(plistId);
         if(pWrap){
           for(const row of pWrap.children){
             const qInput=row.querySelector('[id^="wq_"]');
-            const il=parseInt(qInput?.value)||0;
-            if(il<=0)continue;
-            const prMat=row.dataset.mat;
-            const prRozm=parseInt(row.dataset.rozm);
-            const prKol=row.dataset.kol;
+            const il=parseInt(qInput?.value)||0;if(il<=0)continue;
+            const prMat=row.dataset.mat;const prRozm=parseInt(row.dataset.rozm);const prKol=row.dataset.kol;
             const cn=parseFloat(row.querySelector('[id^="wn_"]')?.value)||parseFloat(row.dataset.cena)||0;
             if(!prMat||isNaN(prRozm))continue;
-            // Cena wieczek podana za 100 szt - przelicz na cenę jednostkową
             const cenaJedn=cn/100;
             try{
-              // Szukaj po dokładnych polach DB (typ_materialu + rozmiar_mm + kolor)
               let prs=await sbFetch('przykrywka',`?rozmiar_mm=eq.${prRozm}&typ_materialu=eq.${encodeURIComponent(prMat)}&select=*`);
               let pr=prs.find(p=>(p.kolor||'').toLowerCase()===(prKol||'').toLowerCase());
               if(!pr&&prs.length)pr=prs[0];
-              if(pr){
-                console.log('  przykrywka matched:', pr.typ_materialu, pr.rozmiar_mm+'mm', pr.kolor);
-                pozycje.push({rodzaj_produktu:'przykrywka',przykrywka_id:pr.id,ilosc:il,cena_jednostkowa:cenaJedn});
-              } else {
-                console.warn('  brak przykrywki:', prMat, prRozm+'mm', prKol);
-              }
+              if(pr)pozycje.push({rodzaj_produktu:'przykrywka',przykrywka_id:pr.id,ilosc:il,cena_jednostkowa:cenaJedn});
             }catch(e){console.warn('przykrywka match:',e);}
           }
         }
@@ -3303,21 +3563,24 @@ async function zapiszZamowienie(){
   console.log('=== PRZED ZAPISEM ===');
   console.log('pozycje:', JSON.stringify(pozycje));
   console.log('komisDoUtworzenia:', JSON.stringify(komisDoUtworzenia));
-  console.log('maWlasneLogo:', maWlasneLogo);
+  console.log('typZlecenia:', typZlecenia);
 
   try{
     msg.className='f-msg';msg.textContent='Zapisuję…';
-    // Utwórz komisaty (niezależnie od zamówienia)
+
+    // Produkcja Artsider bez klienta = brak rekordu zamówienia
+    if(typZlecenia==='produkcja_artsider'){
+      msg.className='f-msg ok';msg.textContent='✓ Kubek zlecony do produkcji!';
+      setTimeout(()=>{closeZamDrawer();loadAll();},1000);
+      return;
+    }
+
     for(const k of komisDoUtworzenia){
       await sbFetch('komis','',{method:'POST',body:JSON.stringify({
-        kubek_id:k.kubek_id,
-        klient_id:klientId,
-        ilosc:k.ilosc,
-        cena_komisowa:k.cena_komisowa||null,
-        status:'aktywny',
+        kubek_id:k.kubek_id,klient_id:klientId,ilosc:k.ilosc,
+        cena_komisowa:k.cena_komisowa||null,status:'aktywny',
         data_przekazania:new Date().toISOString().slice(0,10),
       })});
-      // Odejmij ze stanu magazynowego termicznych
       try{
         const stany=await sbFetch('stan_magazynowy_termiczne',`?kubek_id=eq.${k.kubek_id}&order=ilosc_dostepna.desc`);
         let pozostalo=k.ilosc;
@@ -3334,15 +3597,13 @@ async function zapiszZamowienie(){
       }catch(e){console.warn('komis stock decrement:',e);}
     }
 
-    // Zapisz zamówienie tylko jeśli są pozycje sprzedażowe
     if(!pozycje.length&&!komisDoUtworzenia.length){
-      msg.className='f-msg err';msg.textContent='Dodaj przynajmniej jedną pozycję do zamówienia (lub komis).';
-      return;
+      msg.className='f-msg err';msg.textContent='Dodaj przynajmniej jedną pozycję do zamówienia (lub komis).';return;
     }
     if(pozycje.length){
       const[zam]=await sbFetch('zamowienie','',{method:'POST',body:JSON.stringify({
         klient_id:klientId,
-        typ_zamowienia:maWlasneLogo?'wlasne_logo':'artsider',
+        typ_zamowienia:typZlecenia,
         zrodlo,
         tresc_zamowienia:tresc||null,
         status_realizacji:'w_produkcji',
@@ -3354,7 +3615,7 @@ async function zapiszZamowienie(){
       }
     }
     msg.className='f-msg ok';
-    if(pozycje.length&&komisDoUtworzenia.length) msg.textContent=`✓ Zamówienie zapisane + ${komisDoUtworzenia.length} pozycji do komisu!`;
+    if(pozycje.length&&komisDoUtworzenia.length) msg.textContent=`✓ Zamówienie zapisane + ${komisDoUtworzenia.length} poz. do komisu!`;
     else if(komisDoUtworzenia.length) msg.textContent=`✓ ${komisDoUtworzenia.length} pozycji przekazanych do komisu!`;
     else msg.textContent='✓ Zamówienie zapisane!';
     setTimeout(()=>{closeZamDrawer();loadZamowienia();loadAll();},1000);
@@ -3782,17 +4043,6 @@ async function zapiszEdycjeKubka(kubek_id){
 }
 
 async function usunKubek(kubek_id){
-  // Jeśli kubek jest oglądany w kontekście archiwum, robimy "miękkie" usunięcie:
-  // ukrywamy go z widoku archiwum, ale zachowujemy rekord (statystyki, historia zamówień, widoki artystów)
-  if(activeMagKubki==='archiwum'){
-    const choice = confirm('Czy na pewno usunąć ten kubek z Archiwum?\n\nKubek zniknie z listy archiwum, ale jego statystyki i historia zamówień pozostaną zachowane w systemie.');
-    if(!choice)return;
-    try{
-      await sbFetch('kubek',`?id=eq.${kubek_id}`,{method:'PATCH',body:JSON.stringify({ukryty_w_archiwum:true})});
-      closeDrawer();loadAll();
-    }catch(e){alert('Błąd: '+e.message);}
-    return;
-  }
   const choice = confirm('Czy na pewno usunąć ten kubek?\n\nJeśli kubek był w zamówieniach, nie można go usunąć — zostanie wtedy zarchiwizowany (stan = 0).');
   if(!choice)return;
   try{
@@ -4035,7 +4285,7 @@ async function loadArchiwum(){
     stany.forEach(s=>{sumy[s.kubek_id]=(sumy[s.kubek_id]||0)+s.ilosc_dostepna;});
     const wProdukcji=new Set(zlecenia.map(z=>z.kubek_id));
     allArchiwum = kubki
-      .filter(k=>(sumy[k.id]||0)===0 && !wProdukcji.has(k.id) && !k.ukryty_w_archiwum)
+      .filter(k=>(sumy[k.id]||0)===0 && !wProdukcji.has(k.id))
       .map(k=>({
         kubek_id:k.id,
         pojemnosc_ml:k.pojemnosc_ml,
