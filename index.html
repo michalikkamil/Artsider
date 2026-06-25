@@ -3615,23 +3615,32 @@ async function zapiszZamowienie(){
       const cenWNetto=parseFloat(div.querySelector('[data-field="cena"]')?.value)||0;
       const cenWBrutto=parseFloat(div.querySelector(`[id^="poz_brutto_"]`)?.value)||0;
       const cenW=cenWNetto||(cenWBrutto/1.23)||0;
+      console.log('WYSYLKA: typ=',wTyp,'nazwa=',wNazwa,'netto=',cenWNetto,'brutto=',cenWBrutto,'cenW=',cenW);
       if(cenW>0)pozycje.push({rodzaj_produktu:'wysylka',typ_wysylki:wTyp,nazwa_wysylki:wNazwa,ilosc:1,cena_jednostkowa:cenW});
     } else if(typ2==='przykrywka'){
-      const plistId=div.querySelector('[id^="plist_"]')?.id;
+      const plistEl=div.querySelector('[id^="plist_"]');
+      const plistId=plistEl?.id;
+      console.log('PRZYKRYWKA: plistId=',plistId,'plistEl=',plistEl);
       if(plistId){
         const pWrap=document.getElementById(plistId);
+        console.log('PRZYKRYWKA pWrap=',pWrap,'children=',pWrap?.children?.length);
         if(pWrap){
           for(const row of pWrap.children){
             const qInput=row.querySelector('[id^="wq_"]');
-            const il=parseInt(qInput?.value)||0;if(il<=0)continue;
+            const il=parseInt(qInput?.value)||0;
+            console.log('PRZYKRYWKA row: mat=',row.dataset.mat,'rozm=',row.dataset.rozm,'kol=',row.dataset.kol,'il=',il,'qInput=',qInput?.id);
+            if(il<=0)continue;
             const prMat=row.dataset.mat;const prRozm=parseInt(row.dataset.rozm);const prKol=row.dataset.kol;
-            const cn=parseFloat(row.querySelector('[id^="wn_"]')?.value)||parseFloat(row.dataset.cena)||0;
+            const wn=row.querySelector('[id^="wn_"]');
+            const cn=parseFloat(wn?.value)||parseFloat(row.dataset.cena)||0;
+            console.log('PRZYKRYWKA cena: wn.value=',wn?.value,'data-cena=',row.dataset.cena,'cn=',cn);
             if(!prMat||isNaN(prRozm))continue;
             const cenaJedn=cn/100;
             try{
               let prs=await sbFetch('przykrywka',`?rozmiar_mm=eq.${prRozm}&typ_materialu=eq.${encodeURIComponent(prMat)}&select=*`);
               let pr=prs.find(p=>(p.kolor||'').toLowerCase()===(prKol||'').toLowerCase());
               if(!pr&&prs.length)pr=prs[0];
+              console.log('PRZYKRYWKA match: prs=',prs.length,'pr=',pr?.id,'cenaJedn=',cenaJedn);
               if(pr)pozycje.push({rodzaj_produktu:'przykrywka',przykrywka_id:pr.id,ilosc:il,cena_jednostkowa:cenaJedn});
             }catch(e){console.warn('przykrywka match:',e);}
           }
