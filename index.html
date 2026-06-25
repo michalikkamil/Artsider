@@ -4332,6 +4332,20 @@
         renderZamowienia(f);
     }
 
+    const STATUS_LABELS = {
+        w_produkcji: '❗ Zleć!',
+        wyslane: '🏭 W produkcji',
+        zrealizowane: '✅ Zrealizowane'
+    };
+    const PLATNOSC_LABELS = {
+        oplacona: '💚 Opłacone',
+        nieoplacona: '🔴 Nieopłacone'
+    };
+    const FAKTURA_LABELS = {
+        wyslana: '📄 Wysłana',
+        nie_wyslana: '⏳ Niewysłana'
+    };
+
     const ZAM_TYP_LABELS = {
         sprzedaz_gotowych: {
             label: '📦 Sprzedaż gotowych',
