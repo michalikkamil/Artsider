@@ -398,21 +398,19 @@ nav{background:var(--ink);display:flex;align-items:center;position:sticky;top:0;
         </select>
       </div>
     </div>
-    <!-- Filtry typów: grid 2x2 na telefonie -->
+    <!-- Filtry typów: grid 2x2 + lupa w rzędzie 2 -->
     <div style="padding:8px 16px 0;display:grid;grid-template-columns:1fr 1fr;gap:6px;">
       <button id="zamTypBtn_sprzedaz_gotowych" onclick="setZamTypFilter('sprzedaz_gotowych')" class="zam-typ-btn" style="font-size:11px;padding:7px 8px;border-radius:10px;border:1.5px solid rgba(255,255,255,0.25);background:transparent;color:rgba(255,255,255,0.75);cursor:pointer;font-family:var(--fm);text-align:left;">📦 Sprzedaż gotowych</button>
       <button id="zamTypBtn_produkcja_artsider" onclick="setZamTypFilter('produkcja_artsider')" class="zam-typ-btn" style="font-size:11px;padding:7px 8px;border-radius:10px;border:1.5px solid rgba(255,255,255,0.25);background:transparent;color:rgba(255,255,255,0.75);cursor:pointer;font-family:var(--fm);text-align:left;">🏭 Produkcja Artsider</button>
       <button id="zamTypBtn_produkcja_artsider_logo" onclick="setZamTypFilter('produkcja_artsider_logo')" class="zam-typ-btn" style="font-size:11px;padding:7px 8px;border-radius:10px;border:1.5px solid rgba(255,255,255,0.25);background:transparent;color:rgba(255,255,255,0.75);cursor:pointer;font-family:var(--fm);text-align:left;">🎨 Artsider + logo klienta</button>
-      <button id="zamTypBtn_produkcja_klienta" onclick="setZamTypFilter('produkcja_klienta')" class="zam-typ-btn" style="font-size:11px;padding:7px 8px;border-radius:10px;border:1.5px solid rgba(255,255,255,0.25);background:transparent;color:rgba(255,255,255,0.75);cursor:pointer;font-family:var(--fm);text-align:left;">✏️ Produkcja klienta</button>
-    </div>
-    <!-- Rząd 2: lupa do szukania po kliencie -->
-    <div style="padding:6px 16px 4px;display:flex;align-items:center;gap:8px;">
-      <button id="zamLupaBtn" onclick="toggleZamSearch()" style="background:rgba(255,255,255,0.12);border:1.5px solid rgba(255,255,255,0.25);color:white;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:14px;flex-shrink:0;">🔍</button>
-      <div id="zamSearchWrap" style="display:none;flex:1;position:relative;">
-        <input class="autocomplete-input" id="zamSearchKlient" placeholder="Szukaj po kliencie…" oninput="zamAutocompleteKlient(this.value)" autocomplete="off" style="background:rgba(255,255,255,0.1);color:var(--bg);border-color:rgba(255,255,255,0.2);width:100%;">
-        <div class="autocomplete-list" id="zamSearchKlientList"></div>
+      <div style="display:flex;gap:6px;">
+        <button id="zamTypBtn_produkcja_klienta" onclick="setZamTypFilter('produkcja_klienta')" class="zam-typ-btn" style="font-size:11px;padding:7px 8px;border-radius:10px;border:1.5px solid rgba(255,255,255,0.25);background:transparent;color:rgba(255,255,255,0.75);cursor:pointer;font-family:var(--fm);text-align:left;flex:1;">✏️ Produkcja klienta</button>
+        <button id="zamLupaBtn" onclick="toggleZamSearch()" style="background:rgba(255,255,255,0.12);border:1.5px solid rgba(255,255,255,0.25);color:white;border-radius:10px;padding:7px 12px;cursor:pointer;font-size:14px;flex-shrink:0;">🔍</button>
       </div>
-      <div id="zamSearchKlientActive" style="display:none;flex:1;font-size:11px;color:rgba(255,255,255,0.85);"></div>
+    </div>
+    <div id="zamSearchWrap" style="display:none;padding:6px 16px 0;">
+      <input class="autocomplete-input" id="zamSearchKlient" placeholder="Szukaj po kliencie…" oninput="zamAutocompleteKlient(this.value)" autocomplete="off" style="background:rgba(255,255,255,0.1);color:var(--bg);border-color:rgba(255,255,255,0.2);width:100%;">
+      <div class="autocomplete-list" id="zamSearchKlientList"></div>
     </div>
   </div>
   <div class="page-body" style="padding-top:12px;padding-bottom:0;">
@@ -1843,6 +1841,40 @@ function applyFilters(scope){
 }
 
 // ── RENDER KUBKI ──
+// ── POLSKIE ŚWIĘTA (stałe + wielkanoc) ──
+function swietaPolskie(rok){
+  // Wielkanoc (algorytm Gaussa)
+  const a=rok%19,b=Math.floor(rok/100),c=rok%100;
+  const d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25);
+  const g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30;
+  const i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7;
+  const m=Math.floor((a+11*h+22*l)/451);
+  const miesiac=Math.floor((h+l-7*m+114)/31);
+  const dzien=((h+l-7*m+114)%31)+1;
+  const wielkanoc=new Date(rok,miesiac-1,dzien);
+  const poniedzWielk=new Date(wielkanoc);poniedzWielk.setDate(wielkanoc.getDate()+1);
+  const bozeCialo=new Date(wielkanoc);bozeCialo.setDate(wielkanoc.getDate()+60);
+  const fmt=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  return new Set([
+    `${rok}-01-01`,`${rok}-01-06`,`${rok}-05-01`,`${rok}-05-03`,
+    `${rok}-08-15`,`${rok}-11-01`,`${rok}-11-11`,`${rok}-12-25`,`${rok}-12-26`,
+    fmt(wielkanoc),fmt(poniedzWielk),fmt(bozeCialo),
+  ]);
+}
+function dodajDniRobocze(dataStr,dni){
+  let d=new Date(dataStr);
+  let dodane=0;
+  while(dodane<dni){
+    d.setDate(d.getDate()+1);
+    const dw=d.getDay();
+    if(dw===0||dw===6)continue;
+    const fmt=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    if(swietaPolskie(d.getFullYear()).has(fmt))continue;
+    dodane++;
+  }
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
 function renderKubki(kubki,listId,activeMag,showDate,typOverride=''){
   const list=document.getElementById(listId);
   if(!kubki.length){list.innerHTML=`<div class="state-msg"><span class="big">🔍</span>Brak kubków.<br><small style="color:var(--ink3);font-size:11px;">Kubki w produkcji znajdziesz w zakładce 🏭 Zlecone</small></div>`;return;}
@@ -1853,18 +1885,20 @@ function renderKubki(kubki,listId,activeMag,showDate,typOverride=''){
     const drodze=activeMag?(k.stany?.find(s=>s.magazyn_id===activeMag)?.ilosc_w_drodze||0):k.ilosc_w_drodze||0;
     const dotCls=stan===0?'stock-empty':(isTermiczny?stan<10:stan<500)?'stock-low':'stock-ok';
     const sciTag=k.typ_scianki?`<span class="tag tag-sci">${k.typ_scianki==='dwuściankowy'?'2×':'1×'}</span>`:'';
-    const pakTag=k.sztuk_w_opakowaniu?`<span class="tag tag-pak">${k.sztuk_w_opakowaniu}/op.</span>`:'';
-    const termTag='';
+    // pakTag usunięty celowo — niepotrzebna informacja na karcie
     const thumb=k.miniaturka?`<img src="${k.miniaturka}" alt="">`:k.isPrzykrywka?'🫗':'☕';
     const totalLacznie=k.ilosc_lacznie||0;
     const zleconoTag=k.ilosc_zlecona>0?`<span style="font-size:10px;color:var(--ink3);margin-left:4px;">zlecono ${k.ilosc_zlecona} szt.</span>`:'';
     const totalTag=activeMagKubki&&activeMagKubki!=='zlecone'&&activeMagKubki!=='archiwum'&&stan!==totalLacznie?`<span style="font-size:10px;color:var(--ink3);margin-left:4px;">z ${totalLacznie} szt.</span>`:'';
-    const dateHtml=showDate?`
-      ${k.data_zlecenia&&k.data_zlecenia!=='1970-01-01'?`<div class="card-date" style="top:8px;right:10px;font-size:10px;">${k.data_zlecenia}</div>`:''}
-      ${k.ilosc_zlecona>0?`<div style="position:absolute;bottom:8px;right:10px;font-family:var(--fh);font-size:18px;font-weight:700;color:var(--accent);">${k.ilosc_zlecona} szt.</div>`:''}
-    `:''
+    // Data dostawy: oblicz 25 dni roboczych od daty zlecenia (z polskimi świętami)
+    let dataDostawyObl = '';
+    if(showDate && k.data_zlecenia && k.data_zlecenia!=='1970-01-01'){
+      try{ dataDostawyObl = dodajDniRobocze(k.data_zlecenia, 25); }catch(e){}
+    }
+    const dataDostawy = k.data_planowanej_dostawy && k.data_planowanej_dostawy!=='1970-01-01'
+      ? k.data_planowanej_dostawy
+      : dataDostawyObl;
     const stockHtml=showDate?'':`<div class="card-stock"><span class="stock-dot-big ${dotCls}"></span><span style="font-size:15px;font-weight:600;">${stan===0?'brak':stan+' szt.'}</span>${totalTag}${zleconoTag}</div>`;
-    // Tytuł karty: dla przykrywek rozmiar+kolor, dla termicznych pojemność+kolor, dla papierowych pojemność+materiał
     const cardTitle = k.isPrzykrywka
       ? `${k.rozmiar_mm||''}mm ${k.kolor||''}`.trim()
       : isTermiczny
@@ -1887,14 +1921,14 @@ function renderKubki(kubki,listId,activeMag,showDate,typOverride=''){
           <div style="display:flex;align-items:center;gap:6px;line-height:1.15;">
             <span style="font-family:var(--fh);font-size:16px;font-weight:700;color:var(--ink);">${cardTitle}</span>
             ${!isTermiczny&&!k.isPrzykrywka&&k.typ_materialu?(k.typ_materialu==='BIO'?`<span style="font-size:9px;color:#fff;background:#3B6D11;padding:1px 6px;border-radius:4px;font-weight:600;">BIO</span>`:`<span style="font-size:10px;color:var(--ink3);">${k.typ_materialu}</span>`):''}
-            ${pakTag}
+            ${sciTag}
           </div>
           <div style="font-size:10px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.2;">${cardSub}</div>
         </div>
         <div style="text-align:right;flex-shrink:0;display:flex;flex-direction:column;justify-content:center;gap:1px;margin-left:8px;">
           ${showDate?`
-            ${k.data_zlecenia&&k.data_zlecenia!=='1970-01-01'?`<div style="font-size:10px;color:var(--ink3);line-height:1.1;">zlec: ${k.data_zlecenia}</div>`:''}
-            ${k.data_planowanej_dostawy&&k.data_planowanej_dostawy!=='1970-01-01'?`<div style="font-size:10px;color:#BA7517;line-height:1.1;font-weight:500;">📦 ${k.data_planowanej_dostawy}</div>`:''}
+            ${k.data_zlecenia&&k.data_zlecenia!=='1970-01-01'?`<div style="font-size:10px;color:var(--ink3);line-height:1.1;">📅 ${k.data_zlecenia}</div>`:''}
+            ${dataDostawy?`<div style="font-size:10px;color:#BA7517;line-height:1.1;font-weight:600;">📦 ${dataDostawy}</div>`:''}
             ${k.ilosc_zlecona>0?`<div style="font-family:var(--fh);font-size:14px;font-weight:700;color:var(--accent);line-height:1.1;">${k.ilosc_zlecona} szt.</div>`:''}
           `:`
             <div style="display:flex;align-items:center;gap:5px;justify-content:flex-end;line-height:1;margin-top:-1px;">
@@ -2584,32 +2618,8 @@ function applyFiltersZamowienia(){
 }
 
 function renderZleconeJakoZamowienia(zlecone){
-  const list = document.getElementById('listZamowienia');
-  if(!zlecone.length){
-    list.innerHTML=`<div class="state-msg"><span class="big">🏭</span>Brak kubków w produkcji Artsider.</div>`;
-    return;
-  }
-  const sorted=[...zlecone].sort((a,b)=>(b.data_zlecenia||'').localeCompare(a.data_zlecenia||''));
-  list.innerHTML = sorted.map(k=>{
-    const thumb=k.miniaturka?`<img src="${k.miniaturka}" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:8px;flex-shrink:0;">`:`<div style="width:44px;height:44px;background:#E8F0FE;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">☕</div>`;
-    return `
-    <div class="card" style="flex-direction:column;padding:12px 14px;border-left:3px solid #93B4F5;">
-      <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;">
-        ${thumb}
-        <div style="flex:1;min-width:0;">
-          <div style="font-family:var(--fh);font-size:15px;font-weight:600;margin-bottom:2px;">${k.grafika||'—'}</div>
-          <div style="font-size:11px;color:var(--ink3);">${k.pojemnosc_ml} ml · ${k.typ_materialu||'—'} · ${k.typ_scianki||'—'}</div>
-          ${k.artysta?`<div style="font-size:11px;color:var(--ink3);">🎨 ${k.artysta}</div>`:''}
-        </div>
-        <div style="font-family:var(--fh);font-size:20px;font-weight:700;color:#1A3A8F;flex-shrink:0;">${k.ilosc_zlecona||k.ilosc_w_produkcji||0} szt.</div>
-      </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;">
-        <span class="tag" style="background:#E8F0FE;border-color:#93B4F5;color:#1A3A8F;font-weight:600;">🏭 Produkcja Artsider</span>
-        <span class="tag" style="background:#FBE9E9;border-color:#F4B5B5;color:#A32D2D;">⏳ W produkcji</span>
-        ${k.data_zlecenia&&k.data_zlecenia!=='1970-01-01'?`<span class="tag" style="background:var(--bg2);border-color:var(--border);color:var(--ink2);">📅 ${k.data_zlecenia}</span>`:''}
-      </div>
-    </div>`;
-  }).join('');
+  // Identyczny wygląd jak zakładka Zlecone — używamy tej samej funkcji renderKubki
+  renderKubki(zlecone,'listZamowienia','',true);
 }
 
 const STATUS_LABELS = {w_produkcji:'❗ Zleć!', wyslane:'🏭 W produkcji', zrealizowane:'✅ Zrealizowane'};
@@ -3093,7 +3103,12 @@ function renderKubkiInline(id){
   if(mat)lista=lista.filter(k=>k.typ_materialu===mat);
   if(sci)lista=lista.filter(k=>(k.typ_scianki||'')===sci);
   lista=lista.filter(k=>{const s=k.stany?.find(x=>x.magazyn_id===magId);return s&&s.ilosc_dostepna>0;});
-  lista.sort((a,b)=>a.pojemnosc_ml-b.pojemnosc_ml);
+  lista.sort((a,b)=>{
+    const iA=a.stany?.find(x=>x.magazyn_id===magId)?.ilosc_dostepna||0;
+    const iB=b.stany?.find(x=>x.magazyn_id===magId)?.ilosc_dostepna||0;
+    if(iB!==iA) return iB-iA;
+    return a.pojemnosc_ml-b.pojemnosc_ml;
+  });
   if(!lista.length){wrap.innerHTML='<div style="color:var(--ink3);font-size:12px;padding:8px;">Brak kubków w wybranym magazynie.</div>';return;}
   wrap.innerHTML=lista.map(k=>{
     const stan=k.stany?.find(x=>x.magazyn_id===magId);
