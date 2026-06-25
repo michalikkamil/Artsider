@@ -1884,7 +1884,7 @@ function renderKubki(kubki,listId,activeMag,showDate,typOverride=''){
     const stan=activeMag?(k.stany?.find(s=>s.magazyn_id===activeMag)?.ilosc_dostepna||0):k.ilosc_lacznie||0;
     const drodze=activeMag?(k.stany?.find(s=>s.magazyn_id===activeMag)?.ilosc_w_drodze||0):k.ilosc_w_drodze||0;
     const dotCls=stan===0?'stock-empty':(isTermiczny?stan<10:stan<500)?'stock-low':'stock-ok';
-    const sciTag=k.typ_scianki?`<span class="tag tag-sci">${k.typ_scianki==='dwuściankowy'?'2×':'1×'}</span>`:'';
+    const sciTag=(!showDate&&k.typ_scianki)?`<span class="tag tag-sci">${k.typ_scianki==='dwuściankowy'?'2×':'1×'}</span>`:'';
     // pakTag usunięty celowo — niepotrzebna informacja na karcie
     const thumb=k.miniaturka?`<img src="${k.miniaturka}" alt="">`:k.isPrzykrywka?'🫗':'☕';
     const totalLacznie=k.ilosc_lacznie||0;
@@ -1927,9 +1927,11 @@ function renderKubki(kubki,listId,activeMag,showDate,typOverride=''){
         </div>
         <div style="text-align:right;flex-shrink:0;display:flex;flex-direction:column;justify-content:center;gap:1px;margin-left:8px;">
           ${showDate?`
-            ${k.data_zlecenia&&k.data_zlecenia!=='1970-01-01'?`<div style="font-size:10px;color:var(--ink3);line-height:1.1;">📅 ${k.data_zlecenia}</div>`:''}
-            ${dataDostawy?`<div style="font-size:10px;color:#BA7517;line-height:1.1;font-weight:600;">📦 ${dataDostawy}</div>`:''}
-            ${k.ilosc_zlecona>0?`<div style="font-family:var(--fh);font-size:14px;font-weight:700;color:var(--accent);line-height:1.1;">${k.ilosc_zlecona} szt.</div>`:''}
+            <div style="display:flex;gap:8px;justify-content:flex-end;align-items:baseline;line-height:1.2;">
+              ${k.data_zlecenia&&k.data_zlecenia!=='1970-01-01'?`<div style="font-size:10px;color:var(--ink3);">📅 ${k.data_zlecenia}</div>`:''}
+              ${dataDostawy?`<div style="font-size:10px;color:#BA7517;font-weight:600;">📦 ${dataDostawy}</div>`:''}
+            </div>
+            ${k.ilosc_zlecona>0?`<div style="font-family:var(--fh);font-size:21px;font-weight:700;color:var(--accent);line-height:1.1;text-align:right;">${k.ilosc_zlecona} szt.</div>`:''}
           `:`
             <div style="display:flex;align-items:center;gap:5px;justify-content:flex-end;line-height:1;margin-top:-1px;">
               <span class="stock-dot ${dotCls}"></span>
@@ -3104,10 +3106,10 @@ function renderKubkiInline(id){
   if(sci)lista=lista.filter(k=>(k.typ_scianki||'')===sci);
   lista=lista.filter(k=>{const s=k.stany?.find(x=>x.magazyn_id===magId);return s&&s.ilosc_dostepna>0;});
   lista.sort((a,b)=>{
+    if(a.pojemnosc_ml!==b.pojemnosc_ml) return a.pojemnosc_ml-b.pojemnosc_ml;
     const iA=a.stany?.find(x=>x.magazyn_id===magId)?.ilosc_dostepna||0;
     const iB=b.stany?.find(x=>x.magazyn_id===magId)?.ilosc_dostepna||0;
-    if(iB!==iA) return iB-iA;
-    return a.pojemnosc_ml-b.pojemnosc_ml;
+    return iB-iA;
   });
   if(!lista.length){wrap.innerHTML='<div style="color:var(--ink3);font-size:12px;padding:8px;">Brak kubków w wybranym magazynie.</div>';return;}
   wrap.innerHTML=lista.map(k=>{
