@@ -3637,11 +3637,14 @@ async function zapiszZamowienie(){
             if(!prMat||isNaN(prRozm))continue;
             const cenaJedn=cn/100;
             try{
-              let prs=await sbFetch('przykrywka',`?rozmiar_mm=eq.${prRozm}&typ_materialu=eq.${encodeURIComponent(prMat)}&select=*`);
-              let pr=prs.find(p=>(p.kolor||'').toLowerCase()===(prKol||'').toLowerCase());
+              // Case-insensitive dopasowanie: pobierz po samym rozmiarze, dopasuj materiał/kolor w JS
+              let prs=await sbFetch('przykrywka',`?rozmiar_mm=eq.${prRozm}&select=*`);
+              let pr=prs.find(p=>(p.typ_materialu||'').toLowerCase()===prMat.toLowerCase()&&(p.kolor||'').toLowerCase()===(prKol||'').toLowerCase());
+              if(!pr)pr=prs.find(p=>(p.typ_materialu||'').toLowerCase()===prMat.toLowerCase());
               if(!pr&&prs.length)pr=prs[0];
               console.log('PRZYKRYWKA match: prs=',prs.length,'pr=',pr?.id,'cenaJedn=',cenaJedn);
               if(pr)pozycje.push({rodzaj_produktu:'przykrywka',przykrywka_id:pr.id,ilosc:il,cena_jednostkowa:cenaJedn});
+              else console.warn('PRZYKRYWKA brak dopasowania dla:',prMat,prRozm,prKol);
             }catch(e){console.warn('przykrywka match:',e);}
           }
         }
@@ -3940,9 +3943,10 @@ async function zapiszEdycjeZamowienia(zamId){
               const cn=parseFloat(row.querySelector('[id^="wn_"]')?.value)||parseFloat(row.dataset.cena)||0;
               if(!prMat||isNaN(prRozm))continue;
               const cenaJedn=cn/100;
-              // Szukaj po dokładnych polach DB
-              let prs=await sbFetch('przykrywka',`?rozmiar_mm=eq.${prRozm}&typ_materialu=eq.${encodeURIComponent(prMat)}&select=*`);
-              let pr=prs.find(p=>(p.kolor||'').toLowerCase()===(prKol||'').toLowerCase());
+              // Case-insensitive dopasowanie
+              let prs=await sbFetch('przykrywka',`?rozmiar_mm=eq.${prRozm}&select=*`);
+              let pr=prs.find(p=>(p.typ_materialu||'').toLowerCase()===prMat.toLowerCase()&&(p.kolor||'').toLowerCase()===(prKol||'').toLowerCase());
+              if(!pr)pr=prs.find(p=>(p.typ_materialu||'').toLowerCase()===prMat.toLowerCase());
               if(!pr&&prs.length)pr=prs[0];
               if(pr)pozycje.push({rodzaj_produktu:'przykrywka',przykrywka_id:pr.id,ilosc:il,cena_jednostkowa:cenaJedn});
             }
