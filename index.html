@@ -3636,15 +3636,18 @@ async function zapiszZamowienie(){
             console.log('PRZYKRYWKA cena: wn.value=',wn?.value,'data-cena=',row.dataset.cena,'cn=',cn);
             if(!prMat||isNaN(prRozm))continue;
             const cenaJedn=cn/100;
+            // Mapowanie skrótów z v_stan_kubkow_przykrywki na pełne nazwy z tabeli przykrywka
+            const matMap={'bio':'papierowa','pe':'plastikowa','papierowa':'papierowa','plastikowa':'plastikowa'};
+            const prMatNorm=matMap[prMat.toLowerCase()]||prMat.toLowerCase();
             try{
-              // Case-insensitive dopasowanie: pobierz po samym rozmiarze, dopasuj materiał/kolor w JS
+              // Pobierz po rozmiarze, dopasuj materiał i kolor case-insensitive w JS
               let prs=await sbFetch('przykrywka',`?rozmiar_mm=eq.${prRozm}&select=*`);
-              let pr=prs.find(p=>(p.typ_materialu||'').toLowerCase()===prMat.toLowerCase()&&(p.kolor||'').toLowerCase()===(prKol||'').toLowerCase());
-              if(!pr)pr=prs.find(p=>(p.typ_materialu||'').toLowerCase()===prMat.toLowerCase());
+              let pr=prs.find(p=>(p.typ_materialu||'').toLowerCase()===prMatNorm&&(p.kolor||'').toLowerCase()===(prKol||'').toLowerCase());
+              if(!pr)pr=prs.find(p=>(p.typ_materialu||'').toLowerCase()===prMatNorm);
               if(!pr&&prs.length)pr=prs[0];
-              console.log('PRZYKRYWKA match: prs=',prs.length,'pr=',pr?.id,'cenaJedn=',cenaJedn);
+              console.log('PRZYKRYWKA match: mat=',prMat,'→',prMatNorm,'prs=',prs.length,'pr=',pr?.id,'pr.typ=',pr?.typ_materialu,'cenaJedn=',cenaJedn);
               if(pr)pozycje.push({rodzaj_produktu:'przykrywka',przykrywka_id:pr.id,ilosc:il,cena_jednostkowa:cenaJedn});
-              else console.warn('PRZYKRYWKA brak dopasowania dla:',prMat,prRozm,prKol);
+              else console.warn('PRZYKRYWKA brak dopasowania dla:',prMatNorm,prRozm,prKol);
             }catch(e){console.warn('przykrywka match:',e);}
           }
         }
@@ -3943,10 +3946,11 @@ async function zapiszEdycjeZamowienia(zamId){
               const cn=parseFloat(row.querySelector('[id^="wn_"]')?.value)||parseFloat(row.dataset.cena)||0;
               if(!prMat||isNaN(prRozm))continue;
               const cenaJedn=cn/100;
-              // Case-insensitive dopasowanie
+              const matMap={'bio':'papierowa','pe':'plastikowa','papierowa':'papierowa','plastikowa':'plastikowa'};
+              const prMatNorm=matMap[prMat.toLowerCase()]||prMat.toLowerCase();
               let prs=await sbFetch('przykrywka',`?rozmiar_mm=eq.${prRozm}&select=*`);
-              let pr=prs.find(p=>(p.typ_materialu||'').toLowerCase()===prMat.toLowerCase()&&(p.kolor||'').toLowerCase()===(prKol||'').toLowerCase());
-              if(!pr)pr=prs.find(p=>(p.typ_materialu||'').toLowerCase()===prMat.toLowerCase());
+              let pr=prs.find(p=>(p.typ_materialu||'').toLowerCase()===prMatNorm&&(p.kolor||'').toLowerCase()===(prKol||'').toLowerCase());
+              if(!pr)pr=prs.find(p=>(p.typ_materialu||'').toLowerCase()===prMatNorm);
               if(!pr&&prs.length)pr=prs[0];
               if(pr)pozycje.push({rodzaj_produktu:'przykrywka',przykrywka_id:pr.id,ilosc:il,cena_jednostkowa:cenaJedn});
             }
