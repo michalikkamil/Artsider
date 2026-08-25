@@ -2288,7 +2288,7 @@ function renderArtysci(artysci){
   if(!artysci.length){list.innerHTML=`<div class="state-msg"><span class="big">🎨</span>Brak artystów.</div>`;return;}
   list.innerHTML=artysci.map(a=>{
     const wyplacono=Number(a.wyplacono_historia||a.wyplacono_lacznie||0);
-    const naliczone=Number(a.prowizje_naliczone||0);
+    const naliczone=Number(a.prowizja_papierowe_naliczona||0)+Number(a.prowizja_termiczne_naliczona||0);
     const nalezne=naliczone-wyplacono;
     const nalezneColor=nalezne<0?'#A32D2D':'var(--accent)';
     return `
@@ -4461,7 +4461,7 @@ async function openKartaArtysty(artId){
     const wyplaconoL=Number(a.wyplacono_lacznie||0);
     const wyplaconoHist=Number(a.wyplacono_historia||0);
     const wyplaconoH=Math.max(wyplaconoL, wyplaconoHist);
-    const naliczone=Number(a.prowizje_naliczone||0);
+    const naliczone=Number(a.prowizja_papierowe_naliczona||0)+Number(a.prowizja_termiczne_naliczona||0);
     const nalezneCalc = naliczone - wyplaconoH;
     const nalezneColor = nalezneCalc<0?'#A32D2D':'var(--accent)';
     // Podsumowania kubków
