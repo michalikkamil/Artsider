@@ -2792,6 +2792,8 @@ async function zmienStatus(zamId, pole, wartosc){
 async function odejmijZeStan(zamId){
   try{
     const pozycje=await sbFetch('pozycja_zamowienia',`?zamowienie_id=eq.${zamId}&select=*`);
+    const[zam]=await sbFetch('zamowienie',`?id=eq.${zamId}&select=klient_id`);
+    const klientId=zam?.klient_id;
     for(const p of pozycje){
       if(p.rodzaj_produktu==='kubek'){
         if(!p.kubek_id||!p.magazyn_id)continue;
@@ -2804,22 +2806,45 @@ async function odejmijZeStan(zamId){
         }
       } else if(p.rodzaj_produktu==='termiczny'&&p.typ_termiczny==='sprzedaz'){
         if(!p.kubek_termiczny_id)continue;
-        // Znajdź magazyn z największą dostępnością
-        const stany=await sbFetch('stan_magazynowy_termiczne',`?kubek_id=eq.${p.kubek_termiczny_id}&order=ilosc_dostepna.desc`);
-        let pozostalo=p.ilosc;
-        for(const s of stany){
-          if(pozostalo<=0)break;
-          const odejmij=Math.min(pozostalo,s.ilosc_dostepna||0);
-          if(odejmij>0){
-            await sbFetch('stan_magazynowy_termiczne',`?kubek_id=eq.${p.kubek_termiczny_id}&magazyn_id=eq.${s.magazyn_id}`,{
-              method:'PATCH',body:JSON.stringify({ilosc_dostepna:Math.max(0,s.ilosc_dostepna-odejmij)})
-            });
-            pozostalo-=odejmij;
+        console.log('[REALIZ] termiczny pozycja:',p.id,'zrodlo:',p.termiczny_zrodlo,'komisId:',p.termiczny_komis_id);
+
+        // Utwórz rekord sprzedaży termicznej (liczy się do prowizji artysty)
+        try{
+          const sprzPayload={komis_id:p.termiczny_zrodlo==='komis'?p.termiczny_komis_id:null,kubek_id:p.kubek_termiczny_id,klient_id:klientId,ilosc:p.ilosc,cena_netto:p.cena_jednostkowa,data_sprzedazy:new Date().toISOString().slice(0,10),zamowienie_id:zamId};
+          const sprzRes=await sbFetch('sprzedaz_termicznych','',{method:'POST',body:JSON.stringify(sprzPayload)});
+          console.log('[REALIZ] sprzedaz_termicznych utworzona:',sprzRes);
+        }catch(e){console.error('[REALIZ] sprzedaz_termicznych error:',e);}
+
+        if(p.termiczny_zrodlo==='komis'&&p.termiczny_komis_id){
+          // Odejmij z komisu
+          try{
+            const[kom]=await sbFetch('komis',`?id=eq.${p.termiczny_komis_id}&select=ilosc`);
+            const aktualna=kom?.ilosc||0;
+            const ni=aktualna-p.ilosc;
+            if(ni<=0){
+              await sbFetch('komis',`?id=eq.${p.termiczny_komis_id}`,{method:'PATCH',body:JSON.stringify({status:'sprzedany',data_zwrotu:new Date().toISOString().slice(0,10)})});
+            } else {
+              await sbFetch('komis',`?id=eq.${p.termiczny_komis_id}`,{method:'PATCH',body:JSON.stringify({ilosc:ni})});
+            }
+            console.log('[REALIZ] komis zaktualizowany:',aktualna,'->',ni);
+          }catch(e){console.warn('[REALIZ] komis update error:',e);}
+        } else {
+          // Domyślnie (lub jeśli zrodlo='magazyn'/brak info): odejmij ze stanu magazynowego
+          const stany=await sbFetch('stan_magazynowy_termiczne',`?kubek_id=eq.${p.kubek_termiczny_id}&order=ilosc_dostepna.desc`);
+          let pozostalo=p.ilosc;
+          for(const s of stany){
+            if(pozostalo<=0)break;
+            const odejmij=Math.min(pozostalo,s.ilosc_dostepna||0);
+            if(odejmij>0){
+              await sbFetch('stan_magazynowy_termiczne',`?kubek_id=eq.${p.kubek_termiczny_id}&magazyn_id=eq.${s.magazyn_id}`,{
+                method:'PATCH',body:JSON.stringify({ilosc_dostepna:Math.max(0,s.ilosc_dostepna-odejmij)})
+              });
+              pozostalo-=odejmij;
+            }
           }
         }
       } else if(p.rodzaj_produktu==='przykrywka'){
         if(!p.przykrywka_id)continue;
-        // Wieczka - znajdź magazyn z największą dostępnością
         const stany=await sbFetch('stan_magazynowy_przykrywki',`?przykrywka_id=eq.${p.przykrywka_id}&order=ilosc_dostepna.desc`);
         let pozostalo=p.ilosc;
         for(const s of stany){
@@ -3461,7 +3486,6 @@ async function zapiszZamowienie(){
   const pozycjeDivs = document.querySelectorAll('#pozycjeZam > div[data-typ], #kubek_prod_wrap > div[data-typ]');
   const pozycje = [];
   const komisDoUtworzenia = [];
-  const sprzedazeTermiczneIds = [];
   for(const div of pozycjeDivs){
     const typ2 = div.dataset.typ;
 
@@ -3600,32 +3624,11 @@ async function zapiszZamowienie(){
         if(termTyp==='komis'){
           komisDoUtworzenia.push({kubek_id:kubId,ilosc:il,cena_komisowa:null});
         } else {
-          pozycje.push({rodzaj_produktu:'termiczny',kubek_termiczny_id:kubId,typ_termiczny:'sprzedaz',ilosc:il,cena_jednostkowa:cn});
-          console.log('[TERM] added sprzedaz pozycja for',kubId);
-          if(termZrodlo==='komis'){
-            if(!komisId){console.warn('[TERM] SPRZEDAŻ Z KOMISU ale brak komisId dla',kubId,'- nic nie odejmę');continue;}
-            try{
-              const sprzedazPayload={komis_id:komisId,kubek_id:kubId,klient_id:klientId,ilosc:il,cena_netto:cn,data_sprzedazy:new Date().toISOString().slice(0,10)};
-              console.log('[TERM] POST sprzedaz_termicznych:',sprzedazPayload);
-              const sprzRes=await sbFetch('sprzedaz_termicznych','',{method:'POST',body:JSON.stringify(sprzedazPayload)});
-              console.log('[TERM] sprzedaz_termicznych res:',sprzRes);
-              // Zapamiętaj ID sprzedaży żeby powiązać z zamówieniem po jego utworzeniu
-              if(sprzRes?.[0]?.id)sprzedazeTermiczneIds.push(sprzRes[0].id);
-              // Pobierz aktualną ilość z bazy (nie z cache) żeby odjąć poprawnie
-              let aktualnaIlosc=0;
-              try{const[kAkt]=await sbFetch('komis',`?id=eq.${komisId}&select=ilosc`);if(kAkt)aktualnaIlosc=kAkt.ilosc;}catch(e){}
-              const ni=aktualnaIlosc-il;
-              console.log('[TERM] komis update - aktualna ilosc:',aktualnaIlosc,'nowa:',ni);
-              if(ni<=0){
-                // Cała ilość sprzedana - status 'sprzedany' + data_zwrotu; ilosc zostaje (constraint ilosc>0)
-                const r1=await sbFetch('komis',`?id=eq.${komisId}`,{method:'PATCH',body:JSON.stringify({status:'sprzedany',data_zwrotu:new Date().toISOString().slice(0,10)})});
-                console.log('[TERM] komis SPRZEDANY:',r1);
-              } else {
-                const r2=await sbFetch('komis',`?id=eq.${komisId}`,{method:'PATCH',body:JSON.stringify({ilosc:ni})});
-                console.log('[TERM] komis new ilosc:',r2);
-              }
-            }catch(e){console.error('[TERM] komis sale error:',e);}
-          }
+          // Zapisz źródło (komis/magazyn) w pozycji - odejmijZeStan użyje tego przy realizacji
+          pozycje.push({rodzaj_produktu:'termiczny',kubek_termiczny_id:kubId,typ_termiczny:'sprzedaz',ilosc:il,cena_jednostkowa:cn,termiczny_zrodlo:termZrodlo,termiczny_komis_id:termZrodlo==='komis'?komisId:null});
+          console.log('[TERM] added sprzedaz pozycja for',kubId,'zrodlo:',termZrodlo,'komisId:',komisId);
+          // UWAGA: sprzedaz_termicznych i odjęcie stanu/komisu NIE dzieje się tutaj -
+          // dzieje się dopiero przy realizacji zamówienia (odejmijZeStan), tak jak dla kubków papierowych
         }
       }
       continue;
@@ -3727,10 +3730,6 @@ async function zapiszZamowienie(){
       })});
       for(const p of pozycje){
         await sbFetch('pozycja_zamowienia','',{method:'POST',body:JSON.stringify({...p,zamowienie_id:zam.id})});
-      }
-      // Powiąż sprzedaże termiczne z tym zamówieniem (dla cofania przy usunięciu)
-      for(const sprzId of sprzedazeTermiczneIds){
-        try{await sbFetch('sprzedaz_termicznych',`?id=eq.${sprzId}`,{method:'PATCH',body:JSON.stringify({zamowienie_id:zam.id})});}catch(e){console.warn('link sprzedaz:',e);}
       }
     }
     msg.className='f-msg ok';
@@ -4006,34 +4005,20 @@ async function zapiszEdycjeZamowienia(zamId){
           if(termTyp==='komis'){
             komisDoUtworzenia.push({kubek_id:kubId,ilosc:il,cena_komisowa:null});
           } else {
-            pozycje.push({rodzaj_produktu:'termiczny',kubek_termiczny_id:kubId,typ_termiczny:'sprzedaz',ilosc:il,cena_jednostkowa:cn});
-            // Sprzedaż z komisu: zarejestruj + zmniejsz komis
+            // Ustal komis_id jeśli sprzedaż ma być z komisu (potrzebne do zapisania w pozycji)
+            let komisId=null;
             if(termZrodlo==='komis'){
-              // Pobierz komis_id - z dataset lub przez fallback z window['tl_kom_']
-              let komisId=row.dataset.komisId;
+              komisId=row.dataset.komisId;
               const kl=window['tl_kom_'+sid]||[];
               const ki=kl.find(k=>k.id===kubId);
               if(!komisId&&ki?.komis_id)komisId=ki.komis_id;
-              // Ostateczny fallback: szukaj aktywnego komisu po klient_id + kubek_id w DB
               if(!komisId){
-                try{const aktKomis=await sbFetch('v_komis_aktywny',`?klient_id=eq.${klientId}&kubek_id=eq.${kubId}&select=komis_id,ilosc&limit=1`);if(aktKomis.length)komisId=aktKomis[0].komis_id;}catch(e){}
-              }
-              console.log('  komis sale edit:', {kubId, komisId, il, klientId, ki});
-              if(komisId){
-                try{
-                  await sbFetch('sprzedaz_termicznych','',{method:'POST',body:JSON.stringify({komis_id:komisId,kubek_id:kubId,klient_id:klientId,ilosc:il,cena_netto:cn,data_sprzedazy:new Date().toISOString().slice(0,10)})});
-                  // Pobierz aktualną ilość z bazy żeby odjąć poprawnie
-                  const[komRec]=await sbFetch('komis',`?id=eq.${komisId}&select=ilosc`);
-                  const obecne=komRec?.ilosc||ki?.ilosc||0;
-                  const ni=obecne-il;
-                  if(ni<=0)await sbFetch('komis',`?id=eq.${komisId}`,{method:'PATCH',body:JSON.stringify({status:'sprzedany',data_zwrotu:new Date().toISOString().slice(0,10)})});
-                  else await sbFetch('komis',`?id=eq.${komisId}`,{method:'PATCH',body:JSON.stringify({ilosc:ni})});
-                }catch(e){console.warn('komis sale edit:',e);}
-              } else {
-                console.warn('  Brak komisu dla kubka', kubId, 'klienta', klientId);
+                try{const aktKomis=await sbFetch('v_komis_aktywny',`?klient_id=eq.${klientId}&kubek_id=eq.${kubId}&select=id&limit=1`);if(aktKomis.length)komisId=aktKomis[0].id;}catch(e){}
               }
             }
-            // Stan magazynowy NIE odejmuje się przy utworzeniu - tylko przy statusie 'zrealizowane' (odejmijZeStan)
+            pozycje.push({rodzaj_produktu:'termiczny',kubek_termiczny_id:kubId,typ_termiczny:'sprzedaz',ilosc:il,cena_jednostkowa:cn,termiczny_zrodlo:termZrodlo,termiczny_komis_id:komisId});
+            // UWAGA: sprzedaz_termicznych i odjęcie stanu/komisu NIE dzieje się tutaj -
+            // jeśli zamówienie jest już zrealizowane, zostanie przetworzone niżej (po zapisaniu pozycji)
           }
         }
       }
@@ -4057,6 +4042,31 @@ async function zapiszEdycjeZamowienia(zamId){
     for(const p of pozycje){
       await sbFetch('pozycja_zamowienia','',{method:'POST',body:JSON.stringify({zamowienie_id:zamId,...p})});
     }
+
+    // Jeśli zamówienie jest JUŻ zrealizowane, nowo dodane pozycje termiczne trzeba przetworzyć od razu
+    // (bo nie będzie już kliknięcia "Zrealizuj" które normalnie by to zrobiło)
+    try{
+      const[zamAktualny]=await sbFetch('zamowienie',`?id=eq.${zamId}&select=status_realizacji`);
+      if(zamAktualny?.status_realizacji==='zrealizowane'){
+        const nowoDodaneTerm=pozycje.filter(p=>p.rodzaj_produktu==='termiczny'&&p.typ_termiczny==='sprzedaz');
+        for(const p of nowoDodaneTerm){
+          try{
+            const sprzPayload={komis_id:p.termiczny_zrodlo==='komis'?p.termiczny_komis_id:null,kubek_id:p.kubek_termiczny_id,klient_id:klientId,ilosc:p.ilosc,cena_netto:p.cena_jednostkowa,data_sprzedazy:new Date().toISOString().slice(0,10),zamowienie_id:zamId};
+            await sbFetch('sprzedaz_termicznych','',{method:'POST',body:JSON.stringify(sprzPayload)});
+            if(p.termiczny_zrodlo==='komis'&&p.termiczny_komis_id){
+              const[kom]=await sbFetch('komis',`?id=eq.${p.termiczny_komis_id}&select=ilosc`);
+              const aktualna=kom?.ilosc||0;const ni=aktualna-p.ilosc;
+              if(ni<=0)await sbFetch('komis',`?id=eq.${p.termiczny_komis_id}`,{method:'PATCH',body:JSON.stringify({status:'sprzedany',data_zwrotu:new Date().toISOString().slice(0,10)})});
+              else await sbFetch('komis',`?id=eq.${p.termiczny_komis_id}`,{method:'PATCH',body:JSON.stringify({ilosc:ni})});
+            } else {
+              const stany=await sbFetch('stan_magazynowy_termiczne',`?kubek_id=eq.${p.kubek_termiczny_id}&order=ilosc_dostepna.desc`);
+              let pozostalo=p.ilosc;
+              for(const s of stany){if(pozostalo<=0)break;const odj=Math.min(pozostalo,s.ilosc_dostepna||0);if(odj>0){await sbFetch('stan_magazynowy_termiczne',`?kubek_id=eq.${p.kubek_termiczny_id}&magazyn_id=eq.${s.magazyn_id}`,{method:'PATCH',body:JSON.stringify({ilosc_dostepna:Math.max(0,s.ilosc_dostepna-odj)})});pozostalo-=odj;}}
+            }
+          }catch(e){console.warn('natychmiastowe przetworzenie termicznej (edit, już zrealizowane):',e);}
+        }
+      }
+    }catch(e){console.warn('sprawdzanie statusu przy edycji:',e);}
 
     msg.className='f-msg ok';msg.textContent=`✓ Zapisano (${pozycje.length} pozycji)`;
     setTimeout(()=>{closeZamDrawer();loadZamowienia();loadAll();},900);
@@ -5132,11 +5142,13 @@ async function usunZamowienie(zamId){
             if(st)await sbFetch('stan_magazynowy',`?kubek_id=eq.${p.kubek_id}&magazyn_id=eq.${p.magazyn_id}`,{method:'PATCH',body:JSON.stringify({ilosc_dostepna:(st.ilosc_dostepna||0)+p.ilosc})});
           }catch(e){console.warn('restore stan kubek:',e);}
         } else if(p.rodzaj_produktu==='termiczny'&&p.kubek_termiczny_id){
-          // Przywróć stan termiczny (do pierwszego magazynu z rekordem)
-          try{
-            const stany=await sbFetch('stan_magazynowy_termiczne',`?kubek_id=eq.${p.kubek_termiczny_id}&order=ilosc_dostepna.desc&limit=1`);
-            if(stany.length)await sbFetch('stan_magazynowy_termiczne',`?kubek_id=eq.${p.kubek_termiczny_id}&magazyn_id=eq.${stany[0].magazyn_id}`,{method:'PATCH',body:JSON.stringify({ilosc_dostepna:(stany[0].ilosc_dostepna||0)+p.ilosc})});
-          }catch(e){console.warn('restore stan term:',e);}
+          // Przywróć stan magazynowy TYLKO jeśli sprzedaż była z magazynu (nie z komisu - to obsłuży krok 3)
+          if(p.termiczny_zrodlo!=='komis'){
+            try{
+              const stany=await sbFetch('stan_magazynowy_termiczne',`?kubek_id=eq.${p.kubek_termiczny_id}&order=ilosc_dostepna.desc&limit=1`);
+              if(stany.length)await sbFetch('stan_magazynowy_termiczne',`?kubek_id=eq.${p.kubek_termiczny_id}&magazyn_id=eq.${stany[0].magazyn_id}`,{method:'PATCH',body:JSON.stringify({ilosc_dostepna:(stany[0].ilosc_dostepna||0)+p.ilosc})});
+            }catch(e){console.warn('restore stan term:',e);}
+          }
         } else if(p.rodzaj_produktu==='przykrywka'&&p.przykrywka_id){
           try{
             const stany=await sbFetch('stan_magazynowy_przykrywki',`?przykrywka_id=eq.${p.przykrywka_id}&order=ilosc_dostepna.desc&limit=1`);
