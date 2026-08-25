@@ -2240,13 +2240,15 @@ async function przyjmijDoMagazynu(kubek_id){
 
 // ── KOMIS ──
 async function loadKomis(){
-  document.getElementById('listKomis').innerHTML=`<div class="state-msg"><span class="big">⏳</span>Ładowanie…</div>`;
+  const listEl=document.getElementById('listKomis');
+  if(listEl)listEl.innerHTML=`<div class="state-msg"><span class="big">⏳</span>Ładowanie…</div>`;
   try{
     const data=await sbFetch('v_komis_aktywny','?select=*&order=dni_w_komisie.desc');
     allKomis=data;
     applyFilters('komis');
   }catch(e){
-    document.getElementById('listKomis').innerHTML=`<div class="state-msg"><span class="big">⚠️</span>${e.message}</div>`;
+    const el=document.getElementById('listKomis');
+    if(el)el.innerHTML=`<div class="state-msg"><span class="big">⚠️</span>${e.message}</div>`;
   }
 }
 
@@ -3606,10 +3608,19 @@ async function zapiszZamowienie(){
               console.log('[TERM] POST sprzedaz_termicznych:',sprzedazPayload);
               const sprzRes=await sbFetch('sprzedaz_termicznych','',{method:'POST',body:JSON.stringify(sprzedazPayload)});
               console.log('[TERM] sprzedaz_termicznych res:',sprzRes);
-              const kl=window['tl_kom_'+sid]||[];const ki=kl.find(k=>k.id===kubId);const ni=(ki?.ilosc||0)-il;
-              console.log('[TERM] komis update - stara ilosc:',ki?.ilosc,'nowa:',ni);
-              if(ni<=0){const r1=await sbFetch('komis',`?id=eq.${komisId}`,{method:'PATCH',body:JSON.stringify({status:'sprzedany',ilosc:0})});console.log('[TERM] komis SPRZEDANY:',r1);}
-              else{const r2=await sbFetch('komis',`?id=eq.${komisId}`,{method:'PATCH',body:JSON.stringify({ilosc:ni})});console.log('[TERM] komis new ilosc:',r2);}
+              // Pobierz aktualną ilość z bazy (nie z cache) żeby odjąć poprawnie
+              let aktualnaIlosc=ki?.ilosc||0;
+              try{const[kAkt]=await sbFetch('komis',`?id=eq.${komisId}&select=ilosc`);if(kAkt)aktualnaIlosc=kAkt.ilosc;}catch(e){}
+              const ni=aktualnaIlosc-il;
+              console.log('[TERM] komis update - aktualna ilosc:',aktualnaIlosc,'nowa:',ni);
+              if(ni<=0){
+                // Cała ilość sprzedana - status 'sprzedany' + data_zwrotu; ilosc zostaje (constraint ilosc>0)
+                const r1=await sbFetch('komis',`?id=eq.${komisId}`,{method:'PATCH',body:JSON.stringify({status:'sprzedany',data_zwrotu:new Date().toISOString().slice(0,10)})});
+                console.log('[TERM] komis SPRZEDANY:',r1);
+              } else {
+                const r2=await sbFetch('komis',`?id=eq.${komisId}`,{method:'PATCH',body:JSON.stringify({ilosc:ni})});
+                console.log('[TERM] komis new ilosc:',r2);
+              }
             }catch(e){console.error('[TERM] komis sale error:',e);}
           }
         }
