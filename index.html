@@ -1699,6 +1699,8 @@ function applyFilters(scope){
       if(art&&k.artysta!==art)return false;
       if(q&&!k.grafika?.toLowerCase().includes(q)&&!k.artysta?.toLowerCase().includes(q))return false;
       if(logo&&!k.isPrzykrywka&&k.typ_materialu&&k.logo!==logo)return false;
+      // Filtr 'klienta' pokazuje TYLKO 'artsider + logo klienta' (artysta='własne logo'), z pominięciem 'produkcja klienta' (bez artysty)
+      if(logo==='klienta'&&(k.artysta||'').toLowerCase()!=='własne logo')return false;
       // w konkretnym magazynie: tylko kubki w_magazynie z >0 sztuk
       if(activeMagKubki&&activeMagKubki!=='zlecone'&&activeMagKubki!=='archiwum'){
         const s=k.stany.find(x=>x.magazyn_id===activeMagKubki);
@@ -1754,6 +1756,8 @@ function applyFilters(scope){
       if(art&&k.artysta!==art)return false;
       if(q&&!k.grafika?.toLowerCase().includes(q)&&!k.artysta?.toLowerCase().includes(q))return false;
       if(logo&&!k.isPrzykrywka&&k.typ_materialu&&k.logo!==logo)return false;
+      // Filtr 'klienta' pokazuje TYLKO 'artsider + logo klienta' (artysta='własne logo'), z pominięciem 'produkcja klienta' (bez artysty)
+      if(logo==='klienta'&&(k.artysta||'').toLowerCase()!=='własne logo')return false;
       return true;
     });
     renderKubki(f,'listZlecone','',true);
