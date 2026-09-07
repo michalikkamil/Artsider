@@ -746,8 +746,8 @@ function grupuj(stany){
 
 async function ladujZlecone(){
   try{
-    // Kubki zlecone = tylko Artsider (logo artsider lub brak) — kubki klienta trafiają wyłącznie do zamówień
-    const kubki=await sbFetch('v_stan_kubkow','?ilosc_w_produkcji=gt.0&logo=neq.klienta&select=*');
+    // Kubki zlecone - wszystkie (artsider + klienta), filtrowanie po logo dzieje się w UI
+    const kubki=await sbFetch('v_stan_kubkow','?ilosc_w_produkcji=gt.0&select=*');
     const zlecenia=await sbFetch('v_zlecenia_produkcyjne','?status=eq.w_produkcji&select=*');
     const zleceniaByKubek={};
     zlecenia.forEach(z=>{
@@ -1965,7 +1965,7 @@ function renderZleceniaProdukcyjne(k){
             ${z.data_planowanej_dostawy?`· dostawa: ${dataDost}`:''}
           </div>
         </div>
-        <button onclick="zrealizujZlecenie('${z.id}','${k.kubek_id}')" style="background:var(--green);color:white;border:none;border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:var(--fm);">✓ Zrealizuj</button>
+        <button id="btnZrealizuj_${z.id}" onclick="zrealizujZlecenie('${z.id}','${k.kubek_id}',this)" ${z.status==='zrealizowane'?'disabled':''} style="background:${z.status==='zrealizowane'?'#3B6D11':'var(--green)'};color:white;border:none;border-radius:6px;padding:5px 10px;font-size:11px;cursor:${z.status==='zrealizowane'?'default':'pointer'};font-family:var(--fm);opacity:${z.status==='zrealizowane'?'0.85':'1'};">${z.status==='zrealizowane'?'✓ Zrealizowano':'✓ Zrealizuj'}</button>
         <button onclick="anulujZlecenie('${z.id}','${k.kubek_id}')" style="background:#FBE9E9;color:#A32D2D;border:1px solid #F4B5B5;border-radius:6px;padding:5px 8px;font-size:11px;cursor:pointer;font-family:var(--fm);">✕</button>
       </div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:-2px;margin-bottom:2px;padding:0 2px;">
@@ -2083,12 +2083,22 @@ async function zapiszFakturaZlecenie(zlecId, kubekId){
   }catch(e){alert('Błąd: '+e.message);}
 }
 
-async function zrealizujZlecenie(zlecId, kubekId){
-  if(!confirm('Oznaczyć zlecenie jako zrealizowane? Pamiętaj żeby najpierw przyjąć sztuki do magazynu.'))return;
+async function zrealizujZlecenie(zlecId, kubekId, btnEl){
+  if(!confirm('Oznaczyć zlecenie jako zrealizowane? Pamiętaj żeby jeszcze wprowadzić przyjęte sztuki do magazynu (poniżej, w polu stanu magazynowego).'))return;
   try{
     await sbFetch('zlecenie_produkcyjne',`?id=eq.${zlecId}`,{method:'PATCH',body:JSON.stringify({status:'zrealizowane'})});
-    closeDrawer();
-    loadAll();
+    // Zaktualizuj wygląd przycisku bez zamykania widoku ani przeładowania listy
+    const btn=btnEl||document.getElementById('btnZrealizuj_'+zlecId);
+    if(btn){
+      btn.textContent='✓ Zrealizowano';
+      btn.style.background='#3B6D11';
+      btn.style.cursor='default';
+      btn.style.opacity='0.85';
+      btn.disabled=true;
+    }
+    // Zaktualizuj dane lokalnie (żeby stan się zgadzał gdyby coś odświeżyło widok)
+    const zl=(allZlecone||[]).find(k=>k.kubek_id===kubekId);
+    if(zl){const zrec=(zl.zlecenia||[]).find(z=>z.id===zlecId);if(zrec)zrec.status='zrealizowane';}
   }catch(e){alert('Błąd: '+e.message);}
 }
 
