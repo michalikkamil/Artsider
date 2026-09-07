@@ -692,6 +692,7 @@ async function loadAll(){
 
     // grupuj kubki papierowe (w_magazynie)
     allKubki=grupuj(stanKubki);
+    await enrichZrodloTyp(allKubki);
     // Buduj allPrzykrywki osobno
     if(stanPrzykrywki && stanPrzykrywki.length){
       const prMap={};
@@ -744,6 +745,20 @@ function grupuj(stany){
   return Object.values(map);
 }
 
+async function enrichZrodloTyp(list){
+  const ids=[...new Set(list.filter(k=>k.logo==='klienta'&&k.kubek_id).map(k=>k.kubek_id))];
+  if(!ids.length)return list;
+  try{
+    const rows=await sbFetch('pozycja_zamowienia',`?kubek_id=in.(${ids.map(i=>'"'+i+'"').join(',')})&rodzaj_produktu=eq.kubek&select=kubek_id,created_at,zamowienie:zamowienie_id(typ_zamowienia)`);
+    const map={};
+    // Bierzemy NAJSTARSZE powiązane zamówienie (to które utworzyło kubek)
+    rows.sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+    rows.forEach(r=>{if(!(r.kubek_id in map))map[r.kubek_id]=r.zamowienie?.typ_zamowienia||null;});
+    list.forEach(k=>{if(k.logo==='klienta')k.zrodlo_typ=map[k.kubek_id]||null;});
+  }catch(e){console.warn('enrichZrodloTyp:',e);}
+  return list;
+}
+
 async function ladujZlecone(){
   try{
     // Kubki zlecone - wszystkie (artsider + klienta), filtrowanie po logo dzieje się w UI
@@ -772,6 +787,7 @@ async function ladujZlecone(){
         zlecenia:zleceniaByKubek[k.kubek_id]||[],
       });
     }
+    await enrichZrodloTyp(result);
     return result;
   }catch(e){console.warn('ladujZlecone:',e);return[];}
 }
@@ -1699,8 +1715,8 @@ function applyFilters(scope){
       if(art&&k.artysta!==art)return false;
       if(q&&!k.grafika?.toLowerCase().includes(q)&&!k.artysta?.toLowerCase().includes(q))return false;
       if(logo&&!k.isPrzykrywka&&k.typ_materialu&&k.logo!==logo)return false;
-      // Filtr 'klienta' pokazuje TYLKO 'artsider + logo klienta' (artysta='własne logo'), z pominięciem 'produkcja klienta' (bez artysty)
-      if(logo==='klienta'&&(k.artysta||'').toLowerCase()!=='własne logo')return false;
+      // Filtr 'klienta' pokazuje TYLKO 'artsider + logo klienta' (produkcja_artsider_logo), z pominięciem 'produkcja klienta'
+      if(logo==='klienta'&&k.zrodlo_typ!=='produkcja_artsider_logo')return false;
       // w konkretnym magazynie: tylko kubki w_magazynie z >0 sztuk
       if(activeMagKubki&&activeMagKubki!=='zlecone'&&activeMagKubki!=='archiwum'){
         const s=k.stany.find(x=>x.magazyn_id===activeMagKubki);
@@ -1756,8 +1772,8 @@ function applyFilters(scope){
       if(art&&k.artysta!==art)return false;
       if(q&&!k.grafika?.toLowerCase().includes(q)&&!k.artysta?.toLowerCase().includes(q))return false;
       if(logo&&!k.isPrzykrywka&&k.typ_materialu&&k.logo!==logo)return false;
-      // Filtr 'klienta' pokazuje TYLKO 'artsider + logo klienta' (artysta='własne logo'), z pominięciem 'produkcja klienta' (bez artysty)
-      if(logo==='klienta'&&(k.artysta||'').toLowerCase()!=='własne logo')return false;
+      // Filtr 'klienta' pokazuje TYLKO 'artsider + logo klienta' (produkcja_artsider_logo), z pominięciem 'produkcja klienta'
+      if(logo==='klienta'&&k.zrodlo_typ!=='produkcja_artsider_logo')return false;
       return true;
     });
     renderKubki(f,'listZlecone','',true);
@@ -4449,11 +4465,13 @@ async function loadArchiwum(){
         typ_scianki:k.typ_scianki,
         cena_netto:k.cena_netto,
         ilosc_w_produkcji:0,
+        logo:k.logo,
         grafika:k.grafika?.nazwa,
         artysta:k.grafika?.artysta?.imie_nazwisko,
         miniaturka:k.grafika?.miniaturka_url,
         stany:[],ilosc_lacznie:0,ilosc_w_drodze:0,
       }));
+    await enrichZrodloTyp(allArchiwum);
   }catch(e){console.warn('loadArchiwum error:',e);}
 }
 
