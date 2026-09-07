@@ -749,12 +749,12 @@ async function enrichZrodloTyp(list){
   const ids=[...new Set(list.filter(k=>k.logo==='klienta'&&k.kubek_id).map(k=>k.kubek_id))];
   if(!ids.length)return list;
   try{
-    const rows=await sbFetch('pozycja_zamowienia',`?kubek_id=in.(${ids.map(i=>'"'+i+'"').join(',')})&rodzaj_produktu=eq.kubek&select=kubek_id,created_at,zamowienie:zamowienie_id(typ_zamowienia)`);
+    const rows=await sbFetch('pozycja_zamowienia',`?kubek_id=in.(${ids.map(i=>'"'+i+'"').join(',')})&rodzaj_produktu=eq.kubek&select=kubek_id,created_at,zamowienie:zamowienie_id(typ_zamowienia,klient:klient_id(nazwa_wlasna))`);
     const map={};
     // Bierzemy NAJSTARSZE powiązane zamówienie (to które utworzyło kubek)
     rows.sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
-    rows.forEach(r=>{if(!(r.kubek_id in map))map[r.kubek_id]=r.zamowienie?.typ_zamowienia||null;});
-    list.forEach(k=>{if(k.logo==='klienta')k.zrodlo_typ=map[k.kubek_id]||null;});
+    rows.forEach(r=>{if(!(r.kubek_id in map))map[r.kubek_id]={typ:r.zamowienie?.typ_zamowienia||null,klient:r.zamowienie?.klient?.nazwa_wlasna||null};});
+    list.forEach(k=>{if(k.logo==='klienta'){const m=map[k.kubek_id];k.zrodlo_typ=m?.typ||null;k.klient_zlecajacy=m?.klient||null;}});
   }catch(e){console.warn('enrichZrodloTyp:',e);}
   return list;
 }
@@ -1926,7 +1926,7 @@ function renderKubki(kubki,listId,activeMag,showDate,typOverride=''){
         : `${k.pojemnosc_ml} ml`;
     const cardSub = k.isPrzykrywka
       ? (k.grafika||'').replace(/Przykrywka (papierowa|plastikowa) \d+mm\s*/,'').trim()||'—'
-      : `${k.grafika||'—'}${k.artysta?' · '+k.artysta:''}`;
+      : `${k.grafika||'—'}${k.artysta?' · '+k.artysta:''}${k.klient_zlecajacy?' · 👤 '+k.klient_zlecajacy:''}`;
     const cardBg = (!isTermiczny && !k.isPrzykrywka) ? (
       k.pojemnosc_ml===250 ? '' :
       k.pojemnosc_ml===300 ? 'background:#FFF9E6;' :
@@ -2171,7 +2171,7 @@ async function openDrawer(kubek_id,typ){
   document.getElementById('drawerContent').innerHTML=`
     <button class="drawer-back" onclick="closeDrawer()">← Wróć</button>
     <div class="drawer-title">${k.grafika||'—'}</div>
-    <div class="drawer-sub">${k.artysta||'brak artysty'}${k.data_zlecenia?` &nbsp;·&nbsp; zlecono: ${k.data_zlecenia}`:''}</div>
+    <div class="drawer-sub">${k.artysta||'brak artysty'}${k.klient_zlecajacy?` &nbsp;·&nbsp; 👤 ${k.klient_zlecajacy}`:''}${k.data_zlecenia?` &nbsp;·&nbsp; zlecono: ${k.data_zlecenia}`:''}</div>
     <div class="d-section">Szczegóły</div>
     ${!k.isPrzykrywka?`<div class="d-row"><span class="d-key">Pojemność</span><span class="d-val">${k.pojemnosc_ml} ml</span></div>`:''}
     ${k.typ_materialu?`<div class="d-row"><span class="d-key">Materiał</span><span class="d-val">${k.typ_materialu}</span></div>`:''}
