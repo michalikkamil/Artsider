@@ -738,9 +738,9 @@ function grupuj(stany){
   for(const r of stany){
     const kid=r.kubek_id;
     if(!map[kid]){map[kid]={kubek_id:kid,pojemnosc_ml:r.pojemnosc_ml,typ_materialu:r.typ_materialu,typ_scianki:r.typ_scianki,sztuk_w_opakowaniu:r.sztuk_w_opakowaniu,kolor:r.kolor,cena_netto:r.cena_netto,kod_qr:r.kod_qr,grafika:r.grafika,artysta:r.artysta,miniaturka:r.miniaturka_url,ilosc_w_produkcji:r.ilosc_w_produkcji||0,data_najwczesniejszego_zlecenia:r.data_najwczesniejszego_zlecenia,data_najwczesniejszej_dostawy:r.data_najwczesniejszej_dostawy,data_planowanej_dostawy:r.data_najwczesniejszej_dostawy,logo:r.logo,stany:[],ilosc_lacznie:0,ilosc_w_drodze:0};}
-    map[kid].stany.push({magazyn_id:r.magazyn_id,magazyn:r.magazyn,ilosc_dostepna:r.ilosc_dostepna,ilosc_w_drodze:r.ilosc_w_drodze});
-    map[kid].ilosc_lacznie+=(r.ilosc_dostepna||0);
-    map[kid].ilosc_w_drodze+=(r.ilosc_w_drodze||0);
+    map[kid].stany.push({magazyn_id:r.magazyn_id,magazyn:r.magazyn,ilosc_dostepna:Number(r.ilosc_dostepna)||0,ilosc_w_drodze:Number(r.ilosc_w_drodze)||0});
+    map[kid].ilosc_lacznie+=Number(r.ilosc_dostepna)||0;
+    map[kid].ilosc_w_drodze+=Number(r.ilosc_w_drodze)||0;
   }
   return Object.values(map);
 }
@@ -1225,7 +1225,7 @@ function selectMag(btn,scope){
     if(mag==='stats'){renderStats('termiczne','listTermiczne');return;}
     if(mag==='komis'){loadKomis();renderKomisInTermiczne();return;}
     if(mag==='archiwum'){
-      const arch=allTermiczne.filter(k=>k.ilosc_lacznie===0);
+      const arch=allTermiczne.filter(k=>Number(k.ilosc_lacznie)<=0);
       renderKubki(arch,'listTermiczne','',false);
       return;
     }
@@ -1817,11 +1817,15 @@ function applyFilters(scope){
       if(poj&&String(k.pojemnosc_ml)!==poj)return false;
       if(art&&k.artysta!==art)return false;
       // W trybie Wszystkie: pokaż tylko z >0 sztuk
-      if(!activeMagTermiczne&&k.ilosc_lacznie<=0)return false;
+      if(!activeMagTermiczne&&Number(k.ilosc_lacznie)<=0)return false;
+      // W Archiwum: pokaż TYLKO te z zerowym stanem łącznym
+      if(activeMagTermiczne==='archiwum'){
+        if(Number(k.ilosc_lacznie)>0)return false;
+      }
       // W konkretnym magazynie: tylko >0
-      if(activeMagTermiczne&&activeMagTermiczne!=='archiwum'&&activeMagTermiczne!=='komis'){
+      else if(activeMagTermiczne&&activeMagTermiczne!=='komis'){
         const s=k.stany.find(x=>x.magazyn_id===activeMagTermiczne);
-        if(!s||s.ilosc_dostepna<=0)return false;
+        if(!s||Number(s.ilosc_dostepna)<=0)return false;
       }
       return true;
     });
