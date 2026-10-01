@@ -1965,7 +1965,7 @@ function renderKubki(kubki,listId,activeMag,showDate,typOverride=''){
               ${dataDostawy?`<div style="font-size:10px;color:#BA7517;font-weight:600;">📦 ${dataDostawy}</div>`:''}
             </div>
             ${k.ilosc_zlecona>0?`<div style="font-family:var(--fh);font-size:21px;font-weight:700;color:var(--accent);line-height:1.1;text-align:right;">${k.ilosc_zlecona} szt.</div>`:''}
-            ${(()=>{const akt=(k.zlecenia||[]).find(z=>z.status==='w_produkcji');if(!akt)return'';return`<button onclick="event.stopPropagation();zrealizujZlecenie('${akt.id}','${k.kubek_id}',this)" style="margin-top:4px;background:var(--green);color:white;border:none;border-radius:6px;padding:4px 9px;font-size:10px;cursor:pointer;font-family:var(--fm);font-weight:600;">✓ Zrealizuj</button>`;})()}
+            ${(()=>{const akt=(k.zlecenia||[]).find(z=>z.status==='w_produkcji');if(!akt)return'';return`<button onclick="event.stopPropagation();zrealizujZlecenie('${akt.id}','${k.kubek_id}',this,${akt.ilosc_zlecona||0})" style="margin-top:4px;background:var(--green);color:white;border:none;border-radius:6px;padding:4px 9px;font-size:10px;cursor:pointer;font-family:var(--fm);font-weight:600;">✓ Zrealizuj</button>`;})()}
           `:`
             <div style="display:flex;align-items:center;gap:5px;justify-content:flex-end;line-height:1;margin-top:-1px;">
               <span class="stock-dot ${dotCls}"></span>
@@ -1999,7 +1999,7 @@ function renderZleceniaProdukcyjne(k){
             ${z.data_planowanej_dostawy?`· dostawa: ${dataDost}`:''}
           </div>
         </div>
-        <button id="btnZrealizuj_${z.id}" onclick="zrealizujZlecenie('${z.id}','${k.kubek_id}',this)" ${z.status==='zrealizowane'?'disabled':''} style="background:${z.status==='zrealizowane'?'#3B6D11':'var(--green)'};color:white;border:none;border-radius:6px;padding:5px 10px;font-size:11px;cursor:${z.status==='zrealizowane'?'default':'pointer'};font-family:var(--fm);opacity:${z.status==='zrealizowane'?'0.85':'1'};">${z.status==='zrealizowane'?'✓ Zrealizowano':'✓ Zrealizuj'}</button>
+        <button id="btnZrealizuj_${z.id}" onclick="zrealizujZlecenie('${z.id}','${k.kubek_id}',this,${z.ilosc_zlecona||0})" ${z.status==='zrealizowane'?'disabled':''} style="background:${z.status==='zrealizowane'?'#3B6D11':'var(--green)'};color:white;border:none;border-radius:6px;padding:5px 10px;font-size:11px;cursor:${z.status==='zrealizowane'?'default':'pointer'};font-family:var(--fm);opacity:${z.status==='zrealizowane'?'0.85':'1'};">${z.status==='zrealizowane'?'✓ Zrealizowano':'✓ Zrealizuj'}</button>
         <button onclick="anulujZlecenie('${z.id}','${k.kubek_id}')" style="background:#FBE9E9;color:#A32D2D;border:1px solid #F4B5B5;border-radius:6px;padding:5px 8px;font-size:11px;cursor:pointer;font-family:var(--fm);">✕</button>
       </div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:-2px;margin-bottom:2px;padding:0 2px;">
@@ -2117,14 +2117,32 @@ async function zapiszFakturaZlecenie(zlecId, kubekId){
   }catch(e){alert('Błąd: '+e.message);}
 }
 
-async function zrealizujZlecenie(zlecId, kubekId, btnEl){
-  if(!confirm('Oznaczyć zlecenie jako zrealizowane? Pamiętaj żeby jeszcze wprowadzić przyjęte sztuki do magazynu (poniżej, w polu stanu magazynowego).'))return;
+async function zrealizujZlecenie(zlecId, kubekId, btnEl, iloscZlecona){
+  // Zapytaj o ilość przyjętą do magazynu (domyślnie = ilość zlecona)
+  const domyslnaIlosc = iloscZlecona||'';
+  const iloscStr = prompt('Ile sztuk przyjąć na magazyn (Kraków)? Zostaw puste żeby NIE dodawać teraz stanu (tylko oznacz jako zrealizowane).', domyslnaIlosc);
+  if(iloscStr===null)return; // anulowano
+  const ilosc = parseInt(iloscStr)||0;
   try{
     await sbFetch('zlecenie_produkcyjne',`?id=eq.${zlecId}`,{method:'PATCH',body:JSON.stringify({status:'zrealizowane'})});
+
+    if(ilosc>0){
+      // Dodaj do stanu magazynowego - domyślnie Kraków
+      const krk=allMagazyny.find(m=>m.nazwa==='Kraków')||allMagazyny[0];
+      if(krk){
+        const[istniejacy]=await sbFetch('stan_magazynowy',`?kubek_id=eq.${kubekId}&magazyn_id=eq.${krk.id}`);
+        if(istniejacy){
+          await sbFetch('stan_magazynowy',`?kubek_id=eq.${kubekId}&magazyn_id=eq.${krk.id}`,{method:'PATCH',body:JSON.stringify({ilosc_dostepna:(istniejacy.ilosc_dostepna||0)+ilosc})});
+        } else {
+          await sbFetch('stan_magazynowy','',{method:'POST',body:JSON.stringify({kubek_id:kubekId,magazyn_id:krk.id,ilosc_dostepna:ilosc,ilosc_w_drodze:0})});
+        }
+      }
+    }
+
     // Zaktualizuj wygląd przycisku bez zamykania widoku ani przeładowania listy
     const btn=btnEl||document.getElementById('btnZrealizuj_'+zlecId);
     if(btn){
-      btn.textContent='✓ Zrealizowano';
+      btn.textContent=ilosc>0?`✓ Przyjęto ${ilosc} szt.`:'✓ Zrealizowano';
       btn.style.background='#3B6D11';
       btn.style.cursor='default';
       btn.style.opacity='0.85';
