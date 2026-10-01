@@ -761,34 +761,54 @@ async function enrichZrodloTyp(list){
 
 async function ladujZlecone(){
   try{
-    // Kubki zlecone - wszystkie (artsider + klienta), filtrowanie po logo dzieje się w UI
-    const kubki=await sbFetch('v_stan_kubkow','?ilosc_w_produkcji=gt.0&select=*');
-    const zlecenia=await sbFetch('v_zlecenia_produkcyjne','?status=eq.w_produkcji&select=*');
+    // Zlecenia aktywne (w_produkcji) ORAZ zrealizowane (żeby nie znikały z listy po realizacji)
+    const zlecenia=await sbFetch('v_zlecenia_produkcyjne','?status=in.(w_produkcji,zrealizowane)&select=*');
+    if(!zlecenia.length)return[];
     const zleceniaByKubek={};
     zlecenia.forEach(z=>{
       if(!zleceniaByKubek[z.kubek_id])zleceniaByKubek[z.kubek_id]=[];
       zleceniaByKubek[z.kubek_id].push(z);
     });
+    const ids=Object.keys(zleceniaByKubek);
+    const kubki=await sbFetch('v_stan_kubkow',`?kubek_id=in.(${ids.map(i=>'"'+i+'"').join(',')})&select=*`);
     // v_stan_kubkow ma wiersze per (kubek, magazyn) - musimy zdeduplikować
     const seen=new Set();
     const result=[];
     for(const k of kubki){
       if(seen.has(k.kubek_id))continue;
       seen.add(k.kubek_id);
+      const zl=zleceniaByKubek[k.kubek_id]||[];
+      const aktywne=zl.filter(z=>z.status==='w_produkcji');
+      const statusZbiorczy=aktywne.length>0?'w_produkcji':'zrealizowane';
+      let iloscZlecona, dataZlecenia, dataDostawy;
+      if(aktywne.length>0){
+        iloscZlecona=k.ilosc_w_produkcji||0;
+        dataZlecenia=k.data_najwczesniejszego_zlecenia;
+        dataDostawy=k.data_najwczesniejszej_dostawy;
+      } else {
+        // Wszystkie zlecenia tego kubka są zrealizowane - pokaż dane najnowszego
+        const posortowane=[...zl].sort((a,b)=>(b.data_zlecenia||'').localeCompare(a.data_zlecenia||''));
+        const najnowsze=posortowane[0];
+        iloscZlecona=najnowsze?.ilosc_zlecona||0;
+        dataZlecenia=najnowsze?.data_zlecenia;
+        dataDostawy=najnowsze?.data_planowanej_dostawy;
+      }
       result.push({
         kubek_id:k.kubek_id,pojemnosc_ml:k.pojemnosc_ml,typ_materialu:k.typ_materialu,
         typ_scianki:k.typ_scianki,sztuk_w_opakowaniu:k.sztuk_w_opakowaniu,
-        cena_netto:k.cena_netto,ilosc_zlecona:k.ilosc_w_produkcji||0,
-        data_zlecenia:k.data_najwczesniejszego_zlecenia,
-        data_planowanej_dostawy:k.data_najwczesniejszej_dostawy,
+        cena_netto:k.cena_netto,ilosc_zlecona:iloscZlecona,
+        data_zlecenia:dataZlecenia,
+        data_planowanej_dostawy:dataDostawy,
         logo:k.logo,grafika:k.grafika,
         artysta:k.artysta,
         miniaturka:k.miniaturka_url,
-        zlecenia:zleceniaByKubek[k.kubek_id]||[],
+        zlecenia:zl,
+        status_zbiorczy:statusZbiorczy,
       });
     }
-    // Sortuj: najnowsze zlecenia na górze (po dacie zlecenia)
+    // Sortuj: aktywne (w produkcji) najpierw, potem zrealizowane; w obrębie grupy najnowsze na górze
     result.sort((a,b)=>{
+      if(a.status_zbiorczy!==b.status_zbiorczy)return a.status_zbiorczy==='w_produkcji'?-1:1;
       const da=a.data_zlecenia&&a.data_zlecenia!=='1970-01-01'?a.data_zlecenia:'';
       const db=b.data_zlecenia&&b.data_zlecenia!=='1970-01-01'?b.data_zlecenia:'';
       if(!da&&!db)return 0;
@@ -1917,7 +1937,7 @@ function renderKubki(kubki,listId,activeMag,showDate,typOverride=''){
     const stan=activeMag?(k.stany?.find(s=>s.magazyn_id===activeMag)?.ilosc_dostepna||0):k.ilosc_lacznie||0;
     const drodze=activeMag?(k.stany?.find(s=>s.magazyn_id===activeMag)?.ilosc_w_drodze||0):k.ilosc_w_drodze||0;
     const dotCls=stan===0?'stock-empty':(isTermiczny?stan<10:stan<500)?'stock-low':'stock-ok';
-    const sciTag=(!showDate&&k.typ_scianki)?`<span class="tag tag-sci">${k.typ_scianki==='dwuściankowy'?'2×':'1×'}</span>`:'';
+    const sciTag='';
     // pakTag usunięty celowo — niepotrzebna informacja na karcie
     const thumb=k.miniaturka?`<img src="${k.miniaturka}" alt="">`:k.isPrzykrywka?'🫗':'☕';
     const totalLacznie=k.ilosc_lacznie||0;
@@ -1947,6 +1967,18 @@ function renderKubki(kubki,listId,activeMag,showDate,typOverride=''){
       k.pojemnosc_ml===180 ? 'background:#FFF0E0;' :
       k.pojemnosc_ml===500 ? 'background:#E3F2FD;' : ''
     ) : '';
+    // Kompaktowa zielona karta dla zrealizowanych zleceń - minimum informacji, jedna linia
+    if(showDate && k.status_zbiorczy==='zrealizowane'){
+      return `<div class="card" style="background:#EAF3DE;border:1px solid #C0DD97;padding:8px 12px;align-items:center;cursor:pointer;" onclick="openDrawer('${k.kubek_id}','${typKarty}')">
+        <div style="display:flex;align-items:center;gap:8px;width:100%;">
+          <div style="width:26px;height:26px;border-radius:6px;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#fff;font-size:14px;">${thumb}</div>
+          <div style="flex:1;min-width:0;font-size:11.5px;color:#2d4a0e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+            <strong>${k.pojemnosc_ml}ml</strong> · ${k.grafika||'—'} · ${k.ilosc_zlecona||0} szt.${dataDostawy?' · 📦 '+dataDostawy:''}
+          </div>
+          <span style="font-size:13px;flex-shrink:0;color:#3B6D11;">✓</span>
+        </div>
+      </div>`;
+    }
     return `<div class="card" style="${cardBg}" onclick="openDrawer('${k.kubek_id}','${typKarty}')">
       <div class="card-thumb">${thumb}</div>
       <div class="card-body">
@@ -2712,10 +2744,23 @@ function renderZamowienia(zamowienia){
     return (b.data_zamowienia||'').localeCompare(a.data_zamowienia||'');
   });
   list.innerHTML = zamowienia.map(z=>{
-    const typInfo=ZAM_TYP_LABELS[z.typ_zamowienia]||{label:z.typ_zamowienia||'—',bg:'#F3F3F3',border:'#CCC',color:'#555'};
-    const isProdukcja=z.typ_zamowienia&&z.typ_zamowienia!=='sprzedaz_gotowych'&&z.typ_zamowienia!=='artsider';
-    const cardBorder=isProdukcja?`border-left:3px solid ${typInfo.border};`:'';
     const dostawaDate=z.data_zamowienia?new Date(new Date(z.data_zamowienia).getTime()+32*86400000).toISOString().slice(0,10):'';
+    // Kompaktowa zielona karta dla zrealizowanych - minimum informacji
+    if(z.status_realizacji==='zrealizowane'){
+      return `<div class="card" style="background:#EAF3DE;border:1px solid #C0DD97;padding:9px 14px;align-items:center;cursor:pointer;" onclick="openZamowienieDrawer('${z.id}')">
+        <div style="display:flex;align-items:center;justify-content:space-between;width:100%;gap:8px;">
+          <div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:#2d4a0e;font-weight:600;">${z.klient}</div>
+          <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+            <span style="font-size:11px;color:#3B6D11;">${dostawaDate||z.data_zamowienia||''}</span>
+            <span style="font-size:13px;color:#3B6D11;font-weight:700;">${Number(z.wartosc_lacznie).toFixed(2)} zł</span>
+            <span style="font-size:13px;color:#3B6D11;">✓</span>
+          </div>
+        </div>
+      </div>`;
+    }
+    const isProdukcja=z.typ_zamowienia&&z.typ_zamowienia!=='sprzedaz_gotowych'&&z.typ_zamowienia!=='artsider';
+    const typInfo=ZAM_TYP_LABELS[z.typ_zamowienia]||{border:'#CCC'};
+    const cardBorder=isProdukcja?`border-left:3px solid ${typInfo.border};`:'';
     return `
     <div class="card" style="flex-direction:column;padding:12px 14px;${cardBorder}">
       <div class="card-top" style="margin-bottom:4px;cursor:pointer;" onclick="openZamowienieDrawer('${z.id}')">
@@ -2724,12 +2769,11 @@ function renderZamowienia(zamowienia){
       </div>
       <div style="font-size:11px;color:var(--ink3);margin-bottom:6px;cursor:pointer;" onclick="openZamowienieDrawer('${z.id}')">${z.data_zamowienia}${dostawaDate?' · dost. '+dostawaDate:''} · ${z.zrodlo||'—'} · ${z.liczba_pozycji} poz.</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
-        <span class="tag" style="background:${typInfo.bg};border-color:${typInfo.border};color:${typInfo.color};font-weight:600;">${typInfo.label}</span>
-        <span class="tag" style="background:${z.status_realizacji==='zrealizowane'?'#EAF3DE':z.status_realizacji==='wyslane'?'#FFF0E0':'#FBE9E9'};border-color:${z.status_realizacji==='zrealizowane'?'#C0DD97':z.status_realizacji==='wyslane'?'#F5C480':'#F4B5B5'};color:${z.status_realizacji==='zrealizowane'?'#3B6D11':z.status_realizacji==='wyslane'?'#9C5810':'#A32D2D'};">${STATUS_LABELS[z.status_realizacji]||z.status_realizacji}</span>
+        <span class="tag" style="background:${z.status_realizacji==='wyslane'?'#FFF0E0':'#FBE9E9'};border-color:${z.status_realizacji==='wyslane'?'#F5C480':'#F4B5B5'};color:${z.status_realizacji==='wyslane'?'#9C5810':'#A32D2D'};">${STATUS_LABELS[z.status_realizacji]||z.status_realizacji}</span>
         <span class="tag" style="background:${z.status_platnosci==='oplacona'?'#EAF3DE':'#FBE9E9'};border-color:${z.status_platnosci==='oplacona'?'#C0DD97':'#F4B5B5'};color:${z.status_platnosci==='oplacona'?'#3B6D11':'#A32D2D'};">${PLATNOSC_LABELS[z.status_platnosci]||z.status_platnosci}</span>
         ${z.status_faktury==='wystawiona'||z.status_faktury==='wyslana'||z.numer_faktury?`<span class="tag" style="background:#EAF3DE;border-color:#C0DD97;color:#3B6D11;font-weight:600;">🧾 FV</span>`:''}
       </div>
-      ${z.status_realizacji!=='zrealizowane'?`<button onclick="event.stopPropagation();szybkaRealizacjaZamowienia('${z.id}',this)" style="align-self:flex-start;background:var(--green);color:white;border:none;border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:var(--fm);font-weight:600;">✓ Zrealizuj</button>`:''}
+      <button onclick="event.stopPropagation();szybkaRealizacjaZamowienia('${z.id}',this)" style="align-self:flex-start;background:var(--green);color:white;border:none;border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:var(--fm);font-weight:600;">✓ Zrealizuj</button>
     </div>`;
   }).join('');
 }
