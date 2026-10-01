@@ -787,6 +787,15 @@ async function ladujZlecone(){
         zlecenia:zleceniaByKubek[k.kubek_id]||[],
       });
     }
+    // Sortuj: najnowsze zlecenia na górze (po dacie zlecenia)
+    result.sort((a,b)=>{
+      const da=a.data_zlecenia&&a.data_zlecenia!=='1970-01-01'?a.data_zlecenia:'';
+      const db=b.data_zlecenia&&b.data_zlecenia!=='1970-01-01'?b.data_zlecenia:'';
+      if(!da&&!db)return 0;
+      if(!da)return 1;
+      if(!db)return -1;
+      return db.localeCompare(da);
+    });
     await enrichZrodloTyp(result);
     return result;
   }catch(e){console.warn('ladujZlecone:',e);return[];}
@@ -1750,12 +1759,12 @@ function applyFilters(scope){
     document.getElementById('skZlecA').textContent=zlecA>0?`zlecono: ${zlecA.toLocaleString('pl')}`:'';
     document.getElementById('skZlecK').textContent=zlecK>0?`zlecono: ${zlecK.toLocaleString('pl')}`:'';
     // Sortuj: przykrywki na końcu, kubki wg pojemności rosnąco, potem dostępność malejąco
-    const fSorted = [...f].sort((a,b)=>{
+    const fSorted = activeMagKubki==='zlecone' ? [...f] : [...f].sort((a,b)=>{
       if(a.isPrzykrywka && !b.isPrzykrywka) return 1;
       if(!a.isPrzykrywka && b.isPrzykrywka) return -1;
       if(a.pojemnosc_ml !== b.pojemnosc_ml) return a.pojemnosc_ml - b.pojemnosc_ml;
-      const stanA = activeMagKubki&&activeMagKubki!=='zlecone'&&activeMagKubki!=='archiwum' ? (a.stany.find(s=>s.magazyn_id===activeMagKubki)?.ilosc_dostepna||0) : a.ilosc_lacznie;
-      const stanB = activeMagKubki&&activeMagKubki!=='zlecone'&&activeMagKubki!=='archiwum' ? (b.stany.find(s=>s.magazyn_id===activeMagKubki)?.ilosc_dostepna||0) : b.ilosc_lacznie;
+      const stanA = activeMagKubki&&activeMagKubki!=='archiwum' ? (a.stany.find(s=>s.magazyn_id===activeMagKubki)?.ilosc_dostepna||0) : a.ilosc_lacznie;
+      const stanB = activeMagKubki&&activeMagKubki!=='archiwum' ? (b.stany.find(s=>s.magazyn_id===activeMagKubki)?.ilosc_dostepna||0) : b.ilosc_lacznie;
       return stanB - stanA;
     });
     const showDateKubki=activeMagKubki==='zlecone';
@@ -1956,6 +1965,7 @@ function renderKubki(kubki,listId,activeMag,showDate,typOverride=''){
               ${dataDostawy?`<div style="font-size:10px;color:#BA7517;font-weight:600;">📦 ${dataDostawy}</div>`:''}
             </div>
             ${k.ilosc_zlecona>0?`<div style="font-family:var(--fh);font-size:21px;font-weight:700;color:var(--accent);line-height:1.1;text-align:right;">${k.ilosc_zlecona} szt.</div>`:''}
+            ${(()=>{const akt=(k.zlecenia||[]).find(z=>z.status==='w_produkcji');if(!akt)return'';return`<button onclick="event.stopPropagation();zrealizujZlecenie('${akt.id}','${k.kubek_id}',this)" style="margin-top:4px;background:var(--green);color:white;border:none;border-radius:6px;padding:4px 9px;font-size:10px;cursor:pointer;font-family:var(--fm);font-weight:600;">✓ Zrealizuj</button>`;})()}
           `:`
             <div style="display:flex;align-items:center;gap:5px;justify-content:flex-end;line-height:1;margin-top:-1px;">
               <span class="stock-dot ${dotCls}"></span>
@@ -2701,7 +2711,7 @@ function renderZamowienia(zamowienia){
         <span class="tag" style="background:${z.status_platnosci==='oplacona'?'#EAF3DE':'#FBE9E9'};border-color:${z.status_platnosci==='oplacona'?'#C0DD97':'#F4B5B5'};color:${z.status_platnosci==='oplacona'?'#3B6D11':'#A32D2D'};">${PLATNOSC_LABELS[z.status_platnosci]||z.status_platnosci}</span>
         ${z.status_faktury==='wystawiona'||z.status_faktury==='wyslana'||z.numer_faktury?`<span class="tag" style="background:#EAF3DE;border-color:#C0DD97;color:#3B6D11;font-weight:600;">🧾 FV</span>`:''}
       </div>
-      
+      ${z.status_realizacji!=='zrealizowane'?`<button onclick="event.stopPropagation();szybkaRealizacjaZamowienia('${z.id}',this)" style="align-self:flex-start;background:var(--green);color:white;border:none;border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:var(--fm);font-weight:600;">✓ Zrealizuj</button>`:''}
     </div>`;
   }).join('');
 }
@@ -2821,6 +2831,23 @@ async function zmienStatus(zamId, pole, wartosc){
     const msg=document.getElementById('zamStatusMsg');
     if(msg){msg.className='f-msg err';msg.textContent='Błąd: '+e.message;}
   }
+}
+
+async function szybkaRealizacjaZamowienia(zamId, btnEl){
+  if(!confirm('Oznaczyć całe zamówienie jako zrealizowane? Stan magazynowy zostanie odjęty.'))return;
+  try{
+    await sbFetch('zamowienie',`?id=eq.${zamId}`,{method:'PATCH',body:JSON.stringify({status_realizacji:'zrealizowane'})});
+    await odejmijZeStan(zamId);
+    if(btnEl){
+      btnEl.textContent='✓ Zrealizowano';
+      btnEl.style.background='#3B6D11';
+      btnEl.style.cursor='default';
+      btnEl.disabled=true;
+    }
+    // Zaktualizuj lokalnie żeby ewentualny re-render był spójny
+    const z=allZamowienia.find(x=>x.id===zamId);
+    if(z)z.status_realizacji='zrealizowane';
+  }catch(e){alert('Błąd: '+e.message);}
 }
 
 async function odejmijZeStan(zamId){
@@ -3775,9 +3802,7 @@ async function zapiszZamowienie(){
 }
 
 
-// ── FAKTUROWNIA ──
-const FAKTUROWNIA_TOKEN = localStorage.getItem('fakturownia_token')||'';
-const FAKTUROWNIA_DOMAIN = localStorage.getItem('fakturownia_domain')||'';
+// ── FAKTUROWNIA ── (token/domena są w Supabase Edge Function secrets, nie tutaj)
 
 async function przygotujFakture(zamId){
   const{url,key}=getCfg();
